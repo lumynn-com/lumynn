@@ -1,0 +1,37 @@
+{
+  "name": "obsidian-web-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"tsx watch src/server/server.ts\" \"vite --host 0.0.0.0\"",
+    "server": "tsx src/server/server.ts",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "latest",
+    "@fastify/cors": "latest",
+    "@fastify/static": "latest",
+    "bcryptjs": "latest",
+    "fastify": "latest",
+    "gray-matter": "latest",
+    "marked": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "sanitize-html": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/sanitize-html": "latest",
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vite": "^5.4.21"
+  }
+}

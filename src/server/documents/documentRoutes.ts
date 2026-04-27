@@ -1,0 +1,66 @@
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, renderPreview, writeDocument } from "../vault/vaultService";
+
+const sortSchema = z.object({
+  sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
+  order: z.enum(["asc", "desc"]).optional()
+});
+
+export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/api/documents", async (request) => {
+    const query = sortSchema.parse(request.query);
+    return listDocuments(query.sort ?? "name", query.order ?? "asc");
+  });
+
+  app.post("/api/documents", async (request, reply) => {
+    const body = z.object({ path: z.string().min(1), content: z.string().optional() }).parse(request.body);
+    try {
+      return await createDocument(body.path, body.content);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to create document" };
+    }
+  });
+
+  app.get("/api/documents/content", async (request, reply) => {
+    const query = z.object({ path: z.string().min(1) }).parse(request.query);
+    try {
+      return await readDocument(query.path);
+    } catch (error) {
+      reply.code(404);
+      return { error: error instanceof Error ? error.message : "Document not found" };
+    }
+  });
+
+  app.put("/api/documents/content", async (request, reply) => {
+    const body = z.object({ path: z.string().min(1), content: z.string(), expectedHash: z.string().optional() }).parse(request.body);
+    try {
+      return await writeDocument(body.path, body.content, body.expectedHash);
+    } catch (error) {
+      reply.code(error instanceof Error && error.name === "ConflictError" ? 409 : 400);
+      return { error: error instanceof Error ? error.message : "Unable to save document" };
+    }
+  });
+
+  app.delete("/api/documents/content", async (request, reply) => {
+    const body = z.object({ path: z.string().min(1) }).parse(request.body);
+    try {
+      await deleteDocument(body.path);
+      return { ok: true };
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to delete document" };
+    }
+  });
+
+  app.post("/api/documents/preview", async (request) => {
+    const body = z.object({ content: z.string() }).parse(request.body);
+    return { html: await renderPreview(body.content) };
+  });
+
+  app.get("/api/documents/backlinks", async (request) => {
+    const query = z.object({ path: z.string().min(1) }).parse(request.query);
+    return backlinksFor(query.path);
+  });
+}
