@@ -19,6 +19,14 @@ export interface DocumentContent extends DocumentSummary {
   links: string[];
 }
 
+export interface DocumentSearchResult {
+  path: string;
+  name: string;
+  title: string;
+  snippet: string;
+  source: "obsidian-cli" | "filesystem";
+}
+
 export interface RagSettings {
   embedding: ProviderSettings;
   qa: ProviderSettings;

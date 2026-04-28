@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { DocumentsView } from "./DocumentsView";
-import { QaView } from "./QaView";
 import { SettingsView } from "./SettingsView";
 
-type View = "docs" | "qa" | "indexing" | "settings";
+type View = "workspace" | "indexing" | "settings";
 
 export function App() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -77,7 +76,7 @@ function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (userna
 }
 
 function Workspace(props: { onLogout: () => void }) {
-  const [view, setView] = useState<View>("docs");
+  const [view, setView] = useState<View>("workspace");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
 
   useEffect(() => {
@@ -95,24 +94,20 @@ function Workspace(props: { onLogout: () => void }) {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell obsidian-shell">
       <a className="skip-link" href="#main-content">Skip to Main Content</a>
-      <aside className="sidebar">
-        <div className="brand">
+      <header className="workspace-topbar">
+        <button className="brand topbar-brand" type="button" onClick={() => setView("workspace")} aria-label="Open workspace">
           <span className="logo" aria-hidden="true">OW</span>
           <div>
             <strong>Obsidian Web</strong>
             <span>Markdown vault</span>
           </div>
-        </div>
-        <nav aria-label="Primary">
-          <button className={view === "docs" ? "active" : ""} onClick={() => setView("docs")}>
+        </button>
+        <nav className="top-nav" aria-label="Primary">
+          <button className={view === "workspace" ? "active" : ""} onClick={() => setView("workspace")}>
             <span aria-hidden="true">D</span>
-            <span className="nav-label">Documents</span>
-          </button>
-          <button className={view === "qa" ? "active" : ""} onClick={() => setView("qa")}>
-            <span aria-hidden="true">?</span>
-            <span className="nav-label">Ask AI</span>
+            <span className="nav-label">Workspace</span>
           </button>
           <button className={view === "indexing" ? "active" : ""} onClick={() => setView("indexing")}>
             <span aria-hidden="true">I</span>
@@ -123,7 +118,7 @@ function Workspace(props: { onLogout: () => void }) {
             <span className="nav-label">Settings</span>
           </button>
         </nav>
-        <div className="sidebar-actions">
+        <div className="topbar-actions">
           <button className="ghost" aria-label="Toggle Theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "Light Theme" : "Dark Theme"}
           </button>
@@ -131,10 +126,9 @@ function Workspace(props: { onLogout: () => void }) {
             Log Out
           </button>
         </div>
-      </aside>
+      </header>
       <div id="main-content" className="main-content">
-        {view === "docs" ? <DocumentsView /> : null}
-        {view === "qa" ? <QaView /> : null}
+        {view === "workspace" ? <DocumentsView /> : null}
         {view === "indexing" ? <SettingsView mode="indexing" /> : null}
         {view === "settings" ? <SettingsView mode="settings" /> : null}
       </div>

@@ -7,6 +7,7 @@ export interface EmbeddingResult {
 }
 
 const retryableErrorPattern = /(fetch failed|other side closed|terminated|timeout|econnreset|etimedout|socket|html instead of json|bad gateway|service unavailable|gateway timeout|too many requests|rate limit)/i;
+type EmbeddingInputType = "query" | "passage";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,7 +18,11 @@ export function endpointUrl(settings: ProviderSettings, defaultPath: string): st
   return `${settings.baseUrl.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 }
 
-export async function embedTexts(settings: ProviderSettings, input: string[]): Promise<EmbeddingResult> {
+function supportsInputType(settings: ProviderSettings): boolean {
+  return /nvidia/i.test(settings.baseUrl) || /^nvidia\//i.test(settings.model);
+}
+
+export async function embedTexts(settings: ProviderSettings, input: string[], options: { inputType?: EmbeddingInputType } = {}): Promise<EmbeddingResult> {
   if (settings.provider === "disabled") {
     throw new Error("Embedding provider is disabled");
   }
@@ -28,13 +33,18 @@ export async function embedTexts(settings: ProviderSettings, input: string[]): P
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
+      const body = {
+        model: settings.model,
+        input,
+        ...(options.inputType && supportsInputType(settings) ? { input_type: options.inputType } : {})
+      };
       const response = await fetch(endpointUrl(settings, "/embeddings"), {
         method: "POST",
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${settings.apiKey ?? ""}`
         },
-        body: JSON.stringify({ model: settings.model, input }),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(settings.timeoutMs)
       });
       const rawPayload = await response.text();

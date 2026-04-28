@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { store } from "../store";
 import { listDocuments, readDocument, renderPreview } from "../vault/vaultService";
-import { chunkMarkdownByHeading, formatChunkForEmbedding } from "./chunker";
+import { chunkMarkdownByHeading } from "./chunker";
 import { embedTexts, endpointUrl } from "./embeddingProvider";
 import { getIndexJob, latestIndexJob, requestIndexJobCancel, requestIndexJobSkipCurrentFile, startIndexJob } from "./indexJobs";
 import { getNamespaceChunks, getNamespaceStats, searchVectors, type VectorNamespace } from "./vectorStore";
@@ -22,16 +22,49 @@ interface RetrievalResult {
   warning?: string;
 }
 
-const maxQaChunks = 4;
-const maxQaChunkChars = 1600;
-const maxQaContextChars = 6000;
+const maxQaChunks = 6;
+const maxQaChunkChars = 1800;
+const maxQaContextChars = 9000;
+const minCandidateK = 20;
+const candidateMultiplier = 5;
+const maxLiveKeywordDocs = 80;
 const retryableProviderErrorPattern = /(fetch failed|other side closed|terminated|timeout|econnreset|etimedout|socket)/i;
+const stopWords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "how",
+  "in",
+  "is",
+  "it",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "to",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "with"
+]);
 
 interface QaAttemptOptions {
   maxChunks: number;
   maxChunkChars: number;
   maxContextChars: number;
   maxOutputTokens: number;
+  timeoutMs: number;
 }
 
 function tokenize(input: string): string[] {
@@ -48,28 +81,125 @@ function tokenize(input: string): string[] {
     }
     return grams;
   });
-  return Array.from(new Set([...asciiTokens, ...cjkTokens]));
+  return Array.from(new Set([...asciiTokens, ...cjkTokens])).filter((token) => token.length > 1 && !stopWords.has(token));
 }
 
 function keywordScore(question: string, chunk: Pick<Chunk, "path" | "title" | "text">): number {
-  const haystack = `${chunk.path}\n${chunk.title}\n${chunk.text}`.toLowerCase();
+  const title = chunk.title.toLowerCase();
+  const path = chunk.path.toLowerCase().replace(/[/._-]+/g, " ");
+  const text = chunk.text.toLowerCase();
+  const haystack = `${path}\n${title}\n${text}`;
   const normalizedQuestion = question.toLowerCase().trim();
   const tokens = tokenize(question);
   let score = 0;
 
   if (normalizedQuestion && haystack.includes(normalizedQuestion)) {
-    score += 20;
+    score += 35;
+  }
+  if (normalizedQuestion && title.includes(normalizedQuestion)) {
+    score += 45;
+  }
+  if (normalizedQuestion && path.includes(normalizedQuestion)) {
+    score += 40;
   }
 
+  let matchedTokens = 0;
   for (const token of tokens) {
-    let offset = haystack.indexOf(token);
-    while (offset !== -1) {
-      score += token.length >= 3 ? 3 : 1;
-      offset = haystack.indexOf(token, offset + token.length);
+    const titleMatches = countMatches(title, token);
+    const pathMatches = countMatches(path, token);
+    const textMatches = countMatches(text, token);
+    if (titleMatches + pathMatches + textMatches > 0) {
+      matchedTokens += 1;
+    }
+    score += titleMatches * 12;
+    score += pathMatches * 10;
+    score += textMatches * (token.length >= 3 ? 3 : 1);
+  }
+
+  if (tokens.length > 0) {
+    const coverage = matchedTokens / tokens.length;
+    score += coverage * 18;
+    if (coverage === 1) {
+      score += 20;
     }
   }
 
   return score;
+}
+
+function countMatches(input: string, token: string): number {
+  let count = 0;
+  let offset = input.indexOf(token);
+  while (offset !== -1) {
+    count += 1;
+    offset = input.indexOf(token, offset + token.length);
+  }
+  return count;
+}
+
+function exactQuestionMatch(question: string, chunk: Pick<Chunk, "path" | "title" | "text">): boolean {
+  const normalizedQuestion = question.toLowerCase().trim();
+  if (!normalizedQuestion) {
+    return false;
+  }
+  const haystack = `${chunk.path}\n${chunk.title}\n${chunk.text}`.toLowerCase();
+  return haystack.includes(normalizedQuestion);
+}
+
+function chunkKey(chunk: Pick<Chunk, "path" | "text">): string {
+  return `${chunk.path}:${chunk.text.slice(0, 120)}`;
+}
+
+function mergeChunks(target: Map<string, Chunk>, chunks: Chunk[], sourceWeight = 1): void {
+  for (const chunk of chunks) {
+    const key = chunkKey(chunk);
+    const weighted = { ...chunk, score: chunk.score * sourceWeight };
+    const existing = target.get(key);
+    if (!existing) {
+      target.set(key, weighted);
+      continue;
+    }
+    target.set(key, {
+      ...existing,
+      score: Math.max(existing.score, weighted.score) + Math.min(existing.score, weighted.score) * 0.25
+    });
+  }
+}
+
+function selectDiverseTopK(chunks: Chunk[], question: string, topK: number): Chunk[] {
+  const selected: Chunk[] = [];
+  const perPath = new Map<string, number>();
+  const sorted = chunks.sort((a, b) => {
+    const exactDiff = Number(exactQuestionMatch(question, b)) - Number(exactQuestionMatch(question, a));
+    return exactDiff || b.score - a.score || a.path.localeCompare(b.path);
+  });
+
+  for (const chunk of sorted) {
+    const count = perPath.get(chunk.path) ?? 0;
+    if (count >= 2 && selected.length < Math.max(3, topK - 1)) {
+      continue;
+    }
+    selected.push(chunk);
+    perPath.set(chunk.path, count + 1);
+    if (selected.length >= topK) {
+      break;
+    }
+  }
+
+  return selected;
+}
+
+function formatContextChunk(title: string, path: string, heading: string | undefined, text: string): string {
+  const headingLine = heading ? `\nHEADING: ${heading}` : "";
+  return `NOTE TITLE: [[${title}]]\nNOTE PATH: ${path}${headingLine}\n\nNOTE BLOCK CONTENT:\n\n${text}`;
+}
+
+function scoreVectorMatch(question: string, match: Chunk): number {
+  return match.score * 25 + keywordScore(question, match) + metadataBoost(question, match);
+}
+
+function scoreLexicalMatch(question: string, match: Pick<Chunk, "path" | "title" | "text" | "tags" | "aliases">): number {
+  return keywordScore(question, match) + metadataBoost(question, match);
 }
 
 function metadataBoost(question: string, input: { path: string; title: string; tags?: string[]; aliases?: string[] }): number {
@@ -131,30 +261,27 @@ async function retrieveFallback(question: string, limit?: number): Promise<Chunk
   const data = await store.load();
   const docs = await listDocuments("updatedAt", "desc");
   const chunks: Chunk[] = [];
-  const selected = typeof limit === "number" ? docs.slice(0, limit) : docs;
+  const selectedDocs = docs
+    .map((doc) => ({ doc, score: metadataBoost(question, doc) + keywordScore(question, { path: doc.path, title: doc.title, text: doc.headings.join("\n") }) }))
+    .sort((a, b) => b.score - a.score || a.doc.path.localeCompare(b.doc.path))
+    .slice(0, Math.max(maxLiveKeywordDocs, limit ?? data.settings.rag.retrieval.topK))
+    .map((entry) => entry.doc);
 
-  for (const doc of selected) {
+  for (const doc of selectedDocs) {
     const full = await readDocument(doc.path);
     const docBoost = metadataBoost(question, full);
     for (const chunk of chunkMarkdownByHeading(full.content, data.settings.rag.retrieval.chunkSize, data.settings.rag.retrieval.chunkOverlap)) {
-      const text = formatChunkForEmbedding({
-        title: full.title,
-        path: full.path,
-        tags: full.tags,
-        aliases: full.aliases,
-        frontmatter: full.frontmatter,
-        heading: chunk.heading,
-        text: chunk.text
-      });
-      const score = docBoost + keywordScore(question, { path: full.path, title: full.title, text });
-      chunks.push({ path: full.path, title: chunk.heading ? `${full.title} > ${chunk.heading}` : full.title, text, score });
+      const title = chunk.heading ? `${full.title} > ${chunk.heading}` : full.title;
+      const text = formatContextChunk(full.title, full.path, chunk.heading, chunk.text);
+      const score = docBoost + keywordScore(question, { path: full.path, title, text: chunk.text });
+      chunks.push({ path: full.path, title, text, tags: full.tags, aliases: full.aliases, score });
     }
   }
 
   return chunks
     .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
     .filter((chunk, index) => chunk.score > 0 || index < data.settings.rag.retrieval.topK)
-    .slice(0, data.settings.rag.retrieval.topK);
+    .slice(0, limit ?? data.settings.rag.retrieval.topK);
 }
 
 async function retrieveIndexedKeyword(namespace: VectorNamespace, question: string, topK: number): Promise<Chunk[]> {
@@ -166,7 +293,7 @@ async function retrieveIndexedKeyword(namespace: VectorNamespace, question: stri
       text: chunk.text,
       tags: chunk.tags,
       aliases: chunk.aliases,
-      score: keywordScore(question, chunk) + metadataBoost(question, chunk)
+      score: scoreLexicalMatch(question, chunk)
     }))
     .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
     .filter((chunk, index) => chunk.score > 0 || index < topK)
@@ -179,72 +306,75 @@ async function retrieve(question: string): Promise<RetrievalResult> {
   const testStats = await getNamespaceStats("test");
   const namespace: VectorNamespace | null =
     productionStats.chunkCount > 0 ? "production" : testStats.chunkCount > 0 ? "test" : null;
+  const topK = data.settings.rag.retrieval.topK;
+  const candidateK = Math.max(minCandidateK, topK * candidateMultiplier);
 
   if (namespace) {
     if (data.settings.rag.embedding.provider !== "disabled") {
       try {
-        const result = await embedTexts(data.settings.rag.embedding, [question]);
-        const vectorMatches = await searchVectors(namespace, result.embeddings[0], data.settings.rag.retrieval.topK);
-        const keywordMatches = await retrieveIndexedKeyword(namespace, question, data.settings.rag.retrieval.topK);
+        const result = await embedTexts(data.settings.rag.embedding, [question], { inputType: "query" });
+        const vectorMatches = await searchVectors(namespace, result.embeddings[0], candidateK);
+        const keywordMatches = await retrieveIndexedKeyword(namespace, question, candidateK);
         const merged = new Map<string, Chunk>();
 
-        for (const match of vectorMatches) {
-          merged.set(match.id, {
+        mergeChunks(
+          merged,
+          vectorMatches.map((match) => ({
             path: match.path,
             title: match.title,
             text: match.text,
             tags: match.tags,
             aliases: match.aliases,
-            score: match.score + keywordScore(question, match) + metadataBoost(question, match)
-          });
-        }
-        for (const match of keywordMatches) {
-          const key = `${match.path}:${match.text}`;
-          const existing = merged.get(key);
-          merged.set(key, existing ? { ...existing, score: existing.score + match.score } : match);
-        }
+            score: scoreVectorMatch(question, match)
+          }))
+        );
+        mergeChunks(merged, keywordMatches.filter((match) => match.score > 0), 1.15);
 
         return {
           namespace,
-          chunks: Array.from(merged.values())
-            .sort((a, b) => b.score - a.score)
-            .slice(0, data.settings.rag.retrieval.topK)
+          chunks: selectDiverseTopK(Array.from(merged.values()), question, topK)
         };
       } catch (error) {
         const warning = error instanceof Error ? error.message : "Embedding query failed";
-        const indexedKeyword = await retrieveIndexedKeyword(namespace, question, data.settings.rag.retrieval.topK);
-        if ((indexedKeyword[0]?.score ?? 0) <= 0) {
+        const indexedKeyword = await retrieveIndexedKeyword(namespace, question, candidateK);
+        const merged = new Map<string, Chunk>();
+        mergeChunks(merged, indexedKeyword.filter((match) => match.score > 0), 1.1);
+        const chunks = selectDiverseTopK(Array.from(merged.values()), question, topK);
+        if ((chunks[0]?.score ?? 0) <= 0) {
           return {
             namespace: "vault-keyword",
             warning,
-            chunks: await retrieveFallback(question)
+            chunks: await retrieveFallback(question, topK)
           };
         }
         return {
           namespace: `${namespace}-keyword`,
           warning,
-          chunks: indexedKeyword
+          chunks
         };
       }
     }
 
-    const indexedKeyword = await retrieveIndexedKeyword(namespace, question, data.settings.rag.retrieval.topK);
-    if ((indexedKeyword[0]?.score ?? 0) <= 0) {
+    const indexedKeyword = await retrieveIndexedKeyword(namespace, question, candidateK);
+    const merged = new Map<string, Chunk>();
+    mergeChunks(merged, indexedKeyword.filter((match) => match.score > 0), 1.1);
+    const chunks = selectDiverseTopK(Array.from(merged.values()), question, topK);
+    if ((chunks[0]?.score ?? 0) <= 0) {
       return {
         namespace: "vault-keyword",
-        chunks: await retrieveFallback(question)
+        chunks: await retrieveFallback(question, topK)
       };
     }
 
     return {
       namespace: `${namespace}-keyword`,
-      chunks: indexedKeyword
+      chunks
     };
   }
 
   return {
     namespace: "keyword",
-    chunks: await retrieveFallback(question)
+    chunks: await retrieveFallback(question, topK)
   };
 }
 
@@ -315,7 +445,7 @@ async function answerWithProviderAttempt(question: string, chunks: Chunk[], opti
         authorization: `Bearer ${settings.apiKey ?? ""}`
       },
       body: buildBody(includeThinking),
-      signal: AbortSignal.timeout(settings.timeoutMs)
+      signal: AbortSignal.timeout(Math.min(settings.timeoutMs || options.timeoutMs, options.timeoutMs))
     });
     return {
       response,
@@ -353,9 +483,9 @@ async function answerWithProvider(question: string, chunks: Chunk[]): Promise<st
   }
 
   const attempts: QaAttemptOptions[] = [
-    { maxChunks: maxQaChunks, maxChunkChars: maxQaChunkChars, maxContextChars: maxQaContextChars, maxOutputTokens: 1200 },
-    { maxChunks: 2, maxChunkChars: 900, maxContextChars: 1800, maxOutputTokens: 800 },
-    { maxChunks: 1, maxChunkChars: 700, maxContextChars: 700, maxOutputTokens: 500 }
+    { maxChunks: maxQaChunks, maxChunkChars: maxQaChunkChars, maxContextChars: maxQaContextChars, maxOutputTokens: 1200, timeoutMs: 18000 },
+    { maxChunks: 2, maxChunkChars: 900, maxContextChars: 1800, maxOutputTokens: 800, timeoutMs: 12000 },
+    { maxChunks: 1, maxChunkChars: 700, maxContextChars: 700, maxOutputTokens: 500, timeoutMs: 8000 }
   ];
   let lastError: unknown;
 

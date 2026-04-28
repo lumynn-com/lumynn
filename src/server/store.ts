@@ -71,6 +71,8 @@ const defaultRag = {
 export class JsonStore {
   private filePath = path.join(config.dataDir, "app-data.json");
   private data: AppData | null = null;
+  private saveChain: Promise<void> = Promise.resolve();
+  private saveCounter = 0;
 
   async load(): Promise<AppData> {
     if (this.data) {
@@ -133,14 +135,24 @@ export class JsonStore {
   }
 
   async save(): Promise<void> {
+    const nextSave = this.saveChain.then(() => this.writeFile());
+    this.saveChain = nextSave.catch(() => undefined);
+    return nextSave;
+  }
+
+  private async writeFile(): Promise<void> {
     if (!this.data) {
       return;
     }
 
     await fs.mkdir(config.dataDir, { recursive: true });
-    const tmpPath = `${this.filePath}.${process.pid}.tmp`;
-    await fs.writeFile(tmpPath, JSON.stringify(this.data, null, 2));
-    await fs.rename(tmpPath, this.filePath);
+    const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.${this.saveCounter++}.tmp`;
+    try {
+      await fs.writeFile(tmpPath, JSON.stringify(this.data, null, 2));
+      await fs.rename(tmpPath, this.filePath);
+    } finally {
+      await fs.unlink(tmpPath).catch(() => undefined);
+    }
   }
 }
 

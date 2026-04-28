@@ -5,10 +5,21 @@ import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
-import { backlinksWithObsidianCli } from "../obsidian/obsidianCli";
+import { backlinksWithObsidianCli, searchWithObsidianCli } from "../obsidian/obsidianCli";
 import { store } from "../store";
-import type { DocumentContent, DocumentSummary, SortField, SortOrder, VaultValidation } from "../../shared/types";
+import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
+
+const supportedMediaTypes: Record<string, string> = {
+  ".apng": "image/apng",
+  ".avif": "image/avif",
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".webp": "image/webp"
+};
 
 function isInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
@@ -21,6 +32,15 @@ export function normalizeDocumentPath(input: string): string {
     throw new Error("Invalid document path");
   }
   return normalized.endsWith(".md") ? normalized : `${normalized}.md`;
+}
+
+function normalizeVaultAssetPath(input: string): string {
+  const withoutAnchor = input.split("#")[0].split("?")[0].trim();
+  const normalized = withoutAnchor.replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!normalized || normalized.includes("\0") || normalized.split("/").some((part) => part === "..")) {
+    throw new Error("Invalid asset path");
+  }
+  return normalized;
 }
 
 export async function validateVaultPath(vaultPath: string): Promise<VaultValidation> {
@@ -101,6 +121,22 @@ async function walkMarkdown(root: string, dir = root): Promise<string[]> {
   return nested.flat();
 }
 
+async function walkFiles(root: string, dir = root): Promise<string[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries
+      .filter((entry) => entry.name !== ".obsidian")
+      .map(async (entry) => {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          return walkFiles(root, fullPath);
+        }
+        return entry.isFile() ? [path.relative(root, fullPath).replaceAll("\\", "/")] : [];
+      })
+  );
+  return nested.flat();
+}
+
 async function summarize(vaultRoot: string, documentPath: string): Promise<DocumentSummary> {
   const fullPath = resolveInVault(vaultRoot, documentPath);
   const content = await fs.readFile(fullPath, "utf8");
@@ -171,6 +207,92 @@ export async function readDocument(documentPath: string): Promise<DocumentConten
   };
 }
 
+function normalizeCliSearchPath(line: string, vaultRoot: string, documents: DocumentSummary[]): string | null {
+  const normalizedLine = line.trim().replaceAll("\\", "/");
+  if (!normalizedLine) {
+    return null;
+  }
+
+  const withoutVault = normalizedLine.startsWith(vaultRoot.replaceAll("\\", "/"))
+    ? path.relative(vaultRoot, normalizedLine.split(/:(?:\d+:)?/)[0]).replaceAll("\\", "/")
+    : normalizedLine;
+  const candidates = [
+    withoutVault,
+    withoutVault.split(/:(?:\d+:)?/)[0],
+    withoutVault.replace(/^["']|["']$/g, "")
+  ].map((candidate) => candidate.replace(/^\/+/, ""));
+
+  for (const candidate of candidates) {
+    const normalized = candidate.endsWith(".md") ? candidate : `${candidate}.md`;
+    const match = documents.find((doc) => doc.path === normalized || doc.path.endsWith(`/${normalized}`));
+    if (match) {
+      return match.path;
+    }
+  }
+
+  const contained = documents.find((doc) => normalizedLine.includes(doc.path) || normalizedLine.includes(doc.name));
+  return contained?.path ?? null;
+}
+
+function makeSnippet(content: string, query: string, fallback: string): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  const offset = normalized.toLowerCase().indexOf(query.toLowerCase());
+  if (offset === -1) {
+    return fallback || normalized.slice(0, 180);
+  }
+  const start = Math.max(0, offset - 70);
+  return `${start > 0 ? "..." : ""}${normalized.slice(start, offset + query.length + 120)}${offset + query.length + 120 < normalized.length ? "..." : ""}`;
+}
+
+export async function searchDocuments(query: string): Promise<DocumentSearchResult[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const vaultRoot = await ensureVault();
+  const documents = await listDocuments("updatedAt", "desc");
+  const byPath = new Map(documents.map((doc) => [doc.path, doc]));
+  const results = new Map<string, DocumentSearchResult>();
+  const cliLines = await searchWithObsidianCli(vaultRoot, trimmedQuery);
+
+  for (const line of cliLines) {
+    const matchedPath = normalizeCliSearchPath(line, vaultRoot, documents);
+    const doc = matchedPath ? byPath.get(matchedPath) : undefined;
+    if (!doc || results.has(doc.path)) {
+      continue;
+    }
+    results.set(doc.path, {
+      path: doc.path,
+      name: doc.name,
+      title: doc.title,
+      snippet: line,
+      source: "obsidian-cli"
+    });
+  }
+
+  if (results.size > 0) {
+    return Array.from(results.values());
+  }
+
+  for (const doc of documents) {
+    const content = await fs.readFile(resolveInVault(vaultRoot, doc.path), "utf8").catch(() => "");
+    const haystack = `${doc.path}\n${doc.title}\n${doc.name}\n${doc.tags.join(" ")}\n${doc.aliases.join(" ")}\n${content}`.toLowerCase();
+    if (!haystack.includes(trimmedQuery.toLowerCase())) {
+      continue;
+    }
+    results.set(doc.path, {
+      path: doc.path,
+      name: doc.name,
+      title: doc.title,
+      snippet: makeSnippet(content, trimmedQuery, doc.headings[0] ?? doc.path),
+      source: "filesystem"
+    });
+  }
+
+  return Array.from(results.values()).slice(0, 100);
+}
+
 export async function writeDocument(documentPath: string, content: string, expectedHash?: string): Promise<DocumentContent> {
   const vaultRoot = await ensureVault();
   const safePath = normalizeDocumentPath(documentPath);
@@ -215,13 +337,110 @@ export async function deleteDocument(documentPath: string): Promise<void> {
   await store.save();
 }
 
-export async function renderPreview(content: string): Promise<string> {
-  const html = await marked.parse(content, { async: true });
+export async function renameDocument(documentPath: string, nextPath: string): Promise<DocumentContent> {
+  const vaultRoot = await ensureVault();
+  const safePath = normalizeDocumentPath(documentPath);
+  const safeNextPath = normalizeDocumentPath(nextPath);
+  if (safePath === safeNextPath) {
+    return readDocument(safePath);
+  }
+
+  const fullPath = resolveInVault(vaultRoot, safePath);
+  const nextFullPath = resolveInVault(vaultRoot, safeNextPath);
+  const exists = await fs.stat(nextFullPath).then(() => true).catch(() => false);
+  if (exists) {
+    throw new Error("A document already exists at the new path");
+  }
+
+  await fs.mkdir(path.dirname(nextFullPath), { recursive: true });
+  await fs.rename(fullPath, nextFullPath);
+
+  const data = await store.load();
+  if (data.createdAtByPath[safePath]) {
+    data.createdAtByPath[safeNextPath] = data.createdAtByPath[safePath];
+    delete data.createdAtByPath[safePath];
+  }
+  if (data.metadataByPath[safePath]) {
+    data.metadataByPath[safeNextPath] = {
+      ...data.metadataByPath[safePath],
+      path: safeNextPath,
+      cachedAt: new Date().toISOString()
+    };
+    delete data.metadataByPath[safePath];
+  }
+  await store.save();
+
+  return readDocument(safeNextPath);
+}
+
+function mediaUrl(assetPath: string, basePath?: string): string {
+  const params = new URLSearchParams({ path: assetPath });
+  if (basePath) {
+    params.set("base", basePath);
+  }
+  return `/api/documents/media?${params.toString()}`;
+}
+
+function prepareMediaEmbeds(content: string, basePath?: string): string {
+  const withObsidianImages = content.replace(/!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawPath: string, rawAlt: string | undefined) => {
+    const assetPath = rawPath.trim();
+    const alt = (rawAlt?.trim() || path.basename(assetPath)).replaceAll("]", "\\]");
+    return `![${alt}](${mediaUrl(assetPath, basePath)})`;
+  });
+
+  return withObsidianImages.replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)\s]+)(?:\s+"[^"]*")?\)/gi, (_match, rawAlt: string, rawPath: string) => {
+    return `![${rawAlt}](${mediaUrl(rawPath, basePath)})`;
+  });
+}
+
+export async function readVaultMedia(assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
+  const vaultRoot = await ensureVault();
+  const safeAssetPath = normalizeVaultAssetPath(assetPath);
+  const extension = path.extname(safeAssetPath).toLowerCase();
+  const contentType = supportedMediaTypes[extension];
+  if (!contentType) {
+    throw new Error("Unsupported media type");
+  }
+
+  const candidates = new Set<string>();
+  if (basePath) {
+    const safeBasePath = normalizeDocumentPath(basePath);
+    candidates.add(path.posix.normalize(path.posix.join(path.posix.dirname(safeBasePath), safeAssetPath)));
+  }
+  candidates.add(safeAssetPath);
+
+  for (const candidate of candidates) {
+    const fullPath = path.resolve(vaultRoot, candidate);
+    if (!isInside(vaultRoot, fullPath)) {
+      continue;
+    }
+    const data = await fs.readFile(fullPath).catch(() => null);
+    if (data) {
+      return { data, contentType };
+    }
+  }
+
+  const basename = path.basename(safeAssetPath).toLowerCase();
+  const files = await walkFiles(vaultRoot);
+  const match = files.find((file) => path.basename(file).toLowerCase() === basename && supportedMediaTypes[path.extname(file).toLowerCase()]);
+  if (!match) {
+    throw new Error("Media not found");
+  }
+
+  const fullPath = path.resolve(vaultRoot, match);
+  return {
+    data: await fs.readFile(fullPath),
+    contentType
+  };
+}
+
+export async function renderPreview(content: string, basePath?: string): Promise<string> {
+  const html = await marked.parse(prepareMediaEmbeds(content, basePath), { async: true });
   return sanitizeHtml(html, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2"]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
-      img: ["src", "alt", "title"]
+      img: ["src", "alt", "title", "loading"]
     }
   });
 }

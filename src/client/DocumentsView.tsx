@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { DocumentContent, DocumentSummary, SortField, SortOrder } from "../shared/types";
+import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
+import { QaView } from "./QaView";
 
 interface TreeNode {
   id: string;
@@ -14,6 +15,24 @@ interface TreeNode {
 type OpenTab = DocumentContent & {
   draft: string;
 };
+
+const sortStorageKey = "owd_document_sort";
+const editorModeStorageKey = "owd_editor_mode";
+
+function readSavedSort(): { sort: SortField; order: SortOrder } {
+  try {
+    const saved = JSON.parse(localStorage.getItem(sortStorageKey) ?? "{}") as { sort?: SortField; order?: SortOrder };
+    const sort: SortField = ["name", "createdAt", "updatedAt", "path", "title"].includes(saved.sort ?? "") ? saved.sort! : "name";
+    const order: SortOrder = saved.order === "desc" ? "desc" : "asc";
+    return { sort, order };
+  } catch {
+    return { sort: "name", order: "asc" };
+  }
+}
+
+function readSavedEditorMode(): "edit" | "preview" {
+  return localStorage.getItem(editorModeStorageKey) === "preview" ? "preview" : "edit";
+}
 
 function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
   const root: TreeNode = { id: "", name: "", type: "folder", children: [], order: 0 };
@@ -63,14 +82,22 @@ function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
 }
 
 export function DocumentsView() {
+  const savedSort = useMemo(readSavedSort, []);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [preview, setPreview] = useState("");
-  const [sort, setSort] = useState<SortField>("name");
-  const [order, setOrder] = useState<SortOrder>("asc");
+  const [centerMode, setCenterMode] = useState<"edit" | "preview">(readSavedEditorMode);
+  const [sort, setSort] = useState<SortField>(savedSort.sort);
+  const [order, setOrder] = useState<SortOrder>(savedSort.order);
   const [status, setStatus] = useState("Ready");
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [searchHasRun, setSearchHasRun] = useState(false);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -103,13 +130,18 @@ export function DocumentsView() {
     const timer = window.setTimeout(() => {
       api<{ html: string }>("/api/documents/preview", {
         method: "POST",
-        body: JSON.stringify({ content: active.draft })
+        body: JSON.stringify({ path: active.path, content: active.draft })
       })
         .then((result) => setPreview(result.html))
         .catch(() => setPreview(""));
     }, 250);
     return () => window.clearTimeout(timer);
   }, [active]);
+
+  function setGlobalCenterMode(nextMode: "edit" | "preview") {
+    setCenterMode(nextMode);
+    localStorage.setItem(editorModeStorageKey, nextMode);
+  }
 
   function setActiveDraft(nextDraft: string) {
     setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, draft: nextDraft } : tab)));
@@ -160,6 +192,31 @@ export function DocumentsView() {
     }
   }
 
+  async function renameActive() {
+    if (!active) {
+      return;
+    }
+    const nextPath = window.prompt("Rename Markdown file", active.path);
+    if (!nextPath || nextPath === active.path) {
+      return;
+    }
+    setStatus("Renaming...");
+    try {
+      const renamed = await api<DocumentContent>("/api/documents/rename", {
+        method: "PATCH",
+        body: JSON.stringify({ path: active.path, nextPath })
+      });
+      setTabs((current) =>
+        current.map((tab) => (tab.path === active.path ? { ...renamed, draft: tab.draft } : tab))
+      );
+      setActivePath(renamed.path);
+      await refreshDocuments();
+      setStatus("Renamed");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Rename failed");
+    }
+  }
+
   async function deleteActive() {
     if (!active || !window.confirm(`Delete ${active.path}?`)) {
       return;
@@ -175,19 +232,45 @@ export function DocumentsView() {
   async function onSort(nextSort: SortField, nextOrder: SortOrder) {
     setSort(nextSort);
     setOrder(nextOrder);
+    localStorage.setItem(sortStorageKey, JSON.stringify({ sort: nextSort, order: nextOrder }));
     await refreshDocuments(nextSort, nextOrder);
   }
 
+  async function searchVault() {
+    if (!searchQuery.trim() || searchLoading) {
+      return;
+    }
+    setSearchLoading(true);
+    setSearchError("");
+    setSearchHasRun(true);
+    try {
+      const results = await api<DocumentSearchResult[]>(`/api/documents/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchResults(results);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : "Search failed");
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function openSearchResult(path: string) {
+    setActivePath(path);
+    setSearchOpen(false);
+  }
+
   return (
-    <main className="workspace-grid">
-      <section className="document-list panel">
+    <main className="workspace-grid obsidian-workspace">
+      <section className="document-list panel vault-pane">
         <div className="panel-header">
           <div>
             <p className="eyebrow">Vault</p>
             <h2>Documents</h2>
             <p className="muted">{documents.length} Markdown file{documents.length === 1 ? "" : "s"}</p>
           </div>
-          <button className="primary" onClick={createDocument}>New Note</button>
+        </div>
+        <div className="vault-toolbar">
+          <button className="primary" onClick={() => setSearchOpen(true)}>Search Vault</button>
+          <button onClick={createDocument}>New Note</button>
         </div>
         <div className="sort-row">
           <label>
@@ -216,15 +299,28 @@ export function DocumentsView() {
           onSelect={setActivePath}
         />
       </section>
-      <section className="editor panel">
+      <section className="editor panel editor-pane">
         <div className="panel-header">
           <div>
             <p className="eyebrow">{active?.path ?? "No document selected"}</p>
-            <h2>{active?.title ?? "Editor"}</h2>
+            <h2>{active?.name ?? "Editor"}</h2>
           </div>
-          <div className="actions">
-            <span className="status status-pill" aria-live="polite">{status}</span>
-            <button onClick={deleteActive} disabled={!active}>
+          <span className="status status-pill" aria-live="polite">{status}</span>
+        </div>
+        <div className="editor-toolbar" aria-label="Editor actions">
+          <div className="mode-switch" role="group" aria-label="Editor display mode">
+            <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setGlobalCenterMode("edit")}>
+              Edit
+            </button>
+            <button className={centerMode === "preview" ? "active" : ""} aria-pressed={centerMode === "preview"} onClick={() => setGlobalCenterMode("preview")}>
+              Preview
+            </button>
+          </div>
+          <div className="file-actions">
+            <button onClick={renameActive} disabled={!active}>
+              Rename
+            </button>
+            <button className="danger" onClick={deleteActive} disabled={!active}>
               Delete
             </button>
             <button className="primary" onClick={save} disabled={!active}>
@@ -237,13 +333,13 @@ export function DocumentsView() {
             {tabs.map((tab) => (
               <div key={tab.path} className={`editor-tab-shell ${activePath === tab.path ? "active" : ""}`}>
                 <button role="tab" aria-selected={activePath === tab.path} className="editor-tab" onClick={() => setActivePath(tab.path)}>
-                  <span>{tab.title}</span>
+                  <span>{tab.name}</span>
                   <span className="tab-path">{tab.path}</span>
                 </button>
                 <button
                   className="tab-close"
                   type="button"
-                  aria-label={`Close ${tab.title}`}
+                  aria-label={`Close ${tab.name}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     closeTab(tab.path);
@@ -255,29 +351,70 @@ export function DocumentsView() {
             ))}
           </div>
         ) : null}
-        {active ? (
+        {active && centerMode === "edit" ? (
           <label className="editor-field">
             <span className="sr-only">Markdown Content</span>
             <textarea name="markdown-content" value={active.draft} onChange={(event) => setActiveDraft(event.target.value)} spellCheck={false} />
           </label>
-        ) : (
+        ) : null}
+        {active && centerMode === "preview" ? (
+          <div className="preview-surface">
+            {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">No preview yet.</div>}
+          </div>
+        ) : null}
+        {!active ? (
           <div className="blank-editor">
             <p className="eyebrow">No file open</p>
             <h2>Select a document from the tree</h2>
             <p className="muted">The editor starts blank by default. Open one or more files to work with tabs.</p>
           </div>
-        )}
+        ) : null}
       </section>
-      <section className="preview panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Live</p>
-            <h2>Preview</h2>
-            <p className="muted">{active ? "Rendered Markdown updates as you type." : "Open a note to preview it."}</p>
-          </div>
+      <QaView compact onOpenSource={(path) => setActivePath(path)} />
+      {searchOpen ? (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>
+          <section className="search-modal panel" role="dialog" aria-modal="true" aria-labelledby="vault-search-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Vault Search</p>
+                <h2 id="vault-search-title">Search Documents</h2>
+                <p className="muted">Uses obsidian-cli first, with filesystem search as fallback.</p>
+              </div>
+              <button type="button" onClick={() => setSearchOpen(false)}>Close</button>
+            </div>
+            <form
+              className="search-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                searchVault();
+              }}
+            >
+              <label>
+                Search query
+                <input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search file names, tags, headings, or content" />
+              </label>
+              <button className="primary" type="submit" disabled={!searchQuery.trim() || searchLoading}>
+                {searchLoading ? "Searching..." : "Search"}
+              </button>
+            </form>
+            {searchError ? <div className="error" aria-live="polite">{searchError}</div> : null}
+            <div className="search-results" aria-live="polite">
+              {!searchHasRun ? <div className="empty-state">Enter a query to search the vault.</div> : null}
+              {searchHasRun && !searchLoading && searchResults.length === 0 ? <div className="empty-state">No matching files found.</div> : null}
+              {searchResults.map((result) => (
+                <button key={result.path} className="search-result" type="button" onClick={() => openSearchResult(result.path)}>
+                  <span className="search-result-main">
+                    <strong>{result.name}</strong>
+                    <small>{result.path}</small>
+                  </span>
+                  <span className="search-source">{result.source}</span>
+                  <span className="search-snippet">{result.snippet}</span>
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
-        {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">No preview yet.</div>}
-      </section>
+      ) : null}
     </main>
   );
 }
@@ -336,8 +473,8 @@ function TreeNodeRow(props: {
     >
       <span className="tree-file-dot" />
       <span className="tree-file-text">
-        <strong>{props.node.document?.title ?? props.node.name}</strong>
-        <small>{props.node.name}</small>
+        <span className="tree-file-name">{props.node.name}</span>
+        <small>{props.node.document?.path}</small>
       </span>
     </button>
   );

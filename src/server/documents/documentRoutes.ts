@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, renderPreview, writeDocument } from "../vault/vaultService";
+import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -33,6 +33,16 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
   });
 
+  app.get("/api/documents/search", async (request, reply) => {
+    const query = z.object({ q: z.string().min(1).max(500) }).parse(request.query);
+    try {
+      return await searchDocuments(query.q);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to search documents" };
+    }
+  });
+
   app.put("/api/documents/content", async (request, reply) => {
     const body = z.object({ path: z.string().min(1), content: z.string(), expectedHash: z.string().optional() }).parse(request.body);
     try {
@@ -54,9 +64,31 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
   });
 
+  app.patch("/api/documents/rename", async (request, reply) => {
+    const body = z.object({ path: z.string().min(1), nextPath: z.string().min(1) }).parse(request.body);
+    try {
+      return await renameDocument(body.path, body.nextPath);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to rename document" };
+    }
+  });
+
   app.post("/api/documents/preview", async (request) => {
-    const body = z.object({ content: z.string() }).parse(request.body);
-    return { html: await renderPreview(body.content) };
+    const body = z.object({ content: z.string(), path: z.string().optional() }).parse(request.body);
+    return { html: await renderPreview(body.content, body.path) };
+  });
+
+  app.get("/api/documents/media", async (request, reply) => {
+    const query = z.object({ path: z.string().min(1), base: z.string().optional() }).parse(request.query);
+    try {
+      const media = await readVaultMedia(query.path, query.base);
+      reply.type(media.contentType);
+      return media.data;
+    } catch (error) {
+      reply.code(404);
+      return { error: error instanceof Error ? error.message : "Media not found" };
+    }
   });
 
   app.get("/api/documents/backlinks", async (request) => {

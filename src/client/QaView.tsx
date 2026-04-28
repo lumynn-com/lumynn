@@ -1,55 +1,157 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "./api";
 
-export function QaView() {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [answerHtml, setAnswerHtml] = useState("");
-  const [citations, setCitations] = useState<Array<{ path: string; title: string; snippet: string }>>([]);
-  const [indexNamespace, setIndexNamespace] = useState("");
-  const [retrievalWarning, setRetrievalWarning] = useState("");
-  const [providerError, setProviderError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+type Citation = { path: string; title: string; snippet: string };
+
+interface SavedQaState {
+  question: string;
+  answer: string;
+  answerHtml: string;
+  citations: Citation[];
+  indexNamespace: string;
+  retrievalWarning: string;
+  providerError: string;
+}
+
+interface QaState extends SavedQaState {
+  loading: boolean;
+  error: string;
+}
+
+const qaStateStorageKey = "owd_qa_state";
+const emptyQaState: SavedQaState = {
+  question: "",
+  answer: "",
+  answerHtml: "",
+  citations: [],
+  indexNamespace: "",
+  retrievalWarning: "",
+  providerError: ""
+};
+
+function readSavedQaState(): SavedQaState {
+  try {
+    if (typeof localStorage === "undefined") {
+      return emptyQaState;
+    }
+    return { ...emptyQaState, ...JSON.parse(localStorage.getItem(qaStateStorageKey) ?? "{}") };
+  } catch {
+    return emptyQaState;
+  }
+}
+
+function writeSavedQaState(state: SavedQaState): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+  localStorage.setItem(qaStateStorageKey, JSON.stringify(state));
+}
+
+const emptyRuntimeState: QaState = {
+  ...emptyQaState,
+  loading: false,
+  error: ""
+};
+let runtimeState: QaState | null = null;
+const stateListeners = new Set<(state: QaState) => void>();
+
+function pickSavedState(state: QaState): SavedQaState {
+  return {
+    question: state.question,
+    answer: state.answer,
+    answerHtml: state.answerHtml,
+    citations: state.citations,
+    indexNamespace: state.indexNamespace,
+    retrievalWarning: state.retrievalWarning,
+    providerError: state.providerError
+  };
+}
+
+function getRuntimeState(): QaState {
+  if (!runtimeState) {
+    runtimeState = {
+      ...emptyRuntimeState,
+      ...readSavedQaState()
+    };
+  }
+  return runtimeState;
+}
+
+function setRuntimeState(patch: Partial<QaState>): QaState {
+  runtimeState = {
+    ...getRuntimeState(),
+    ...patch
+  };
+  writeSavedQaState(pickSavedState(runtimeState));
+  stateListeners.forEach((listener) => listener(runtimeState!));
+  return runtimeState;
+}
+
+function subscribeQaState(listener: (state: QaState) => void): () => void {
+  stateListeners.add(listener);
+  listener(getRuntimeState());
+  return () => stateListeners.delete(listener);
+}
+
+async function runAsk(question: string): Promise<void> {
+  const trimmedQuestion = question.trim();
+  if (!trimmedQuestion || getRuntimeState().loading) {
+    return;
+  }
+
+  setRuntimeState({
+    question,
+    loading: true,
+    error: "",
+    retrievalWarning: "",
+    providerError: ""
+  });
+
+  try {
+    const result = await api<{
+      answer: string;
+      answerHtml?: string;
+      indexNamespace?: string;
+      retrievalWarning?: string;
+      providerError?: string;
+      citations: Citation[];
+    }>("/api/rag/query", {
+      method: "POST",
+      body: JSON.stringify({ question: trimmedQuestion })
+    });
+    setRuntimeState({
+      answer: result.answer,
+      answerHtml: result.answerHtml ?? "",
+      indexNamespace: result.indexNamespace ?? "",
+      retrievalWarning: result.retrievalWarning ?? "",
+      providerError: result.providerError ?? "",
+      citations: result.citations,
+      loading: false
+    });
+  } catch (err) {
+    setRuntimeState({
+      error: err instanceof Error ? err.message : "Unable to answer",
+      loading: false
+    });
+  }
+}
+
+export function QaView(props: { compact?: boolean; onOpenSource?: (path: string) => void }) {
+  const [state, setState] = useState(getRuntimeState);
+
+  useEffect(() => {
+    return subscribeQaState(setState);
+  }, []);
 
   async function ask() {
-    if (!question.trim() || loading) {
-      return;
-    }
-    setLoading(true);
-    setError("");
-    setRetrievalWarning("");
-    setProviderError("");
-    try {
-      const result = await api<{
-        answer: string;
-        answerHtml?: string;
-        indexNamespace?: string;
-        retrievalWarning?: string;
-        providerError?: string;
-        citations: Array<{ path: string; title: string; snippet: string }>;
-      }>("/api/rag/query", {
-        method: "POST",
-        body: JSON.stringify({ question })
-      });
-      setAnswer(result.answer);
-      setAnswerHtml(result.answerHtml ?? "");
-      setIndexNamespace(result.indexNamespace ?? "");
-      setRetrievalWarning(result.retrievalWarning ?? "");
-      setProviderError(result.providerError ?? "");
-      setCitations(result.citations);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to answer");
-    } finally {
-      setLoading(false);
-    }
+    await runAsk(state.question);
   }
 
   return (
-    <main className="qa-view">
-      <section className="panel hero">
+    <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label="Ask AI">
+      <section className={props.compact ? "qa-hero" : "panel hero"}>
         <p className="eyebrow">Ask AI</p>
-        <h1>Ask your vault</h1>
+        {props.compact ? <h2>Ask your vault</h2> : <h1>Ask your vault</h1>}
         <p className="muted">Get answers grounded in indexed Markdown notes, with citations you can inspect.</p>
         <form
           className="ask-row"
@@ -63,40 +165,48 @@ export function QaView() {
             id="qa-question"
             name="question"
             autoComplete="off"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
+            value={state.question}
+            onChange={(event) => setRuntimeState({ question: event.target.value })}
             placeholder="Example: What did I write about this project?"
           />
-          <button className="primary" type="submit" disabled={!question || loading}>
-            {loading ? "Asking..." : "Ask Vault"}
+          <button className={state.loading ? "query-button query-loading" : "primary query-button"} type="submit" disabled={!state.question || state.loading}>
+            {state.loading ? "Querying..." : "Ask Vault"}
           </button>
         </form>
-        {error ? <div className="error" aria-live="polite">{error}</div> : null}
+        {state.loading ? <div className="status-pill qa-query-state" aria-live="polite">Query is running. You can switch pages and come back.</div> : null}
+        {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}
       </section>
-      {answer ? (
-        <section className="panel">
+      {state.answer ? (
+        <section className={props.compact ? "qa-response" : "panel"}>
           <div className="panel-header">
             <div>
               <p className="eyebrow">Answer</p>
               <h2>Response</h2>
             </div>
-            {indexNamespace ? <span className="status-pill">Source: {indexNamespace}</span> : null}
+            {state.indexNamespace ? <span className="status-pill">Source: {state.indexNamespace}</span> : null}
           </div>
-          {retrievalWarning ? <div className="error">Retrieval warning: {retrievalWarning}</div> : null}
-          {providerError ? <div className="error">Provider warning: {providerError}</div> : null}
-          {answerHtml ? <article className="qa-answer" dangerouslySetInnerHTML={{ __html: answerHtml }} /> : <p>{answer}</p>}
+          {state.retrievalWarning ? <div className="error">Retrieval warning: {state.retrievalWarning}</div> : null}
+          {state.providerError ? <div className="error">Provider warning: {state.providerError}</div> : null}
+          {state.answerHtml ? <article className="qa-answer" dangerouslySetInnerHTML={{ __html: state.answerHtml }} /> : <p>{state.answer}</p>}
         </section>
       ) : null}
       <section className="citation-grid">
-        {answer && citations.length === 0 ? <div className="empty-state">No citations returned. Rebuild or resume the index, then ask again.</div> : null}
-        {citations.map((citation) => (
-          <article className="panel citation" key={`${citation.path}-${citation.snippet}`}>
-            <strong>{citation.title}</strong>
-            <span>{citation.path}</span>
+        {state.answer && state.citations.length === 0 ? <div className="empty-state">No citations returned. Rebuild or resume the index, then ask again.</div> : null}
+        {state.citations.map((citation) => (
+          <article className={`${props.compact ? "" : "panel"} citation`} key={`${citation.path}-${citation.snippet}`}>
+            <button
+              className="citation-source"
+              type="button"
+              onClick={() => props.onOpenSource?.(citation.path)}
+              disabled={!props.onOpenSource}
+            >
+              <strong>{citation.title}</strong>
+              <span>{citation.path}</span>
+            </button>
             <p>{citation.snippet}</p>
           </article>
         ))}
       </section>
-    </main>
+    </aside>
   );
 }

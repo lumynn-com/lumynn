@@ -130,7 +130,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
       }
     }
     lastEmbeddingRequestStartedAt = Date.now();
-    return embedTexts(settings.embedding, input);
+    return embedTexts(settings.embedding, input, { inputType: "passage" });
   };
   const docs = await listDocuments("updatedAt", "desc");
   const selectedDocs = job.mode === "test" ? docs.slice(0, sampleSize ?? 20) : docs;
