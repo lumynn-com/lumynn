@@ -4,7 +4,7 @@ import { DocumentsView } from "./DocumentsView";
 import { QaView } from "./QaView";
 import { SettingsView } from "./SettingsView";
 
-type View = "docs" | "settings" | "qa";
+type View = "docs" | "qa" | "indexing" | "settings";
 
 export function App() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -60,15 +60,15 @@ function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (userna
         >
           <label>
             Username
-            <input value={username} onChange={(event) => setUsername(event.target.value)} />
+            <input name="username" autoComplete="username" spellCheck={false} value={username} onChange={(event) => setUsername(event.target.value)} />
           </label>
           <label>
             Password
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input name="password" type="password" autoComplete={props.needsSetup ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
-          {props.error ? <div className="error">{props.error}</div> : null}
+          {props.error ? <div className="error" aria-live="polite">{props.error}</div> : null}
           <button className="primary" type="submit">
-            {props.needsSetup ? "Create account" : "Log in"}
+            {props.needsSetup ? "Create Account" : "Log In"}
           </button>
         </form>
       </section>
@@ -82,6 +82,7 @@ function Workspace(props: { onLogout: () => void }) {
 
   useEffect(() => {
     document.body.dataset.theme = theme;
+    document.documentElement.dataset.theme = theme;
     localStorage.setItem("owd_theme", theme);
   }, [theme]);
 
@@ -95,35 +96,48 @@ function Workspace(props: { onLogout: () => void }) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Skip to Main Content</a>
       <aside className="sidebar">
         <div className="brand">
-          <span className="logo">OW</span>
+          <span className="logo" aria-hidden="true">OW</span>
           <div>
             <strong>Obsidian Web</strong>
             <span>Markdown vault</span>
           </div>
         </div>
-        <nav>
+        <nav aria-label="Primary">
           <button className={view === "docs" ? "active" : ""} onClick={() => setView("docs")}>
-            Documents
+            <span aria-hidden="true">D</span>
+            <span className="nav-label">Documents</span>
           </button>
           <button className={view === "qa" ? "active" : ""} onClick={() => setView("qa")}>
-            Q&A
+            <span aria-hidden="true">?</span>
+            <span className="nav-label">Ask AI</span>
+          </button>
+          <button className={view === "indexing" ? "active" : ""} onClick={() => setView("indexing")}>
+            <span aria-hidden="true">I</span>
+            <span className="nav-label">Indexing</span>
           </button>
           <button className={view === "settings" ? "active" : ""} onClick={() => setView("settings")}>
-            Settings
+            <span aria-hidden="true">S</span>
+            <span className="nav-label">Settings</span>
           </button>
         </nav>
-        <button className="ghost" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-          {theme === "dark" ? "Light theme" : "Dark theme"}
-        </button>
-        <button className="ghost" onClick={logout}>
-          Log out
-        </button>
+        <div className="sidebar-actions">
+          <button className="ghost" aria-label="Toggle Theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? "Light Theme" : "Dark Theme"}
+          </button>
+          <button className="ghost" onClick={logout}>
+            Log Out
+          </button>
+        </div>
       </aside>
-      {view === "docs" ? <DocumentsView /> : null}
-      {view === "settings" ? <SettingsView /> : null}
-      {view === "qa" ? <QaView /> : null}
+      <div id="main-content" className="main-content">
+        {view === "docs" ? <DocumentsView /> : null}
+        {view === "qa" ? <QaView /> : null}
+        {view === "indexing" ? <SettingsView mode="indexing" /> : null}
+        {view === "settings" ? <SettingsView mode="settings" /> : null}
+      </div>
     </div>
   );
 }

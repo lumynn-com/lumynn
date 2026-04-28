@@ -185,21 +185,28 @@ export function DocumentsView() {
           <div>
             <p className="eyebrow">Vault</p>
             <h2>Documents</h2>
+            <p className="muted">{documents.length} Markdown file{documents.length === 1 ? "" : "s"}</p>
           </div>
-          <button onClick={createDocument}>New</button>
+          <button className="primary" onClick={createDocument}>New Note</button>
         </div>
         <div className="sort-row">
-          <select value={sort} onChange={(event) => onSort(event.target.value as SortField, order)}>
-            <option value="name">Name</option>
-            <option value="createdAt">Created</option>
-            <option value="updatedAt">Updated</option>
-            <option value="path">Path</option>
-            <option value="title">Title</option>
-          </select>
-          <select value={order} onChange={(event) => onSort(sort, event.target.value as SortOrder)}>
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
+          <label>
+            Sort By
+            <select name="document-sort" value={sort} onChange={(event) => onSort(event.target.value as SortField, order)}>
+              <option value="name">Name</option>
+              <option value="createdAt">Created</option>
+              <option value="updatedAt">Updated</option>
+              <option value="path">Path</option>
+              <option value="title">Title</option>
+            </select>
+          </label>
+          <label>
+            Order
+            <select name="document-order" value={order} onChange={(event) => onSort(sort, event.target.value as SortOrder)}>
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </label>
         </div>
         <DocumentTree
           nodes={documentTree}
@@ -216,37 +223,43 @@ export function DocumentsView() {
             <h2>{active?.title ?? "Editor"}</h2>
           </div>
           <div className="actions">
-            <span className="status">{status}</span>
+            <span className="status status-pill" aria-live="polite">{status}</span>
             <button onClick={deleteActive} disabled={!active}>
               Delete
             </button>
             <button className="primary" onClick={save} disabled={!active}>
-              Save
+              Save Note
             </button>
           </div>
         </div>
         {tabs.length > 0 ? (
-          <div className="tab-strip">
+          <div className="tab-strip" role="tablist" aria-label="Open documents">
             {tabs.map((tab) => (
-              <button key={tab.path} className={`editor-tab ${activePath === tab.path ? "active" : ""}`} onClick={() => setActivePath(tab.path)}>
-                <span>{tab.title}</span>
-                <span
+              <div key={tab.path} className={`editor-tab-shell ${activePath === tab.path ? "active" : ""}`}>
+                <button role="tab" aria-selected={activePath === tab.path} className="editor-tab" onClick={() => setActivePath(tab.path)}>
+                  <span>{tab.title}</span>
+                  <span className="tab-path">{tab.path}</span>
+                </button>
+                <button
                   className="tab-close"
-                  role="button"
-                  tabIndex={0}
+                  type="button"
+                  aria-label={`Close ${tab.title}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     closeTab(tab.path);
                   }}
                 >
                   x
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         ) : null}
         {active ? (
-          <textarea value={active.draft} onChange={(event) => setActiveDraft(event.target.value)} spellCheck={false} />
+          <label className="editor-field">
+            <span className="sr-only">Markdown Content</span>
+            <textarea name="markdown-content" value={active.draft} onChange={(event) => setActiveDraft(event.target.value)} spellCheck={false} />
+          </label>
         ) : (
           <div className="blank-editor">
             <p className="eyebrow">No file open</p>
@@ -260,9 +273,10 @@ export function DocumentsView() {
           <div>
             <p className="eyebrow">Live</p>
             <h2>Preview</h2>
+            <p className="muted">{active ? "Rendered Markdown updates as you type." : "Open a note to preview it."}</p>
           </div>
         </div>
-        <article dangerouslySetInnerHTML={{ __html: preview }} />
+        {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">No preview yet.</div>}
       </section>
     </main>
   );
@@ -301,9 +315,10 @@ function TreeNodeRow(props: {
   if (props.node.type === "folder") {
     return (
       <div className="tree-group">
-        <button className="tree-row folder-row" style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }} onClick={() => props.onToggleFolder(props.node.id)}>
+        <button className="tree-row folder-row" aria-expanded={isExpanded} style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }} onClick={() => props.onToggleFolder(props.node.id)}>
           <span className="tree-caret">{isExpanded ? "-" : "+"}</span>
           <span className="tree-label">{props.node.name}</span>
+          <span className="tree-count">{props.node.children.length}</span>
         </button>
         {isExpanded
           ? props.node.children.map((child) => <TreeNodeRow key={child.id} {...props} node={child} depth={props.depth + 1} />)
@@ -316,6 +331,7 @@ function TreeNodeRow(props: {
     <button
       className={`tree-row file-row ${props.selectedPath === props.node.document?.path ? "selected" : ""}`}
       style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }}
+      aria-current={props.selectedPath === props.node.document?.path ? "page" : undefined}
       onClick={() => props.node.document && props.onSelect(props.node.document.path)}
     >
       <span className="tree-file-dot" />

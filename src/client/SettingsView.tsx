@@ -3,11 +3,21 @@ import type { AppSettings, ProviderSettings, RagIndexJob } from "../shared/types
 import { api } from "./api";
 
 type SettingsSection = "account" | "vault" | "https" | "providers" | "operations" | "import-export";
+type SettingsMode = "settings" | "indexing";
 
-export function SettingsView() {
+const settingsSections: Array<{ id: SettingsSection; label: string }> = [
+  { id: "vault", label: "Vault" },
+  { id: "providers", label: "AI Providers" },
+  { id: "import-export", label: "Import / Export" },
+  { id: "https", label: "HTTPS" },
+  { id: "account", label: "Account" }
+];
+
+export function SettingsView(props: { mode?: SettingsMode }) {
+  const mode = props.mode ?? "settings";
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [message, setMessage] = useState("");
-  const [section, setSection] = useState<SettingsSection>("vault");
+  const [section, setSection] = useState<SettingsSection>(mode === "indexing" ? "operations" : "vault");
   const [accountPassword, setAccountPassword] = useState("");
   const [httpsCertificate, setHttpsCertificate] = useState("");
   const [httpsPrivateKey, setHttpsPrivateKey] = useState("");
@@ -35,7 +45,7 @@ export function SettingsView() {
           return;
         }
         setIndexJob(job);
-        if (job.status === "queued" || job.status === "running") {
+        if (mode === "indexing" && (job.status === "queued" || job.status === "running")) {
           setSection("operations");
         }
       })
@@ -44,7 +54,7 @@ export function SettingsView() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [mode]);
 
   useEffect(() => {
     if (!indexJob || (indexJob.status !== "queued" && indexJob.status !== "running")) {
@@ -226,21 +236,26 @@ export function SettingsView() {
   }
 
   return (
-    <main className="settings-view">
-      <section className="panel">
-        <p className="eyebrow">Configuration</p>
-        <h1>Settings</h1>
-        <p className="muted">Configure the active vault and RAG providers. Secret values are redacted after saving.</p>
+    <main className={`settings-view ${mode === "indexing" ? "indexing-view" : ""}`}>
+      <section className="panel settings-hero">
+        <p className="eyebrow">{mode === "indexing" ? "Knowledge Base" : "Configuration"}</p>
+        <h1>{mode === "indexing" ? "Indexing" : "Settings"}</h1>
+        <p className="muted">
+          {mode === "indexing"
+            ? "Build, resume, and monitor the searchable RAG index for your Markdown vault."
+            : "Configure the vault, AI providers, import/export, HTTPS, and the admin account."}
+        </p>
       </section>
       <section className="settings-layout">
-        <aside className="settings-nav panel">
-          <button className={section === "account" ? "active" : ""} onClick={() => setSection("account")}>Account</button>
-          <button className={section === "vault" ? "active" : ""} onClick={() => setSection("vault")}>Vault</button>
-          <button className={section === "https" ? "active" : ""} onClick={() => setSection("https")}>HTTPS</button>
-          <button className={section === "providers" ? "active" : ""} onClick={() => setSection("providers")}>RAG Providers</button>
-          <button className={section === "operations" ? "active" : ""} onClick={() => setSection("operations")}>RAG Operations</button>
-          <button className={section === "import-export" ? "active" : ""} onClick={() => setSection("import-export")}>Import / Export</button>
-        </aside>
+        {mode === "settings" ? (
+          <aside className="settings-nav panel" aria-label="Settings sections">
+            {settingsSections.map((item) => (
+              <button key={item.id} className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}>
+                {item.label}
+              </button>
+            ))}
+          </aside>
+        ) : null}
 
         <div className="settings-content">
           {section === "account" ? (
@@ -347,8 +362,8 @@ export function SettingsView() {
                 </div>
                 <ProviderFields kind="embedding" value={settings.rag.embedding} onChange={(embedding) => setSettings({ ...settings, rag: { ...settings.rag, embedding } })} />
                 <div className="button-row">
-                  <button className="primary" onClick={saveRag}>Save providers</button>
-                  <button onClick={() => test("/api/settings/rag/test-embedding")}>Test embedding</button>
+                  <button className="primary" onClick={saveRag}>Save AI Providers</button>
+                  <button onClick={() => test("/api/settings/rag/test-embedding")}>Test Embedding</button>
                 </div>
               </div>
               <div className="panel form-panel">
@@ -358,7 +373,7 @@ export function SettingsView() {
                 </div>
                 <ProviderFields kind="qa" value={settings.rag.qa} onChange={(qa) => setSettings({ ...settings, rag: { ...settings.rag, qa } })} />
                 <div className="button-row">
-                  <button className="primary" onClick={saveRag}>Save providers</button>
+                  <button className="primary" onClick={saveRag}>Save AI Providers</button>
                   <button onClick={() => test("/api/settings/rag/test-qa")}>Test Q&A</button>
                 </div>
               </div>
@@ -368,9 +383,9 @@ export function SettingsView() {
           {section === "operations" ? (
             <section className="panel form-panel">
               <div>
-                <p className="eyebrow">Retrieval</p>
-                <h2>RAG Operations</h2>
-                <p className="muted">Tune retrieval and Copilot-style batch indexing before running a full rebuild.</p>
+                <p className="eyebrow">Search Index</p>
+                <h2>Build Index</h2>
+                <p className="muted">Create the knowledge base used by Ask AI. Start with a small sample, then run incremental indexing for day-to-day updates.</p>
               </div>
               <div className="field-grid">
                 <label>
@@ -437,10 +452,10 @@ export function SettingsView() {
                 </label>
               </div>
               <div className="button-row">
-                <button className="primary" onClick={saveRag}>Save retrieval</button>
-                <button onClick={() => startIndex("/api/settings/rag/test-index", { sampleSize: 20 })}>Test index 20 files</button>
-                <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Incremental index</button>
-                <button onClick={() => startIndex("/api/rag/reindex")}>Rebuild full index</button>
+                <button className="primary" onClick={saveRag}>Save Index Settings</button>
+                <button onClick={() => startIndex("/api/settings/rag/test-index", { sampleSize: 20 })}>Index 20-File Sample</button>
+                <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Resume Incremental Index</button>
+                <button onClick={() => startIndex("/api/rag/reindex")}>Rebuild Full Index</button>
               </div>
               {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
             </section>
@@ -480,7 +495,7 @@ export function SettingsView() {
           ) : null}
         </div>
       </section>
-      {message ? <pre className="message">{message}</pre> : null}
+      {message ? <pre className="message" aria-live="polite">{message}</pre> : null}
     </main>
   );
 }
@@ -545,7 +560,7 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
     <>
       <label>
         Provider
-        <select value={props.value.provider} onChange={(event) => props.onChange({ ...props.value, provider: event.target.value as ProviderSettings["provider"] })}>
+        <select name={`${props.kind}-provider`} value={props.value.provider} onChange={(event) => props.onChange({ ...props.value, provider: event.target.value as ProviderSettings["provider"] })}>
           <option value="disabled">Disabled</option>
           <option value="openai-compatible">OpenAI compatible</option>
         </select>
@@ -554,6 +569,7 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
         API mode
         <select
           value={mode}
+          name={`${props.kind}-api-mode`}
           onChange={(event) => {
             const apiMode = event.target.value as ProviderSettings["apiMode"];
             props.onChange({
@@ -579,12 +595,14 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
       </label>
       <label>
         Base URL
-        <input value={props.value.baseUrl} placeholder="https://api.openai.com/v1" onChange={(event) => props.onChange({ ...props.value, baseUrl: event.target.value })} />
+        <input name={`${props.kind}-base-url`} type="url" inputMode="url" autoComplete="off" value={props.value.baseUrl} placeholder="https://api.openai.com/v1" onChange={(event) => props.onChange({ ...props.value, baseUrl: event.target.value })} />
       </label>
       <label>
         Endpoint path
         <input
           value={endpointPath}
+          name={`${props.kind}-endpoint-path`}
+          autoComplete="off"
           placeholder={defaultEndpointPath(props.kind, mode)}
           onChange={(event) => props.onChange({ ...props.value, apiMode: mode, endpointPath: event.target.value })}
         />
@@ -594,6 +612,7 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
           Reasoning mode
           <select
             value={props.value.reasoningMode === "provider-default" ? "provider-default" : "disabled"}
+            name="qa-reasoning-mode"
             onChange={(event) => props.onChange({ ...props.value, reasoningMode: event.target.value as ProviderSettings["reasoningMode"] })}
           >
             <option value="disabled">Disable reasoning/thinking</option>
@@ -604,11 +623,11 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
       ) : null}
       <label>
         Model
-        <input value={props.value.model} onChange={(event) => props.onChange({ ...props.value, model: event.target.value })} />
+        <input name={`${props.kind}-model`} autoComplete="off" spellCheck={false} value={props.value.model} onChange={(event) => props.onChange({ ...props.value, model: event.target.value })} />
       </label>
       <label>
         API key
-        <input type="password" placeholder="Leave blank to keep existing key" onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
+        <input name={`${props.kind}-api-key`} type="password" autoComplete="off" spellCheck={false} placeholder="Leave blank to keep existing key" onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
       </label>
     </>
   );
