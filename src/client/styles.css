@@ -646,3 +646,73 @@ progress::-webkit-progress-value {
     min-height: 480px;
   }
 }
+
+body[data-theme="light"] {
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.14), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.1), transparent 30rem),
+    #f6f8fb;
+  color: #172033;
+}
+
+body[data-theme="light"] .login-card,
+body[data-theme="light"] .panel {
+  border-color: rgba(23, 32, 51, 0.12);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 24px 80px rgba(23, 32, 51, 0.12);
+}
+
+body[data-theme="light"] .sidebar {
+  border-right-color: rgba(23, 32, 51, 0.08);
+  background: rgba(246, 248, 251, 0.86);
+}
+
+body[data-theme="light"] button,
+body[data-theme="light"] .file-button {
+  border-color: rgba(23, 32, 51, 0.12);
+  color: #172033;
+  background: rgba(23, 32, 51, 0.04);
+}
+
+body[data-theme="light"] button:hover:not(:disabled),
+body[data-theme="light"] .file-button:hover {
+  background: rgba(23, 32, 51, 0.08);
+}
+
+body[data-theme="light"] .primary {
+  color: white;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+}
+
+body[data-theme="light"] input,
+body[data-theme="light"] select,
+body[data-theme="light"] textarea {
+  border-color: rgba(23, 32, 51, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+  color: #172033;
+}
+
+body[data-theme="light"] .muted,
+body[data-theme="light"] .status,
+body[data-theme="light"] .doc-item span,
+body[data-theme="light"] .tree-file-text small,
+body[data-theme="light"] .citation span,
+body[data-theme="light"] label,
+body[data-theme="light"] .brand span:last-child {
+  color: #607089;
+}
+
+body[data-theme="light"] .tree-row:hover,
+body[data-theme="light"] .blank-editor,
+body[data-theme="light"] .message,
+body[data-theme="light"] .qa-answer code,
+body[data-theme="light"] .preview article code,
+body[data-theme="light"] .tree-caret {
+  background: rgba(23, 32, 51, 0.06);
+}
+
+body[data-theme="light"] .folder-row,
+body[data-theme="light"] .preview article,
+body[data-theme="light"] .qa-answer {
+  color: #24324a;
+}

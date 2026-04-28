@@ -6,7 +6,7 @@ export interface EmbeddingResult {
   usage?: unknown;
 }
 
-const retryableErrorPattern = /(fetch failed|other side closed|terminated|timeout|econnreset|etimedout|socket)/i;
+const retryableErrorPattern = /(fetch failed|other side closed|terminated|timeout|econnreset|etimedout|socket|html instead of json|bad gateway|service unavailable|gateway timeout|too many requests|rate limit)/i;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,11 +25,10 @@ export async function embedTexts(settings: ProviderSettings, input: string[]): P
     throw new Error("Embedding provider base URL and model are required");
   }
 
-  let response: Response | undefined;
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      response = await fetch(endpointUrl(settings, "/embeddings"), {
+      const response = await fetch(endpointUrl(settings, "/embeddings"), {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -38,8 +37,35 @@ export async function embedTexts(settings: ProviderSettings, input: string[]): P
         body: JSON.stringify({ model: settings.model, input }),
         signal: AbortSignal.timeout(settings.timeoutMs)
       });
-      lastError = undefined;
-      break;
+      const rawPayload = await response.text();
+      let payload: any;
+      try {
+        payload = rawPayload ? JSON.parse(rawPayload) : {};
+      } catch {
+        const preview = rawPayload.replace(/\s+/g, " ").slice(0, 180);
+        throw new Error(`Embedding provider returned HTML instead of JSON (${response.status} ${response.statusText}): ${preview}`);
+      }
+
+      if (!response.ok) {
+        const message = payload?.error?.message ?? payload?.message ?? `Embedding provider failed (${response.status} ${response.statusText})`;
+        throw new Error(message);
+      }
+
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      const embeddings = data
+        .sort((a: { index?: number }, b: { index?: number }) => (a.index ?? 0) - (b.index ?? 0))
+        .map((item: { embedding?: number[] }) => item.embedding)
+        .filter((embedding: unknown): embedding is number[] => Array.isArray(embedding));
+
+      if (embeddings.length !== input.length) {
+        throw new Error(`Embedding provider returned ${embeddings.length} embeddings for ${input.length} inputs`);
+      }
+
+      return {
+        embeddings,
+        model: payload?.model ?? settings.model,
+        usage: payload?.usage
+      };
     } catch (error) {
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
@@ -50,27 +76,5 @@ export async function embedTexts(settings: ProviderSettings, input: string[]): P
     }
   }
 
-  if (!response) {
-    throw lastError instanceof Error ? lastError : new Error("Embedding provider failed");
-  }
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload?.error?.message ?? "Embedding provider failed");
-  }
-
-  const data = Array.isArray(payload?.data) ? payload.data : [];
-  const embeddings = data
-    .sort((a: { index?: number }, b: { index?: number }) => (a.index ?? 0) - (b.index ?? 0))
-    .map((item: { embedding?: number[] }) => item.embedding)
-    .filter((embedding: unknown): embedding is number[] => Array.isArray(embedding));
-
-  if (embeddings.length !== input.length) {
-    throw new Error(`Embedding provider returned ${embeddings.length} embeddings for ${input.length} inputs`);
-  }
-
-  return {
-    embeddings,
-    model: payload?.model ?? settings.model,
-    usage: payload?.usage
-  };
+  throw lastError instanceof Error ? lastError : new Error("Embedding provider failed");
 }

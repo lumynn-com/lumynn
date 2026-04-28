@@ -4,7 +4,7 @@ import { store } from "../store";
 import { listDocuments, readDocument, renderPreview } from "../vault/vaultService";
 import { chunkMarkdownByHeading, formatChunkForEmbedding } from "./chunker";
 import { embedTexts, endpointUrl } from "./embeddingProvider";
-import { getIndexJob, latestIndexJob, startIndexJob } from "./indexJobs";
+import { getIndexJob, latestIndexJob, requestIndexJobCancel, requestIndexJobSkipCurrentFile, startIndexJob } from "./indexJobs";
 import { getNamespaceChunks, getNamespaceStats, searchVectors, type VectorNamespace } from "./vectorStore";
 
 interface Chunk {
@@ -410,6 +410,26 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/rag/index-jobs/:id", async (request, reply) => {
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
     const job = getIndexJob(params.id);
+    if (!job) {
+      reply.code(404);
+      return { error: "Index job not found" };
+    }
+    return job;
+  });
+
+  app.post("/api/rag/index-jobs/:id/cancel", async (request, reply) => {
+    const params = z.object({ id: z.string().min(1) }).parse(request.params);
+    const job = requestIndexJobCancel(params.id);
+    if (!job) {
+      reply.code(404);
+      return { error: "Index job not found" };
+    }
+    return job;
+  });
+
+  app.post("/api/rag/index-jobs/:id/skip-current-file", async (request, reply) => {
+    const params = z.object({ id: z.string().min(1) }).parse(request.params);
+    const job = requestIndexJobSkipCurrentFile(params.id);
     if (!job) {
       reply.code(404);
       return { error: "Index job not found" };

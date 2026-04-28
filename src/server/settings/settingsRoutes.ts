@@ -28,7 +28,13 @@ const ragSchema = z.object({
     topK: z.number().int().min(1).max(30),
     chunkSize: z.number().int().min(300).max(6000),
     chunkOverlap: z.number().int().min(0).max(1000)
-  })
+  }),
+  indexing: z
+    .object({
+      embeddingBatchSize: z.number().int().min(1).max(128),
+      embeddingRequestsPerMinute: z.number().int().min(0).max(6000)
+    })
+    .default({ embeddingBatchSize: 16, embeddingRequestsPerMinute: 0 })
 });
 
 const httpsSchema = z.object({
@@ -259,7 +265,8 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     data.settings.rag = {
       embedding: { ...body.embedding, apiKey: resolveSubmittedSecret(body.embedding.apiKey, data.settings.rag.embedding.apiKey) },
       qa: { ...body.qa, apiKey: resolveSubmittedSecret(body.qa.apiKey, data.settings.rag.qa.apiKey) },
-      retrieval: body.retrieval
+      retrieval: body.retrieval,
+      indexing: body.indexing
     };
     await store.save();
     return redactedSettings(data);
@@ -311,7 +318,8 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     data.settings.rag = {
       embedding: { ...body.rag.embedding, apiKey: resolveSubmittedSecret(body.rag.embedding.apiKey, data.settings.rag.embedding.apiKey) },
       qa: { ...body.rag.qa, apiKey: resolveSubmittedSecret(body.rag.qa.apiKey, data.settings.rag.qa.apiKey) },
-      retrieval: body.rag.retrieval
+      retrieval: body.rag.retrieval,
+      indexing: body.rag.indexing
     };
     await store.save();
     return redactedSettings(data);

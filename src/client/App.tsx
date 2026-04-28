@@ -78,6 +78,12 @@ function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (userna
 
 function Workspace(props: { onLogout: () => void }) {
   const [view, setView] = useState<View>("docs");
+  const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    localStorage.setItem("owd_theme", theme);
+  }, [theme]);
 
   async function logout() {
     try {
@@ -108,6 +114,9 @@ function Workspace(props: { onLogout: () => void }) {
             Settings
           </button>
         </nav>
+        <button className="ghost" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+          {theme === "dark" ? "Light theme" : "Dark theme"}
+        </button>
         <button className="ghost" onClick={logout}>
           Log out
         </button>

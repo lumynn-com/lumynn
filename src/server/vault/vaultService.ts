@@ -5,6 +5,7 @@ import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
+import { backlinksWithObsidianCli } from "../obsidian/obsidianCli";
 import { store } from "../store";
 import type { DocumentContent, DocumentSummary, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
@@ -109,14 +110,29 @@ async function summarize(vaultRoot: string, documentPath: string): Promise<Docum
   const data = await store.load();
   const createdAt = data.createdAtByPath[documentPath] ?? stat.birthtime.toISOString();
   data.createdAtByPath[documentPath] = createdAt;
+  const updatedAt = stat.mtime.toISOString();
+  const hash = sha256(content);
+  data.metadataByPath[documentPath] = {
+    path: documentPath,
+    title: parsed.title,
+    frontmatter: parsed.frontmatter,
+    headings: parsed.headings,
+    tags: parsed.tags,
+    aliases: parsed.aliases,
+    links: parsed.links,
+    hash,
+    createdAt,
+    updatedAt,
+    cachedAt: new Date().toISOString()
+  };
 
   return {
     path: documentPath,
     name,
     title: parsed.title,
     createdAt,
-    updatedAt: stat.mtime.toISOString(),
-    hash: sha256(content),
+    updatedAt,
+    hash,
     tags: parsed.tags,
     aliases: parsed.aliases,
     headings: parsed.headings
@@ -195,6 +211,7 @@ export async function deleteDocument(documentPath: string): Promise<void> {
   await fs.unlink(fullPath);
   const data = await store.load();
   delete data.createdAtByPath[safePath];
+  delete data.metadataByPath[safePath];
   await store.save();
 }
 
@@ -210,6 +227,12 @@ export async function renderPreview(content: string): Promise<string> {
 }
 
 export async function backlinksFor(documentPath: string): Promise<Array<{ source: string; title: string }>> {
+  const vaultRoot = await ensureVault();
+  const cliBacklinks = await backlinksWithObsidianCli(vaultRoot, normalizeDocumentPath(documentPath));
+  if (cliBacklinks.length > 0) {
+    return cliBacklinks.map((link) => ({ source: link.source, title: link.title ?? path.basename(link.source, ".md") }));
+  }
+
   const targetBase = path.basename(normalizeDocumentPath(documentPath), ".md");
   const docs = await listDocuments("path", "asc");
   const matches: Array<{ source: string; title: string }> = [];

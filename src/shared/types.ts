@@ -27,6 +27,10 @@ export interface RagSettings {
     chunkSize: number;
     chunkOverlap: number;
   };
+  indexing: {
+    embeddingBatchSize: number;
+    embeddingRequestsPerMinute: number;
+  };
 }
 
 export interface ProviderSettings {
@@ -45,7 +49,7 @@ export interface RagIndexJob {
   id: string;
   mode: "test" | "full" | "incremental";
   namespace: "test" | "production";
-  status: "queued" | "running" | "completed" | "failed";
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
   totalFiles: number;
   processedFiles: number;
   skippedFiles: number;
@@ -54,6 +58,8 @@ export interface RagIndexJob {
   reusedChunks: number;
   failedChunks: number;
   currentFile?: string;
+  cancelRequested?: boolean;
+  skipRequested?: boolean;
   message: string;
   error?: string;
   startedAt: string;

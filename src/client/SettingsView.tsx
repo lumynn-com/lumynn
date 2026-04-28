@@ -15,7 +15,35 @@ export function SettingsView() {
   const [indexJob, setIndexJob] = useState<RagIndexJob | null>(null);
 
   useEffect(() => {
-    api<AppSettings>("/api/settings").then(setSettings).catch((error) => setMessage(error.message));
+    let mounted = true;
+
+    api<AppSettings>("/api/settings")
+      .then((loadedSettings) => {
+        if (mounted) {
+          setSettings(loadedSettings);
+        }
+      })
+      .catch((error) => {
+        if (mounted) {
+          setMessage(error.message);
+        }
+      });
+
+    api<RagIndexJob | null>("/api/rag/index-jobs/latest")
+      .then((job) => {
+        if (!mounted || !job) {
+          return;
+        }
+        setIndexJob(job);
+        if (job.status === "queued" || job.status === "running") {
+          setSection("operations");
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -127,6 +155,22 @@ export function SettingsView() {
       setMessage(`Started ${job.mode} indexing job ${job.id}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to start indexing");
+    }
+  }
+
+  async function controlIndexJob(action: "cancel" | "skip-current-file") {
+    if (!indexJob) {
+      return;
+    }
+    try {
+      const updated = await api<RagIndexJob>(`/api/rag/index-jobs/${indexJob.id}/${action}`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      setIndexJob(updated);
+      setMessage(action === "cancel" ? "Stop requested for indexing job" : "Skip requested for current file");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update indexing job");
     }
   }
 
@@ -326,7 +370,7 @@ export function SettingsView() {
               <div>
                 <p className="eyebrow">Retrieval</p>
                 <h2>RAG Operations</h2>
-                <p className="muted">Tune retrieval and validate indexing on a small sample before running a full rebuild.</p>
+                <p className="muted">Tune retrieval and Copilot-style batch indexing before running a full rebuild.</p>
               </div>
               <div className="field-grid">
                 <label>
@@ -359,6 +403,38 @@ export function SettingsView() {
                     }
                   />
                 </label>
+                <label>
+                  Embedding batch size
+                  <input
+                    type="number"
+                    value={settings.rag.indexing.embeddingBatchSize}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        rag: {
+                          ...settings.rag,
+                          indexing: { ...settings.rag.indexing, embeddingBatchSize: Number(event.target.value) }
+                        }
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Embedding requests/min
+                  <input
+                    type="number"
+                    value={settings.rag.indexing.embeddingRequestsPerMinute}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        rag: {
+                          ...settings.rag,
+                          indexing: { ...settings.rag.indexing, embeddingRequestsPerMinute: Number(event.target.value) }
+                        }
+                      })
+                    }
+                  />
+                </label>
               </div>
               <div className="button-row">
                 <button className="primary" onClick={saveRag}>Save retrieval</button>
@@ -366,7 +442,7 @@ export function SettingsView() {
                 <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Incremental index</button>
                 <button onClick={() => startIndex("/api/rag/reindex")}>Rebuild full index</button>
               </div>
-              {indexJob ? <IndexProgress job={indexJob} /> : null}
+              {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
             </section>
           ) : null}
 
@@ -409,9 +485,10 @@ export function SettingsView() {
   );
 }
 
-function IndexProgress(props: { job: RagIndexJob }) {
+function IndexProgress(props: { job: RagIndexJob; onStop: () => void; onSkipCurrentFile: () => void }) {
   const filePercent = props.job.totalFiles > 0 ? Math.round((props.job.processedFiles / props.job.totalFiles) * 100) : 0;
   const chunkPercent = props.job.totalChunks > 0 ? Math.round((props.job.embeddedChunks / props.job.totalChunks) * 100) : 0;
+  const canControl = props.job.status === "queued" || props.job.status === "running";
 
   return (
     <div className={`index-progress ${props.job.status}`}>
@@ -438,6 +515,16 @@ function IndexProgress(props: { job: RagIndexJob }) {
         <span>Failed chunks: {props.job.failedChunks}</span>
         {props.job.currentFile ? <span>Current: {props.job.currentFile}</span> : null}
       </div>
+      {canControl ? (
+        <div className="button-row">
+          <button onClick={props.onSkipCurrentFile} disabled={!props.job.currentFile || props.job.skipRequested || props.job.cancelRequested}>
+            {props.job.skipRequested ? "Skip requested" : "Skip current file"}
+          </button>
+          <button onClick={props.onStop} disabled={props.job.cancelRequested}>
+            {props.job.cancelRequested ? "Stopping..." : "Stop indexing"}
+          </button>
+        </div>
+      ) : null}
       <p className="muted">{props.job.error ?? props.job.message}</p>
     </div>
   );

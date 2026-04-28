@@ -26,18 +26,31 @@ See `PLAN.md` for the updated implementation plan, completed scope, and remainin
 
 Runtime and development dependencies:
 
-- Node.js 20+ recommended. This project was scaffolded with Node.js 24.
+- Node.js 20+ recommended. Node.js 24 is used by `server.sh` on macOS when Homebrew Node is available.
 - npm 10+ or 11+.
 - Native build tools for packages that may compile optional native modules.
+- TypeScript, Vite, React, Fastify, `marked`, `sanitize-html`, `gray-matter`, `zod`, and `bcryptjs` are installed through `npm install`.
+- Test runner: Node.js built-in `node:test`, executed through `tsx` for TypeScript test files.
+- Metadata/app storage: JSON files under `data/` for this MVP.
+- Vector storage: compact local snapshots under `data/vector-index/` using JSONL metadata plus Float32 binary embedding files.
+- Optional future database/vector dependencies: SQLite/LanceDB can be added behind the existing store boundaries if stronger production persistence is needed.
 - Optional: Obsidian desktop and `obsidian-cli` for Obsidian-native features. Core Markdown management works without it.
-- OpenAI-compatible embedding endpoint for embedding tests.
+- OpenAI-compatible embedding endpoint for embedding tests and indexing.
 - OpenAI-compatible chat completions or responses endpoint for Q&A tests and generated answers.
+- Optional TLS assets: PEM certificate and private key if serving HTTPS directly from the Node.js process.
 
 macOS install examples:
 
 ```sh
 brew install node
 xcode-select --install
+```
+
+Optional macOS tools:
+
+```sh
+brew install gh
+# Install Obsidian desktop separately if you want obsidian-cli-backed behavior.
 ```
 
 Debian install examples:
@@ -49,11 +62,19 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 sudo apt install -y nodejs
 ```
 
+Optional Debian tools:
+
+```sh
+sudo apt install -y git ca-certificates
+# Obsidian desktop/CLI support may be limited on headless deployments.
+```
+
 Optional Obsidian CLI notes:
 
 - Obsidian CLI support depends on your Obsidian version and CLI enablement.
 - Some CLI modes require the Obsidian desktop app to be running.
 - Debian/headless deployments should treat `obsidian-cli` as optional; the filesystem-first document management features still work.
+- CLI-backed backlinks/tags/search are best-effort enhancements. Parsed Markdown metadata remains the default rebuildable fallback.
 
 ## Setup
 
@@ -70,6 +91,15 @@ npm run dev
 ```
 
 Open the Vite URL, usually `http://localhost:5173`.
+
+Run the production server helper:
+
+```sh
+./server.sh start
+./server.sh status
+./server.sh logs
+./server.sh stop
+```
 
 First login:
 
@@ -122,6 +152,22 @@ npm run dev      # backend + frontend dev servers
 npm run server   # backend only
 npm run build    # typecheck + frontend production build
 npm run lint     # TypeScript check
+npm test         # focused node:test suite
+```
+
+## Testing
+
+The current focused tests cover:
+
+- Markdown parser metadata extraction.
+- Vault path normalization and traversal rejection.
+- Markdown preview sanitization.
+- RAG heading-aware chunking and embedding-text formatting.
+
+Run:
+
+```sh
+npm test
 ```
 
 ## Production Notes

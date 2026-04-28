@@ -74,7 +74,18 @@ export function chunkMarkdownByHeading(content: string, size: number, overlap: n
   }
 
   const chunks: MarkdownChunk[] = [];
+  const mergedSections: Array<{ heading?: string; text: string }> = [];
   for (const section of sections) {
+    const previous = mergedSections.at(-1);
+    if (previous && previous.text.length + section.text.length + 2 <= size) {
+      previous.text = `${previous.text}\n\n${section.text}`.trim();
+      previous.heading = previous.heading ?? section.heading;
+      continue;
+    }
+    mergedSections.push({ ...section });
+  }
+
+  for (const section of mergedSections) {
     for (const text of chunkText(section.text, size, overlap)) {
       chunks.push({
         index: chunks.length,

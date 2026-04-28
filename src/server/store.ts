@@ -16,11 +16,26 @@ export interface SessionRecord {
   createdAt: string;
 }
 
+export interface DocumentMetadataRecord {
+  path: string;
+  title: string;
+  frontmatter: Record<string, unknown>;
+  headings: string[];
+  tags: string[];
+  aliases: string[];
+  links: string[];
+  hash: string;
+  createdAt: string;
+  updatedAt: string;
+  cachedAt: string;
+}
+
 export interface AppData {
   user: UserRecord;
   sessions: SessionRecord[];
   settings: AppSettings;
   createdAtByPath: Record<string, string>;
+  metadataByPath: Record<string, DocumentMetadataRecord>;
 }
 
 const defaultRag = {
@@ -46,6 +61,10 @@ const defaultRag = {
     topK: 6,
     chunkSize: 1200,
     chunkOverlap: 160
+  },
+  indexing: {
+    embeddingBatchSize: 16,
+    embeddingRequestsPerMinute: 0
   }
 };
 
@@ -72,6 +91,8 @@ export class JsonStore {
       };
       this.data.settings.https.hasCertificate = Boolean(this.data.settings.https.certificate?.trim());
       this.data.settings.https.hasPrivateKey = Boolean(this.data.settings.https.privateKey?.trim());
+      this.data.metadataByPath ??= {};
+      this.data.settings.rag.indexing ??= defaultRag.indexing;
       if ((this.data.settings.rag.qa.reasoningMode as string | undefined) === "auto") {
         this.data.settings.rag.qa.reasoningMode = "disabled";
       }
@@ -103,7 +124,8 @@ export class JsonStore {
           },
           rag: defaultRag
         },
-        createdAtByPath: {}
+        createdAtByPath: {},
+        metadataByPath: {}
       };
       await this.save();
       return this.data;
