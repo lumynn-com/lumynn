@@ -402,6 +402,20 @@ function buildQaPrompt(question: string, chunks: Chunk[], options: QaAttemptOpti
   };
 }
 
+function linkCitationReferences(answer: string, citationCount: number): string {
+  if (citationCount <= 0) {
+    return answer;
+  }
+
+  return answer.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (match, rawReferences: string) => {
+    const references = rawReferences
+      .split(",")
+      .map((value) => Number.parseInt(value.trim(), 10))
+      .filter((value) => Number.isInteger(value) && value >= 1 && value <= citationCount);
+    return references.length > 0 ? references.map((value) => `[${value}](#source-${value})`).join(", ") : match;
+  });
+}
+
 async function answerWithProviderAttempt(question: string, chunks: Chunk[], options: QaAttemptOptions): Promise<string | null> {
   const data = await store.load();
   const settings = data.settings.rag.qa;
@@ -599,7 +613,7 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
         `Q&A provider is disabled. Showing the most relevant ${retrieval.namespace} Markdown snippets for: "${body.question}".`;
       return {
         answer,
-        answerHtml: await renderPreview(answer),
+        answerHtml: await renderPreview(linkCitationReferences(answer, citations.length)),
         indexNamespace: retrieval.namespace,
         retrievalWarning: retrieval.warning,
         citations
@@ -610,7 +624,7 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
       const answer = `The Q&A provider failed (${providerError}). I found these relevant ${retrieval.namespace} snippets, but could not generate a final answer.`;
       return {
         answer,
-        answerHtml: await renderPreview(answer),
+        answerHtml: await renderPreview(linkCitationReferences(answer, citations.length)),
         indexNamespace: retrieval.namespace,
         retrievalWarning: retrieval.warning,
         providerError,

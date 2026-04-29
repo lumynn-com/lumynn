@@ -27,9 +27,12 @@ The application should keep Markdown files as the source of truth on disk, use O
   - Common LaTeX symbols such as `\angle`, `\square`, and `\dots`.
   - Math inside code spans/fences remains unchanged.
 - Preview layout is left-aligned and wraps long content so the panel does not require horizontal scrolling for normal text.
+- Markdown preview preserves editor soft line breaks so single newlines render as visible line breaks.
 - Wide preview elements such as code blocks, tables, and display math scroll locally when needed.
 - Markdown preview tables use clear document-style formatting with readable headers, row separators, compact content-width borders, and local scrolling for wide tables.
 - Markdown task lists render safe disabled checkboxes so open and completed TODO items are visually distinct.
+- AI answers render bracket references such as `[1]` and `[1, 2]` as clickable source links that open files in the editor.
+- AI source cards show only title and file path, without snippet content, to keep the panel compact.
 - RAG provider settings support embedding and Q&A provider configuration, API modes, endpoint paths, reasoning mode, testing, and import/export.
 - RAG indexing supports test, full, and incremental jobs with progress, stop, skip-current-file, checkpointing, and resume-friendly state.
 - RAG index storage uses compact snapshots under `data/vector-index/`.
@@ -75,6 +78,7 @@ Use this checklist if rebuilding the project from the plan.
   - GitHub/Obsidian-style task lists: `- [ ]` and `- [x]`.
 - Keep preview content readable in the center column:
   - Normal text must wrap inside the panel.
+  - Single newlines from the editor should render as visible line breaks in preview.
   - The article should be left-aligned, not centered in a narrow column.
   - Wide code blocks, tables, and display math should scroll locally instead of shifting the whole preview.
 - Style preview tables clearly:
@@ -89,6 +93,8 @@ Use this checklist if rebuilding the project from the plan.
 - Provide a vault search modal; prefer `obsidian-cli search` when available and fall back to filesystem search.
 - Search results must be clickable and open the selected file in the editor.
 - AI source citations must be clickable and open the cited file in the editor.
+- Bracket references inside AI answers, such as `[1]`, must be rendered as clickable links to the corresponding source file.
+- AI source lists should show concise source metadata only: title and file path, not full snippets.
 
 ### Must-Have Auth And Settings UX
 
@@ -283,6 +289,8 @@ Use this checklist if rebuilding the project from the plan.
 - Reasoning/thinking can be explicitly disabled for reasoning models that otherwise consume output tokens before producing a final answer.
 - If a provider rejects a provider-specific thinking field, retry without that field so non-reasoning or non-compatible providers can still work with provider-default behavior.
 - AI answers are returned with sanitized Markdown-rendered HTML and displayed as Markdown in the Q&A UI.
+- AI answer bracket citations are converted into internal links and handled client-side to open the referenced source file.
+- Q&A source cards are concise and omit retrieved snippet content.
 
 ### UI And Operations
 
@@ -297,6 +305,8 @@ Use this checklist if rebuilding the project from the plan.
 - AI Ask state persists across view changes, including in-flight query state and disabled/loading button state.
 - AI answers are rendered as sanitized Markdown HTML.
 - Clickable AI citations open source files in the editor.
+- Clickable in-answer citation references open source files in the editor.
+- AI source cards show title and file path only.
 - Search button opens a modal search UI and clickable results open files in the editor.
 - Preview supports Obsidian image rendering and KaTeX math rendering.
 - HTTPS settings UI for importing PEM certificate and private-key files.

@@ -62,3 +62,9 @@ test("renderPreview keeps safe task list checkboxes", async () => {
   assert.match(html, /Open task/);
   assert.match(html, /Done task/);
 });
+
+test("renderPreview preserves soft line breaks", async () => {
+  const html = await renderPreview("first line\nsecond line\nthird line");
+
+  assert.match(html, /first line<br \/>second line<br \/>third line/);
+});

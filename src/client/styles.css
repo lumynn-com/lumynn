@@ -412,6 +412,24 @@ nav .active {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.qa-answer a[href^="#source-"] {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 34%, transparent);
+  border-radius: 999px;
+  padding: 0.05rem 0.38rem;
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+  font-size: 0.86em;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.qa-answer a[href^="#source-"]:hover {
+  border-color: color-mix(in srgb, var(--accent-2) 56%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
 .settings-view,
 .qa-view {
   display: grid;

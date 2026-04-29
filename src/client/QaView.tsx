@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { MouseEvent } from "react";
 import { api } from "./api";
 
 type Citation = { path: string; title: string; snippet: string };
@@ -147,6 +148,20 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
     await runAsk(state.question);
   }
 
+  function openAnswerReference(event: MouseEvent<HTMLElement>) {
+    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='#source-']");
+    if (!link) {
+      return;
+    }
+    const sourceIndex = Number.parseInt(link.getAttribute("href")?.replace("#source-", "") ?? "", 10) - 1;
+    const citation = state.citations[sourceIndex];
+    if (!citation || !props.onOpenSource) {
+      return;
+    }
+    event.preventDefault();
+    props.onOpenSource(citation.path);
+  }
+
   return (
     <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label="Ask AI">
       <section className={props.compact ? "qa-hero" : "panel hero"}>
@@ -187,13 +202,13 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
           </div>
           {state.retrievalWarning ? <div className="error">Retrieval warning: {state.retrievalWarning}</div> : null}
           {state.providerError ? <div className="error">Provider warning: {state.providerError}</div> : null}
-          {state.answerHtml ? <article className="qa-answer" dangerouslySetInnerHTML={{ __html: state.answerHtml }} /> : <p>{state.answer}</p>}
+          {state.answerHtml ? <article className="qa-answer" onClick={openAnswerReference} dangerouslySetInnerHTML={{ __html: state.answerHtml }} /> : <p>{state.answer}</p>}
         </section>
       ) : null}
       <section className="citation-grid">
         {state.answer && state.citations.length === 0 ? <div className="empty-state">No citations returned. Rebuild or resume the index, then ask again.</div> : null}
-        {state.citations.map((citation) => (
-          <article className={`${props.compact ? "" : "panel"} citation`} key={`${citation.path}-${citation.snippet}`}>
+        {state.citations.map((citation, index) => (
+          <article className={`${props.compact ? "" : "panel"} citation`} key={`${citation.path}-${index}`}>
             <button
               className="citation-source"
               type="button"
@@ -203,7 +218,6 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
               <strong>{citation.title}</strong>
               <span>{citation.path}</span>
             </button>
-            <p>{citation.snippet}</p>
           </article>
         ))}
       </section>
