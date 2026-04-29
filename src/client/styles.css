@@ -2003,9 +2003,11 @@ progress::-webkit-progress-bar {
 
 .search-modal {
   display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 1rem;
   width: min(760px, 100%);
   max-height: min(760px, 90dvh);
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -2022,56 +2024,36 @@ progress::-webkit-progress-bar {
 
 .search-results {
   display: grid;
+  align-content: start;
   gap: 0.65rem;
   min-height: 160px;
+  max-height: min(52dvh, 520px);
   overflow: auto;
   padding-right: 0.25rem;
+  overscroll-behavior: contain;
 }
 
 .search-result {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.35rem 0.75rem;
-  min-height: 76px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  overflow: hidden;
   border-radius: 16px;
-  padding: 0.75rem;
+  padding: 0.85rem 0.95rem;
   text-align: left;
 }
 
-.search-result-main {
-  display: grid;
+.search-result strong {
+  display: block;
   min-width: 0;
-}
-
-.search-result-main strong,
-.search-result-main small {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.search-result-main small,
-.search-snippet {
-  color: var(--muted);
-}
-
-.search-source {
-  align-self: start;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.15rem 0.45rem;
-  background: rgba(148, 163, 184, 0.1);
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.search-snippet {
-  grid-column: 1 / -1;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 @media (max-width: 1180px) {
@@ -2752,12 +2734,6 @@ label,
   border-radius: 24px;
   background: var(--md-surface);
   box-shadow: var(--md-elevation-2);
-}
-
-.search-source {
-  border-color: var(--md-outline-soft);
-  background: var(--md-surface-3);
-  color: var(--md-muted);
 }
 
 @media (max-width: 860px) {

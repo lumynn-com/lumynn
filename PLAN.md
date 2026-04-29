@@ -19,6 +19,7 @@ The application should keep Markdown files as the source of truth on disk, use O
 - Document sorting preference persists across page refreshes.
 - Rename, create, edit, preview, save, and delete document actions.
 - Vault search modal that uses `obsidian-cli` first and falls back to filesystem search.
+- Vault search results show clickable file names only, truncated to one line when too long, and the result list scrolls inside the modal.
 - Obsidian-style Markdown preview support for wikilinks, highlights, comments, callouts, image embeds, relative image paths, and LaTeX math.
 - Markdown preview renders image links as images, not plain text, including Obsidian `![[image.png]]` embeds.
 - Markdown preview renders Obsidian math syntax with KaTeX:
@@ -92,6 +93,8 @@ Use this checklist if rebuilding the project from the plan.
 - Keep Markdown/math transformations out of fenced code blocks and inline code spans.
 - Provide a vault search modal; prefer `obsidian-cli search` when available and fall back to filesystem search.
 - Search results must be clickable and open the selected file in the editor.
+- Search result rows should stay visually simple: file name only, one line, with ellipsis for long names.
+- Search modal result lists must scroll so all matches are reachable.
 - AI source citations must be clickable and open the cited file in the editor.
 - Bracket references inside AI answers, such as `[1]`, must be rendered as clickable links to the corresponding source file.
 - AI source lists should show concise source metadata only: title and file path, not full snippets.
@@ -307,7 +310,7 @@ Use this checklist if rebuilding the project from the plan.
 - Clickable AI citations open source files in the editor.
 - Clickable in-answer citation references open source files in the editor.
 - AI source cards show title and file path only.
-- Search button opens a modal search UI and clickable results open files in the editor.
+- Search button opens a modal search UI; clickable file-name-only results open files in the editor and long result lists scroll inside the modal.
 - Preview supports Obsidian image rendering and KaTeX math rendering.
 - HTTPS settings UI for importing PEM certificate and private-key files.
 - `server.sh` helper for start, stop, restart, status, and logs.

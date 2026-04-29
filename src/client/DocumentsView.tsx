@@ -403,12 +403,7 @@ export function DocumentsView() {
               {searchHasRun && !searchLoading && searchResults.length === 0 ? <div className="empty-state">No matching files found.</div> : null}
               {searchResults.map((result) => (
                 <button key={result.path} className="search-result" type="button" onClick={() => openSearchResult(result.path)}>
-                  <span className="search-result-main">
-                    <strong>{result.name}</strong>
-                    <small>{result.path}</small>
-                  </span>
-                  <span className="search-source">{result.source}</span>
-                  <span className="search-snippet">{result.snippet}</span>
+                  <strong>{result.name}</strong>
                 </button>
               ))}
             </div>
