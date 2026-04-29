@@ -17,3 +17,38 @@ test("renderPreview sanitizes unsafe HTML", async () => {
   assert.doesNotMatch(html, /onerror/);
   assert.match(html, /<img src="x"/);
 });
+
+test("renderPreview supports common Obsidian markdown", async () => {
+  const html = await renderPreview(
+    [
+      "[[Project Notes|project]] and ==important==",
+      "",
+      "%%hidden comment%%",
+      "",
+      "> [!note] Remember",
+      "> Callout body",
+      "",
+      "![[Images/photo.png|320]]"
+    ].join("\n"),
+    "Folder/Note.md"
+  );
+
+  assert.match(html, /class="internal-link"/);
+  assert.match(html, />project<\/a>/);
+  assert.match(html, /<mark>important<\/mark>/);
+  assert.doesNotMatch(html, /hidden comment/);
+  assert.match(html, /<strong>Note:<\/strong> Remember/);
+  assert.match(html, /\/api\/documents\/media\?path=Images%2Fphoto.png&amp;base=Folder%2FNote.md/);
+  assert.match(html, /width="320"/);
+});
+
+test("renderPreview supports Obsidian math syntax", async () => {
+  const html = await renderPreview("Inline $\\angle ABC = 90^\\circ$ and $\\square + \\dots$.\n\n$$\na^2 + b^2 = c^2\n$$\n\n`$\\angle$ stays code`");
+
+  assert.match(html, /class="katex"/);
+  assert.match(html, /class="katex-display"/);
+  assert.match(html, /∠/);
+  assert.match(html, /□/);
+  assert.match(html, /…/);
+  assert.match(html, /<code>\$\\angle\$ stays code<\/code>/);
+});

@@ -1,6 +1,7 @@
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import katex from "katex";
 import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
@@ -381,16 +382,98 @@ function mediaUrl(assetPath: string, basePath?: string): string {
   return `/api/documents/media?${params.toString()}`;
 }
 
-function prepareMediaEmbeds(content: string, basePath?: string): string {
-  const withObsidianImages = content.replace(/!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawPath: string, rawAlt: string | undefined) => {
-    const assetPath = rawPath.trim();
-    const alt = (rawAlt?.trim() || path.basename(assetPath)).replaceAll("]", "\\]");
-    return `![${alt}](${mediaUrl(assetPath, basePath)})`;
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function isImagePath(value: string): boolean {
+  return Boolean(supportedMediaTypes[path.extname(value.split("#")[0].split("?")[0]).toLowerCase()]);
+}
+
+function parseObsidianEmbedMeta(rawMeta: string | undefined): { alt: string; width?: string; height?: string } {
+  const meta = rawMeta?.trim() ?? "";
+  if (!meta) {
+    return { alt: "" };
+  }
+  const size = meta.match(/^(\d+)(?:x(\d+))?$/i);
+  if (size) {
+    return { alt: "", width: size[1], height: size[2] };
+  }
+  return { alt: meta };
+}
+
+function transformObsidianCallouts(input: string): string {
+  return input
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(/^>\s*\[!([a-zA-Z0-9_-]+)\][+-]?\s*(.*)$/);
+      if (!match) {
+        return line;
+      }
+      const type = match[1].replace(/[-_]+/g, " ");
+      const title = match[2]?.trim() || type;
+      return `> **${type[0].toUpperCase()}${type.slice(1)}:** ${title}`;
+    })
+    .join("\n");
+}
+
+function renderMath(tex: string, displayMode: boolean): string {
+  return katex.renderToString(tex.trim(), {
+    displayMode,
+    output: "html",
+    throwOnError: false,
+    strict: "ignore"
+  });
+}
+
+function transformObsidianMath(input: string): string {
+  const withBlockMath = input.replace(/(^|[\r\n])\$\$([\s\S]*?)\$\$(?=$|[\r\n])/g, (_match, prefix: string, tex: string) => {
+    return `${prefix}${renderMath(tex, true)}`;
   });
 
-  return withObsidianImages.replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)\s]+)(?:\s+"[^"]*")?\)/gi, (_match, rawAlt: string, rawPath: string) => {
-    return `![${rawAlt}](${mediaUrl(rawPath, basePath)})`;
+  return withBlockMath.replace(/(^|[^\\$])\$(?!\s|\$)([^\n$]+?)(?<!\s|\\)\$/g, (_match, prefix: string, tex: string) => {
+    return `${prefix}${renderMath(tex, false)}`;
   });
+}
+
+function transformObsidianSyntaxSegment(input: string, basePath?: string): string {
+  const withoutComments = input.replace(/%%[\s\S]*?%%/g, "");
+  const withMath = transformObsidianMath(withoutComments);
+  const withCallouts = transformObsidianCallouts(withMath);
+  const withObsidianEmbeds = withCallouts.replace(/!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawPath: string, rawMeta: string | undefined) => {
+    const assetPath = rawPath.trim();
+    if (!isImagePath(assetPath)) {
+      return `<a class="internal-link internal-embed" href="#" title="${escapeHtml(assetPath)}">${escapeHtml(path.basename(assetPath))}</a>`;
+    }
+    const meta = parseObsidianEmbedMeta(rawMeta);
+    const alt = meta.alt || path.basename(assetPath);
+    const sizeAttributes = `${meta.width ? ` width="${escapeHtml(meta.width)}"` : ""}${meta.height ? ` height="${escapeHtml(meta.height)}"` : ""}`;
+    return `<img src="${escapeHtml(mediaUrl(assetPath, basePath))}" alt="${escapeHtml(alt)}"${sizeAttributes} />`;
+  });
+
+  return withObsidianEmbeds
+    .replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)\s]+)(?:\s+"[^"]*")?\)/gi, (_match, rawAlt: string, rawPath: string) => {
+      return `![${rawAlt}](${mediaUrl(rawPath, basePath)})`;
+    })
+    .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawTarget: string, rawAlias: string | undefined) => {
+      const target = rawTarget.trim();
+      const label = rawAlias?.trim() || path.basename(target, ".md") || target;
+      return `<a class="internal-link" href="#" title="${escapeHtml(target)}">${escapeHtml(label)}</a>`;
+    })
+    .replace(/(^|[^=])==([^=\n][\s\S]*?[^=\n])==(?=[^=]|$)/g, (_match, prefix: string, text: string) => {
+      return `${prefix}<mark>${escapeHtml(text)}</mark>`;
+    });
+}
+
+function prepareObsidianMarkdown(content: string, basePath?: string): string {
+  const segments = content.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]+`)/g);
+  return segments
+    .map((segment) => (/^(```|~~~|`)/.test(segment) ? segment : transformObsidianSyntaxSegment(segment, basePath)))
+    .join("");
 }
 
 export async function readVaultMedia(assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
@@ -435,12 +518,15 @@ export async function readVaultMedia(assetPath: string, basePath?: string): Prom
 }
 
 export async function renderPreview(content: string, basePath?: string): Promise<string> {
-  const html = await marked.parse(prepareMediaEmbeds(content, basePath), { async: true });
+  const html = await marked.parse(prepareObsidianMarkdown(content, basePath), { async: true, gfm: true, breaks: false });
   return sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2"]),
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "mark"]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
-      img: ["src", "alt", "title", "loading"]
+      a: ["href", "name", "target", "title", "class"],
+      span: ["class", "style", "aria-hidden"],
+      img: ["src", "alt", "title", "loading", "width", "height"],
+      mark: ["class"]
     }
   });
 }
