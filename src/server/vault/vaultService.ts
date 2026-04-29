@@ -22,6 +22,14 @@ const supportedMediaTypes: Record<string, string> = {
   ".webp": "image/webp"
 };
 
+export interface DocumentFileStat {
+  path: string;
+  name: string;
+  updatedAt: string;
+  mtimeMs: number;
+  size: number;
+}
+
 function isInside(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
@@ -187,6 +195,32 @@ export async function listDocuments(sort: SortField = "name", order: SortOrder =
   return summaries.sort((a, b) => {
     const aValue = String(a[sort] ?? "").toLocaleLowerCase();
     const bValue = String(b[sort] ?? "").toLocaleLowerCase();
+    const primary = aValue.localeCompare(bValue);
+    return (primary || a.path.localeCompare(b.path)) * factor;
+  });
+}
+
+export async function listDocumentFileStats(sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentFileStat[]> {
+  const vaultRoot = await ensureVault();
+  await fs.mkdir(vaultRoot, { recursive: true });
+  const paths = await walkMarkdown(vaultRoot);
+  const stats = await Promise.all(
+    paths.map(async (docPath) => {
+      const stat = await fs.stat(resolveInVault(vaultRoot, docPath));
+      return {
+        path: docPath,
+        name: path.basename(docPath),
+        updatedAt: stat.mtime.toISOString(),
+        mtimeMs: stat.mtimeMs,
+        size: stat.size
+      } satisfies DocumentFileStat;
+    })
+  );
+
+  const factor = order === "asc" ? 1 : -1;
+  return stats.sort((a, b) => {
+    const aValue = sort === "createdAt" ? "" : String(a[sort as keyof DocumentFileStat] ?? "").toLocaleLowerCase();
+    const bValue = sort === "createdAt" ? "" : String(b[sort as keyof DocumentFileStat] ?? "").toLocaleLowerCase();
     const primary = aValue.localeCompare(bValue);
     return (primary || a.path.localeCompare(b.path)) * factor;
   });

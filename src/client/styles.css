@@ -472,6 +472,54 @@ nav .active {
   gap: 0.65rem;
 }
 
+.index-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.index-status-card {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.index-status-card.ready {
+  border-color: rgba(63, 185, 80, 0.28);
+  background: rgba(63, 185, 80, 0.07);
+}
+
+.index-status-card.empty {
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.index-status-card h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+}
+
+.index-status-card small {
+  color: #9da7b3;
+}
+
+.index-status-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.index-status-metrics span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: #d7dee8;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.86rem;
+}
+
 .index-progress {
   display: grid;
   gap: 0.75rem;
@@ -1202,6 +1250,26 @@ label {
   background: color-mix(in srgb, var(--panel-strong) 70%, transparent);
 }
 
+.index-status-card {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--panel-strong) 62%, transparent);
+}
+
+.index-status-card.ready {
+  border-color: color-mix(in srgb, var(--success) 32%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+}
+
+.index-status-card small {
+  color: var(--muted);
+}
+
+.index-status-metrics span {
+  border-color: var(--border);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-soft) 64%, transparent);
+}
+
 .index-progress.running {
   border-color: color-mix(in srgb, var(--accent-2) 42%, transparent);
 }
@@ -1608,8 +1676,10 @@ progress::-webkit-progress-bar {
 
 .preview-surface {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: clamp(1rem, 2vw, 1.6rem);
@@ -1617,11 +1687,14 @@ progress::-webkit-progress-bar {
 }
 
 .preview-surface article {
-  max-width: 78ch;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
   line-height: 1.72;
   color: var(--text);
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .preview-surface article :first-child {
@@ -1636,6 +1709,33 @@ progress::-webkit-progress-bar {
   border-radius: 6px;
   padding: 0.15rem 0.3rem;
   background: rgba(148, 163, 184, 0.14);
+}
+
+.preview-surface article :where(p, li, blockquote, td, th) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.preview-surface article pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview-surface article table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.preview-surface article .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
 }
 
 .preview-surface article img,

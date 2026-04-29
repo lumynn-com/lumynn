@@ -8,6 +8,35 @@ The application should keep Markdown files as the source of truth on disk, use O
 
 ## Current Implemented Scope
 
+- Node.js/Fastify backend and React/Vite frontend for an Obsidian-like Markdown vault web app.
+- Basic authentication, first-run admin setup, logout, and organized Settings pages.
+- Configurable vault path with filesystem-first Markdown operations and safe path validation.
+- Classic three-column workspace layout:
+  - Left column: collapsed-by-default document tree, sorting, search, and new-note actions.
+  - Center column: multi-tab Markdown editor/preview workspace.
+  - Right column: AI Ask panel with persistent question/answer/query state and clickable source citations.
+- Global edit/preview mode switch that applies to every opened file and persists across page refreshes.
+- Document sorting preference persists across page refreshes.
+- Rename, create, edit, preview, save, and delete document actions.
+- Vault search modal that uses `obsidian-cli` first and falls back to filesystem search.
+- Obsidian-style Markdown preview support for wikilinks, highlights, comments, callouts, image embeds, relative image paths, and LaTeX math.
+- Markdown preview renders image links as images, not plain text, including Obsidian `![[image.png]]` embeds.
+- Markdown preview renders Obsidian math syntax with KaTeX:
+  - Inline math: `$...$`.
+  - Block math: `$$...$$`.
+  - Common LaTeX symbols such as `\angle`, `\square`, and `\dots`.
+  - Math inside code spans/fences remains unchanged.
+- Preview layout is left-aligned and wraps long content so the panel does not require horizontal scrolling for normal text.
+- Wide preview elements such as code blocks, tables, and display math scroll locally when needed.
+- RAG provider settings support embedding and Q&A provider configuration, API modes, endpoint paths, reasoning mode, testing, and import/export.
+- RAG indexing supports test, full, and incremental jobs with progress, stop, skip-current-file, checkpointing, and resume-friendly state.
+- RAG index storage uses compact snapshots under `data/vector-index/`.
+- Incremental indexing uses a per-file index manifest to fast-skip unchanged files by file timestamp/size before falling back to content hash checks.
+- Incremental indexing exits early without loading or rewriting vector snapshots when the file manifest shows no new, changed, or deleted files.
+- Hybrid retrieval combines vector search, indexed keyword search, metadata boosts, and limited live-vault fallback.
+- Q&A supports `/chat/completions`, `/responses`, and custom provider paths, with sanitized Markdown answer rendering.
+- HTTPS certificate/private-key settings and `server.sh` operational helper are implemented.
+
 ## Future Implementation Checklist
 
 Use this checklist if rebuilding the project from the plan.
@@ -33,6 +62,22 @@ Use this checklist if rebuilding the project from the plan.
 - Support opening multiple files in tabs.
 - Start with no file open by default and show a blank editor state.
 - Render Markdown previews safely.
+- Render Obsidian-flavored preview syntax:
+  - Wikilinks and aliases: `[[Note]]`, `[[Note|alias]]`.
+  - Highlights: `==text==`.
+  - Comments: `%%comment%%`.
+  - Callouts: `> [!note] Title`.
+  - Obsidian image embeds: `![[image.png]]`, including size hints.
+  - Relative Markdown images: `![alt](image.png)`.
+  - LaTeX math: `$...$` and `$$...$$`.
+- Keep preview content readable in the center column:
+  - Normal text must wrap inside the panel.
+  - The article should be left-aligned, not centered in a narrow column.
+  - Wide code blocks, tables, and display math should scroll locally instead of shifting the whole preview.
+- Keep Markdown/math transformations out of fenced code blocks and inline code spans.
+- Provide a vault search modal; prefer `obsidian-cli search` when available and fall back to filesystem search.
+- Search results must be clickable and open the selected file in the editor.
+- AI source citations must be clickable and open the cited file in the editor.
 
 ### Must-Have Auth And Settings UX
 
@@ -74,6 +119,11 @@ Use this checklist if rebuilding the project from the plan.
 - Q&A should fall back to the test index if no production index exists.
 - Provide full reindex and incremental reindex.
 - Incremental indexing should reuse unchanged chunks and refresh changed files.
+- Incremental indexing should keep a persisted file manifest so unchanged files can be skipped using cheap filesystem metadata checks before reading file content.
+- If the file manifest shows no new, changed, or deleted files, incremental indexing should complete immediately without loading embeddings or rewriting the vector snapshot.
+- Long-running indexing jobs must support stop and skip-current-file actions.
+- Index progress must remain visible when leaving and returning to the Indexing page, or after reopening the browser.
+- Full and incremental jobs should checkpoint progress so interrupted work can be resumed or reused.
 - Show indexing progress in the UI, including files, chunks, reused chunks, failed chunks, and current file.
 - Chunk Markdown with heading-aware logic.
 - Include metadata such as title, path, tags, aliases, frontmatter, and heading in embedding text.
@@ -109,11 +159,25 @@ Use this checklist if rebuilding the project from the plan.
 - Plain-text Markdown vault browsing, creation, editing, preview, and deletion.
 - Filesystem-first vault operations with path validation.
 - Sorting by name, path, title, created time, and updated time.
+- Sorting preference persists in the browser.
 - Atomic writes and save-conflict detection using document hashes.
+- JSON app metadata saves are serialized with unique temporary files to avoid concurrent rename/write races.
 - Collapsed-by-default directory tree view for the document list.
 - Multi-file editor tabs, with no file opened by default.
+- Global edit/preview mode switch that persists across refreshes and applies to newly opened files.
+- Rename action for existing Markdown files.
 - Markdown preview using server-side rendering and sanitization.
+- Obsidian-style Markdown preview transforms:
+  - Wikilinks and aliases.
+  - Highlights.
+  - Comments.
+  - Callouts.
+  - Obsidian image embeds.
+  - Relative image paths.
+  - LaTeX math rendered with KaTeX.
+- Preview layout avoids normal horizontal scrolling by wrapping long text and isolating overflow to wide code blocks, tables, and display math.
 - Optional Obsidian CLI integration boundary, while core features continue to work without Obsidian desktop.
+- `obsidian-cli search` integration for vault search when available, with filesystem fallback.
 
 ### Authentication And Settings
 
@@ -161,6 +225,12 @@ Use this checklist if rebuilding the project from the plan.
 - Test indexing for a limited sample, defaulting to 20 files.
 - Full production indexing.
 - Incremental indexing that reuses unchanged chunks.
+- Stop indexing and skip-current-file controls.
+- Checkpointed full/incremental progress so interrupted runs do not need to restart every file from the beginning.
+- Latest job state is available from the backend so the UI can reattach when navigating away/back or reopening the site.
+- Per-file index manifest stored beside the vector snapshot to track path, hash, updated time, `mtimeMs`, size, chunk count, and last indexed time.
+- Incremental runs should use that manifest to read/chunk/embed only new or changed files, while removing deleted files from the production index.
+- No-change incremental runs should only scan lightweight file stats, then return without loading `*.f32`/`*.jsonl` vector data.
 - Background indexing jobs with progress in the UI:
   - Files processed.
   - Chunks embedded.
@@ -178,6 +248,7 @@ Use this checklist if rebuilding the project from the plan.
   - `*.jsonl` for chunk metadata and text.
   - `*.f32` for Float32 binary embeddings.
   - `*.manifest.json` for snapshot metadata.
+  - `*.files.json` for per-file incremental index metadata.
 - Existing legacy JSON index migration path.
 - Stored Q&A context text is now compact Copilot-style chunk context rather than the full embedding prompt.
 
@@ -202,8 +273,19 @@ Use this checklist if rebuilding the project from the plan.
 
 ### UI And Operations
 
-- Modern dark React UI with document, settings, and Q&A views.
+- Material-inspired React UI with a calm, lightweight visual style and clear system-font rendering.
+- Classic Obsidian-like three-column workspace:
+  - Left document tree.
+  - Center editor/preview with tabs and global mode switch.
+  - Right AI Ask panel.
+- Top navigation for Workspace, Indexing, Settings, theme, and logout.
 - Tree view styling, tab strip, blank editor state, index progress, and provider feedback.
+- File names are shown in the tree, not Markdown titles, and tree file names are not bold.
+- AI Ask state persists across view changes, including in-flight query state and disabled/loading button state.
+- AI answers are rendered as sanitized Markdown HTML.
+- Clickable AI citations open source files in the editor.
+- Search button opens a modal search UI and clickable results open files in the editor.
+- Preview supports Obsidian image rendering and KaTeX math rendering.
 - HTTPS settings UI for importing PEM certificate and private-key files.
 - `server.sh` helper for start, stop, restart, status, and logs.
 - `server.sh` prioritizes Homebrew Node.js on macOS so server startup uses Node 24 when available.
@@ -219,13 +301,14 @@ Use this checklist if rebuilding the project from the plan.
   - RAG vector snapshots in `data/vector-index/`.
 - Rendering:
   - Markdown preview and AI answers are rendered server-side with `marked` and sanitized with `sanitize-html`.
+  - Obsidian math preview is rendered server-side with `katex` and styled with bundled KaTeX CSS.
+  - Vault media assets are served through the backend for safe relative image and Obsidian embed rendering.
 
 ## Remaining Hardening
 
 - Encrypt provider API keys at rest using `APP_ENCRYPTION_KEY`.
 - Add automated backend/frontend tests for auth, vault path validation, RAG indexing, and provider modes.
-- Add cancellation controls for long-running indexing jobs.
-- Add richer Obsidian-native features through `obsidian-cli` when available, such as backlinks, tags, and workspace-aware search.
+- Add richer Obsidian-native features through `obsidian-cli` when available, such as backlinks, tags, and workspace-aware metadata.
 - Consider a production-grade vector database if the compact snapshot store becomes too slow for large vaults.
 - Add admin controls for deleting test/production indexes.
 - Add observability for provider request size, latency, retry attempts, and token usage.

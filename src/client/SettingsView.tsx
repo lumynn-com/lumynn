@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AppSettings, ProviderSettings, RagIndexJob } from "../shared/types";
+import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats } from "../shared/types";
 import { api } from "./api";
 
 type SettingsSection = "account" | "vault" | "https" | "providers" | "operations" | "import-export";
@@ -23,6 +23,13 @@ export function SettingsView(props: { mode?: SettingsMode }) {
   const [httpsPrivateKey, setHttpsPrivateKey] = useState("");
   const [importText, setImportText] = useState("");
   const [indexJob, setIndexJob] = useState<RagIndexJob | null>(null);
+  const [indexStats, setIndexStats] = useState<RagIndexStats | null>(null);
+
+  function refreshIndexStats() {
+    api<RagIndexStats>("/api/rag/index-stats")
+      .then(setIndexStats)
+      .catch(() => undefined);
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -51,6 +58,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
       })
       .catch(() => undefined);
 
+    api<RagIndexStats>("/api/rag/index-stats")
+      .then((stats) => {
+        if (mounted) {
+          setIndexStats(stats);
+        }
+      })
+      .catch(() => undefined);
+
     return () => {
       mounted = false;
     };
@@ -63,7 +78,12 @@ export function SettingsView(props: { mode?: SettingsMode }) {
 
     const timer = window.setInterval(() => {
       api<RagIndexJob>(`/api/rag/index-jobs/${indexJob.id}`)
-        .then(setIndexJob)
+        .then((job) => {
+          setIndexJob(job);
+          if (job.status !== "queued" && job.status !== "running") {
+            refreshIndexStats();
+          }
+        })
         .catch((error) => setMessage(error.message));
     }, 900);
 
@@ -162,6 +182,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
         body: body ? JSON.stringify(body) : undefined
       });
       setIndexJob(job);
+      refreshIndexStats();
       setMessage(`Started ${job.mode} indexing job ${job.id}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to start indexing");
@@ -451,10 +472,11 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
               </div>
+              {indexStats ? <IndexStatus stats={indexStats} /> : null}
               <div className="button-row">
                 <button className="primary" onClick={saveRag}>Save Index Settings</button>
                 <button onClick={() => startIndex("/api/settings/rag/test-index", { sampleSize: 20 })}>Index 20-File Sample</button>
-                <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Resume Incremental Index</button>
+                <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Start Incremental Index</button>
                 <button onClick={() => startIndex("/api/rag/reindex")}>Rebuild Full Index</button>
               </div>
               {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
@@ -497,6 +519,35 @@ export function SettingsView(props: { mode?: SettingsMode }) {
       </section>
       {message ? <pre className="message" aria-live="polite">{message}</pre> : null}
     </main>
+  );
+}
+
+function formatDate(value: string | undefined): string {
+  return value ? new Date(value).toLocaleString() : "Never";
+}
+
+function IndexStatus(props: { stats: RagIndexStats }) {
+  const items = [
+    { label: "Production Index", stats: props.stats.production },
+    { label: "Test Index", stats: props.stats.test }
+  ];
+
+  return (
+    <div className="index-status-grid" aria-label="RAG index status">
+      {items.map((item) => (
+        <article key={item.label} className={`index-status-card ${item.stats.hasIndex ? "ready" : "empty"}`}>
+          <div>
+            <p className="eyebrow">{item.label}</p>
+            <h3>{item.stats.hasIndex ? "Indexed" : "Not Indexed"}</h3>
+          </div>
+          <div className="index-status-metrics">
+            <span>{item.stats.fileCount} files</span>
+            <span>{item.stats.chunkCount} chunks</span>
+          </div>
+          <small>Last updated: {formatDate(item.stats.updatedAt)}</small>
+        </article>
+      ))}
+    </div>
   );
 }
 

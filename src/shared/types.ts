@@ -75,6 +75,18 @@ export interface RagIndexJob {
   elapsedMs?: number;
 }
 
+export interface RagNamespaceStats {
+  updatedAt?: string;
+  fileCount: number;
+  chunkCount: number;
+  hasIndex: boolean;
+}
+
+export interface RagIndexStats {
+  production: RagNamespaceStats;
+  test: RagNamespaceStats;
+}
+
 export interface AppSettings {
   auth: {
     username: string;

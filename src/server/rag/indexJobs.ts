@@ -2,10 +2,10 @@ import { randomUUID } from "node:crypto";
 import type { RagIndexJob } from "../../shared/types";
 import { sha256 } from "../crypto";
 import { store } from "../store";
-import { listDocuments, readDocument } from "../vault/vaultService";
+import { listDocumentFileStats, readDocument, type DocumentFileStat } from "../vault/vaultService";
 import { chunkMarkdownByHeading, formatChunkForEmbedding } from "./chunker";
 import { embedTexts } from "./embeddingProvider";
-import { getNamespaceChunks, replaceNamespace, type VectorChunk, type VectorNamespace } from "./vectorStore";
+import { getNamespaceChunks, getNamespaceFileIndex, replaceNamespace, type FileIndexRecord, type VectorChunk, type VectorNamespace } from "./vectorStore";
 
 const jobs = new Map<string, RagIndexJob>();
 
@@ -29,6 +29,13 @@ function formatChunkForContext(title: string, text: string): string {
 function updateJob(job: RagIndexJob, patch: Partial<RagIndexJob>) {
   Object.assign(job, patch);
   jobs.set(job.id, job);
+}
+
+function isUnchangedFile(record: FileIndexRecord | undefined, doc: DocumentFileStat): boolean {
+  if (!record || record.mtimeMs <= 0 || record.size < 0) {
+    return false;
+  }
+  return record.size === doc.size && Math.abs(record.mtimeMs - doc.mtimeMs) < 1;
 }
 
 export function getIndexJob(id: string): RagIndexJob | undefined {
@@ -132,8 +139,38 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
     lastEmbeddingRequestStartedAt = Date.now();
     return embedTexts(settings.embedding, input, { inputType: "passage" });
   };
-  const docs = await listDocuments("updatedAt", "desc");
-  const selectedDocs = job.mode === "test" ? docs.slice(0, sampleSize ?? 20) : docs;
+  const docs = await listDocumentFileStats("updatedAt", "desc");
+  let selectedDocs = job.mode === "test" ? docs.slice(0, sampleSize ?? 20) : docs;
+  const currentPaths = new Set(selectedDocs.map((doc) => doc.path));
+  const existingFileIndex = job.mode === "incremental" ? await getNamespaceFileIndex("production") : [];
+  const existingFileByPath = new Map(existingFileIndex.map((record) => [record.path, record]));
+  let deletedIndexedFiles = 0;
+
+  if (job.mode === "incremental" && existingFileIndex.length > 0) {
+    const changedDocs = selectedDocs.filter((doc) => !isUnchangedFile(existingFileByPath.get(doc.path), doc));
+    deletedIndexedFiles = existingFileIndex.filter((record) => !currentPaths.has(record.path)).length;
+    const reusedChunkCount = selectedDocs.reduce((total, doc) => total + (existingFileByPath.get(doc.path)?.chunkCount ?? 0), 0);
+
+    if (changedDocs.length === 0 && deletedIndexedFiles === 0) {
+      updateJob(job, {
+        status: "completed",
+        totalFiles: selectedDocs.length,
+        processedFiles: selectedDocs.length,
+        skippedFiles: selectedDocs.length,
+        totalChunks: reusedChunkCount,
+        reusedChunks: reusedChunkCount,
+        currentFile: undefined,
+        message: "Incremental index complete: no file changes detected",
+        finishedAt: new Date().toISOString(),
+        elapsedMs: Date.now() - Date.parse(job.startedAt)
+      });
+      return;
+    }
+
+    selectedDocs = changedDocs;
+  }
+
+  const changedPaths = new Set(selectedDocs.map((doc) => doc.path));
   const existingVectors = job.mode === "incremental" ? await getNamespaceChunks("production") : [];
   const existingByPath = new Map<string, VectorChunk[]>();
   for (const vector of existingVectors) {
@@ -141,8 +178,13 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
     current.push(vector);
     existingByPath.set(vector.path, current);
   }
-  const currentPaths = new Set(selectedDocs.map((doc) => doc.path));
-  const vectors: VectorChunk[] = job.mode === "incremental" ? existingVectors.filter((vector) => currentPaths.has(vector.path)) : [];
+  const vectors: VectorChunk[] =
+    job.mode === "incremental" ? existingVectors.filter((vector) => currentPaths.has(vector.path) && !changedPaths.has(vector.path)) : [];
+  const fileIndexByPath = new Map<string, FileIndexRecord>(
+    job.mode === "incremental"
+      ? existingFileIndex.filter((record) => currentPaths.has(record.path) && !changedPaths.has(record.path)).map((record) => [record.path, record])
+      : []
+  );
   let checkpointedFiles = 0;
   const checkpointIndex = async (force = false) => {
     if (job.mode === "test") {
@@ -153,14 +195,17 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
     }
     const previousMessage = job.message;
     updateJob(job, { message: `Checkpointing index (${job.processedFiles}/${job.totalFiles} files)` });
-    await replaceNamespace(job.namespace, vectors);
+    await replaceNamespace(job.namespace, vectors, Array.from(fileIndexByPath.values()));
     checkpointedFiles = job.processedFiles;
     updateJob(job, { message: previousMessage });
   };
 
   updateJob(job, {
     totalFiles: selectedDocs.length,
-    message: `Indexing ${selectedDocs.length} file${selectedDocs.length === 1 ? "" : "s"}`
+    message:
+      job.mode === "incremental"
+        ? `Indexing ${selectedDocs.length} changed file${selectedDocs.length === 1 ? "" : "s"}${deletedIndexedFiles ? ` and removing ${deletedIndexedFiles} deleted file${deletedIndexedFiles === 1 ? "" : "s"}` : ""}`
+        : `Indexing ${selectedDocs.length} file${selectedDocs.length === 1 ? "" : "s"}`
   });
 
   for (const doc of selectedDocs) {
@@ -168,9 +213,8 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
       return cancelJob(job);
     }
 
-    updateJob(job, { currentFile: doc.path, message: `Chunking ${doc.path}` });
-    const full = await readDocument(doc.path);
-    const reusable = existingByPath.get(full.path);
+    updateJob(job, { currentFile: doc.path, message: `Checking ${doc.path}` });
+    const reusable = existingByPath.get(doc.path);
     let fileVectorStart = vectors.length;
     let removedVectorsForPath: VectorChunk[] = [];
     let fileSkipped = false;
@@ -180,13 +224,36 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
         skipRequested: false,
         processedFiles: job.processedFiles + 1,
         skippedFiles: job.skippedFiles + 1,
-        message: `Skipped ${full.path}`
+        message: `Skipped ${doc.path}`
       });
       await checkpointIndex();
       continue;
     }
 
+    const existingFile = existingFileByPath.get(doc.path);
+    if (job.mode === "incremental" && reusable?.length && isUnchangedFile(existingFile, doc)) {
+      updateJob(job, {
+        processedFiles: job.processedFiles + 1,
+        skippedFiles: job.skippedFiles + 1,
+        totalChunks: job.totalChunks + reusable.length,
+        reusedChunks: job.reusedChunks + reusable.length,
+        message: `Fast reused ${reusable.length} unchanged chunk${reusable.length === 1 ? "" : "s"} from ${doc.path}`
+      });
+      await checkpointIndex();
+      continue;
+    }
+
+    const full = await readDocument(doc.path);
     if (job.mode === "incremental" && reusable?.length && reusable.every((vector) => vector.hash === full.hash)) {
+      fileIndexByPath.set(full.path, {
+        path: full.path,
+        hash: full.hash,
+        updatedAt: doc.updatedAt,
+        mtimeMs: doc.mtimeMs,
+        size: doc.size,
+        chunkCount: reusable.length,
+        indexedAt: new Date().toISOString()
+      });
       updateJob(job, {
         processedFiles: job.processedFiles + 1,
         skippedFiles: job.skippedFiles + 1,
@@ -330,6 +397,15 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
       continue;
     }
 
+    fileIndexByPath.set(full.path, {
+      path: full.path,
+      hash: full.hash,
+      updatedAt: doc.updatedAt,
+      mtimeMs: doc.mtimeMs,
+      size: doc.size,
+      chunkCount: chunks.length,
+      indexedAt: new Date().toISOString()
+    });
     await checkpointIndex();
   }
 
@@ -338,7 +414,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
   }
 
   updateJob(job, { message: "Persisting vector index" });
-  await replaceNamespace(job.namespace, vectors);
+  await replaceNamespace(job.namespace, vectors, Array.from(fileIndexByPath.values()));
 
   updateJob(job, {
     status: "completed",
