@@ -52,3 +52,13 @@ test("renderPreview supports Obsidian math syntax", async () => {
   assert.match(html, /…/);
   assert.match(html, /<code>\$\\angle\$ stays code<\/code>/);
 });
+
+test("renderPreview keeps safe task list checkboxes", async () => {
+  const html = await renderPreview("- [ ] Open task\n- [x] Done task");
+
+  assert.match(html, /type="checkbox"/);
+  assert.match(html, /disabled/);
+  assert.match(html, /checked/);
+  assert.match(html, /Open task/);
+  assert.match(html, /Done task/);
+});

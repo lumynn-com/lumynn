@@ -1724,11 +1724,124 @@ progress::-webkit-progress-bar {
   word-break: break-word;
 }
 
+.preview-surface article li:has(> input[type="checkbox"]) {
+  position: relative;
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0.35rem 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--md-radius-md, 12px);
+  list-style: none;
+  background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 34%, transparent);
+}
+
+.preview-surface article li:has(> input[type="checkbox"]:checked) {
+  border-color: color-mix(in srgb, var(--success, #34d399) 24%, transparent);
+  background: color-mix(in srgb, var(--success, #34d399) 9%, transparent);
+  color: color-mix(in srgb, var(--md-muted, var(--muted)) 72%, var(--md-text, var(--text)));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--success, #34d399) 58%, transparent);
+}
+
+.preview-surface article li:has(> input[type="checkbox"]:not(:checked)) {
+  border-color: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+.preview-surface article input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.22rem 0 0;
+  border-radius: 0.3rem;
+  accent-color: var(--success, #34d399);
+  cursor: default;
+}
+
+.preview-surface article input[type="checkbox"]:not(:checked) {
+  accent-color: var(--accent-2);
+}
+
 .preview-surface article table {
   display: block;
-  width: 100%;
+  width: fit-content;
   max-width: 100%;
   overflow-x: auto;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: var(--md-radius-lg, 16px);
+  border-spacing: 0;
+  border-collapse: separate;
+  margin: 1.15rem 0;
+  background: var(--md-surface, color-mix(in srgb, var(--panel-strong) 80%, transparent));
+  box-shadow: var(--md-elevation-1, 0 1px 3px rgba(0, 0, 0, 0.16));
+}
+
+.preview-surface article table :where(thead, tbody) {
+  display: table-row-group;
+  min-width: max-content;
+}
+
+.preview-surface article table thead {
+  background: var(--md-surface-3, color-mix(in srgb, var(--accent-2) 10%, transparent));
+}
+
+.preview-surface article table tr {
+  display: table-row;
+}
+
+.preview-surface article table th,
+.preview-surface article table td {
+  display: table-cell;
+  min-width: 8rem;
+  border-right: 1px solid var(--md-outline-soft, var(--border));
+  border-bottom: 1px solid var(--md-outline-soft, var(--border));
+  padding: 0.72rem 0.85rem;
+  vertical-align: top;
+  text-align: left;
+  line-height: 1.55;
+}
+
+.preview-surface article table th {
+  color: var(--md-text, var(--text));
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.015em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.preview-surface article table td {
+  color: var(--md-text, var(--text));
+  font-size: 0.92rem;
+}
+
+.preview-surface article table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--md-surface-3, var(--bg-soft)) 46%, transparent);
+}
+
+.preview-surface article table tbody tr:hover {
+  background: color-mix(in srgb, var(--md-primary-container, var(--accent-2)) 18%, transparent);
+}
+
+.preview-surface article table :where(th, td):last-child {
+  border-right: 0;
+}
+
+.preview-surface article table tr:last-child td {
+  border-bottom: 0;
+}
+
+.preview-surface article table :where(th, td) > :first-child {
+  margin-top: 0;
+}
+
+.preview-surface article table :where(th, td) > :last-child {
+  margin-bottom: 0;
+}
+
+.preview-surface article table code {
+  white-space: nowrap;
 }
 
 .preview-surface article .katex-display {

@@ -554,10 +554,11 @@ export async function readVaultMedia(assetPath: string, basePath?: string): Prom
 export async function renderPreview(content: string, basePath?: string): Promise<string> {
   const html = await marked.parse(prepareObsidianMarkdown(content, basePath), { async: true, gfm: true, breaks: false });
   return sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "mark"]),
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "input", "mark"]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
       a: ["href", "name", "target", "title", "class"],
+      input: ["checked", "disabled", "type"],
       span: ["class", "style", "aria-hidden"],
       img: ["src", "alt", "title", "loading", "width", "height"],
       mark: ["class"]

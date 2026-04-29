@@ -28,6 +28,8 @@ The application should keep Markdown files as the source of truth on disk, use O
   - Math inside code spans/fences remains unchanged.
 - Preview layout is left-aligned and wraps long content so the panel does not require horizontal scrolling for normal text.
 - Wide preview elements such as code blocks, tables, and display math scroll locally when needed.
+- Markdown preview tables use clear document-style formatting with readable headers, row separators, compact content-width borders, and local scrolling for wide tables.
+- Markdown task lists render safe disabled checkboxes so open and completed TODO items are visually distinct.
 - RAG provider settings support embedding and Q&A provider configuration, API modes, endpoint paths, reasoning mode, testing, and import/export.
 - RAG indexing supports test, full, and incremental jobs with progress, stop, skip-current-file, checkpointing, and resume-friendly state.
 - RAG index storage uses compact snapshots under `data/vector-index/`.
@@ -70,10 +72,19 @@ Use this checklist if rebuilding the project from the plan.
   - Obsidian image embeds: `![[image.png]]`, including size hints.
   - Relative Markdown images: `![alt](image.png)`.
   - LaTeX math: `$...$` and `$$...$$`.
+  - GitHub/Obsidian-style task lists: `- [ ]` and `- [x]`.
 - Keep preview content readable in the center column:
   - Normal text must wrap inside the panel.
   - The article should be left-aligned, not centered in a narrow column.
   - Wide code blocks, tables, and display math should scroll locally instead of shifting the whole preview.
+- Style preview tables clearly:
+  - Header rows should stand out.
+  - Cell padding and row separators should improve scanning.
+  - Narrow tables should not stretch a large empty right side to the panel edge.
+  - Wide tables should scroll inside the table area.
+- Style task-list TODO items clearly:
+  - Unchecked tasks should be visibly open.
+  - Checked tasks should be visibly completed with checked state and muted/struck text.
 - Keep Markdown/math transformations out of fenced code blocks and inline code spans.
 - Provide a vault search modal; prefer `obsidian-cli search` when available and fall back to filesystem search.
 - Search results must be clickable and open the selected file in the editor.
@@ -175,6 +186,8 @@ Use this checklist if rebuilding the project from the plan.
   - Obsidian image embeds.
   - Relative image paths.
   - LaTeX math rendered with KaTeX.
+- Task list checkboxes are preserved as safe disabled inputs and styled to show open vs completed TODO state.
+- Tables are styled for readability with clear headers, dividers, compact content width, and local overflow for wide content.
 - Preview layout avoids normal horizontal scrolling by wrapping long text and isolating overflow to wide code blocks, tables, and display math.
 - Optional Obsidian CLI integration boundary, while core features continue to work without Obsidian desktop.
 - `obsidian-cli search` integration for vault search when available, with filesystem fallback.
