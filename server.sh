@@ -57,8 +57,10 @@ is_running() {
 }
 
 project_pids() {
-  ps -axo pid=,command= | awk -v root="${ROOT_DIR}" '
-    index($0, root) > 0 && $0 ~ /(node|npm|vite|tsx|concurrently)/ {
+  ps -axo pid=,pgid=,command= | awk -v root="${ROOT_DIR}" -v ppid="$$" '
+    # Match: command contains root path AND is a relevant process
+    # Exclude: ps, grep, awk commands (the current command searching for matches)
+    index($0, root) > 0 && $0 ~ /(node|npm|vite|tsx|concurrently)/ && $0 !~ /(ps |grep |awk )/ {
       print $1
     }
   '
@@ -125,6 +127,12 @@ start_server() {
 
   cd "${ROOT_DIR}"
 
+  # Load environment variables from ~/.bashrc
+  if [[ -f ~/.bashrc ]]; then
+    # Extract only export lines for our variables (avoids executing interactive shell stuff)
+    source <(grep -E 'export (ALLOWED_VAULT_ROOTS|SESSION_SECRET|APP_ENCRYPTION_KEY)=' ~/.bashrc)
+  fi
+
   local npm_script
   if [[ "${MODE}" == "dev" ]]; then
     npm_script="dev"
@@ -136,12 +144,14 @@ start_server() {
   echo "Node: $("${NODE_BIN}" -v) (${NODE_BIN})"
   echo "npm: ${NPM_BIN}"
   echo "Logs: ${LOG_FILE}"
+  echo "Allowed vault roots: ${ALLOWED_VAULT_ROOTS:-not set}"
   {
     echo "=== $(date) starting ${MODE} ==="
     echo "Node: $("${NODE_BIN}" -v) (${NODE_BIN})"
     echo "npm: ${NPM_BIN}"
+    echo "Allowed vault roots: ${ALLOWED_VAULT_ROOTS:-not set}"
   } >>"${LOG_FILE}"
-  nohup env PATH="${PATH}" "${NPM_BIN}" run "${npm_script}" >>"${LOG_FILE}" 2>&1 &
+  nohup env PATH="${PATH}" ALLOWED_VAULT_ROOTS="${ALLOWED_VAULT_ROOTS}" SESSION_SECRET="${SESSION_SECRET}" APP_ENCRYPTION_KEY="${APP_ENCRYPTION_KEY}" "${NPM_BIN}" run "${npm_script}" >>"${LOG_FILE}" 2>&1 &
   echo "$!" >"${PID_FILE}"
   sleep 1
 
