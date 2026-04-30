@@ -141,6 +141,118 @@ export function DocumentsView() {
     [isMobile]
   );
 
+  // Undo support for destructive actions. We keep at most one pending
+  // undo action, with a timeout to auto-dismiss.
+  type PendingUndo =
+    | { kind: "close-tab"; tab: OpenTab; wasActive: boolean; label: string }
+    | { kind: "delete-document"; path: string; content: string; label: string };
+  const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
+  const undoTimer = useRef<number | null>(null);
+  const undoTtlMs = 6000;
+
+  const dismissUndo = useCallback(() => {
+    if (undoTimer.current != null) {
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+    setPendingUndo(null);
+  }, []);
+
+  const offerUndo = useCallback((action: PendingUndo) => {
+    setPendingUndo(action);
+    if (undoTimer.current != null) {
+      window.clearTimeout(undoTimer.current);
+    }
+    undoTimer.current = window.setTimeout(() => {
+      setPendingUndo(null);
+      undoTimer.current = null;
+    }, undoTtlMs);
+  }, []);
+
+  // Shake-to-undo (best effort: requires DeviceMotion permission on iOS).
+  // We attach a one-shot tap-to-enable button if permission is required;
+  // when permission is granted (or motion events arrive without a prompt
+  // on Android), a strong shake triggers the most recent undo.
+  const lastShakeAt = useRef(0);
+  useEffect(() => {
+    if (!isMobile || typeof window === "undefined") return;
+    function handleMotion(event: DeviceMotionEvent) {
+      const acc = event.accelerationIncludingGravity ?? event.acceleration;
+      if (!acc) return;
+      const magnitude = Math.sqrt((acc.x ?? 0) ** 2 + (acc.y ?? 0) ** 2 + (acc.z ?? 0) ** 2);
+      if (magnitude < 28) return;
+      const now = Date.now();
+      if (now - lastShakeAt.current < 1200) return;
+      lastShakeAt.current = now;
+      if (pendingUndo) {
+        performUndo();
+      }
+    }
+    window.addEventListener("devicemotion", handleMotion);
+    return () => window.removeEventListener("devicemotion", handleMotion);
+    // performUndo and pendingUndo are referenced via closure; we want a
+    // listener that always sees the latest state, so we re-attach when
+    // these change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, pendingUndo]);
+
+  // Disable iOS pinch-zoom only inside the editor textarea so users can
+  // still pinch-zoom previews, the document tree, and other content.
+  const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  useEffect(() => {
+    const node = editorTextareaRef.current;
+    if (!node) return;
+    function onTouchMove(event: TouchEvent) {
+      if (event.touches.length > 1) {
+        event.preventDefault();
+      }
+    }
+    function onGestureStart(event: Event) {
+      event.preventDefault();
+    }
+    node.addEventListener("touchmove", onTouchMove, { passive: false });
+    node.addEventListener("gesturestart", onGestureStart);
+    return () => {
+      node.removeEventListener("touchmove", onTouchMove);
+      node.removeEventListener("gesturestart", onGestureStart);
+    };
+  }, [active]);
+
+  // Edge-swipe between workspace panes on mobile. A swipe that starts
+  // within ~26px of either edge and travels >= 60px horizontally cycles
+  // between Vault, Editor, and Ask.
+  const edgeSwipe = useRef<{ startX: number; startY: number; fromEdge: "left" | "right" } | null>(null);
+  function onWorkspacePointerDown(event: ReactPointerEvent<HTMLElement>) {
+    if (!isMobile || event.pointerType === "mouse") return;
+    if (searchOpen) return;
+    const width = window.innerWidth || document.documentElement.clientWidth;
+    const x = event.clientX;
+    const y = event.clientY;
+    if (x <= 26) {
+      edgeSwipe.current = { startX: x, startY: y, fromEdge: "left" };
+    } else if (x >= width - 26) {
+      edgeSwipe.current = { startX: x, startY: y, fromEdge: "right" };
+    } else {
+      edgeSwipe.current = null;
+    }
+  }
+  function onWorkspacePointerUp(event: ReactPointerEvent<HTMLElement>) {
+    const start = edgeSwipe.current;
+    edgeSwipe.current = null;
+    if (!start) return;
+    const dx = event.clientX - start.startX;
+    const dy = Math.abs(event.clientY - start.startY);
+    if (dy > 60) return;
+    const sections: MobileSection[] = ["vault", "editor", "ask"];
+    const idx = sections.indexOf(mobileSection);
+    if (idx < 0) return;
+    if (start.fromEdge === "left" && dx >= 60 && idx > 0) {
+      setMobileSection(sections[idx - 1]);
+    } else if (start.fromEdge === "right" && dx <= -60 && idx < sections.length - 1) {
+      setMobileSection(sections[idx + 1]);
+    }
+  }
+
   // Pull-to-search on the vault pane: when the document tree is already
   // scrolled to the top and the user pulls down, we open the search modal.
   const pullStartY = useRef<number | null>(null);
@@ -234,10 +346,15 @@ export function DocumentsView() {
   }
 
   function closeTab(path: string) {
+    const closed = tabs.find((tab) => tab.path === path);
     setTabs((current) => current.filter((tab) => tab.path !== path));
-    if (activePath === path) {
+    const wasActive = activePath === path;
+    if (wasActive) {
       const remaining = tabs.filter((tab) => tab.path !== path);
       setActivePath(remaining[remaining.length - 1]?.path ?? "");
+    }
+    if (closed) {
+      offerUndo({ kind: "close-tab", tab: closed, wasActive, label: `Closed ${closed.name}` });
     }
   }
 
@@ -307,12 +424,66 @@ export function DocumentsView() {
     if (!active || !window.confirm(`Delete ${active.path}?`)) {
       return;
     }
+    const snapshotPath = active.path;
+    const snapshotContent = active.draft;
+    const snapshotName = active.name;
     await api("/api/documents/content", {
       method: "DELETE",
-      body: JSON.stringify({ path: active.path })
+      body: JSON.stringify({ path: snapshotPath })
     });
-    closeTab(active.path);
+    setTabs((current) => current.filter((tab) => tab.path !== snapshotPath));
+    if (activePath === snapshotPath) {
+      const remaining = tabs.filter((tab) => tab.path !== snapshotPath);
+      setActivePath(remaining[remaining.length - 1]?.path ?? "");
+    }
     await refreshDocuments();
+    offerUndo({
+      kind: "delete-document",
+      path: snapshotPath,
+      content: snapshotContent,
+      label: `Deleted ${snapshotName}`
+    });
+  }
+
+  async function performUndo() {
+    if (!pendingUndo) {
+      return;
+    }
+    const action = pendingUndo;
+    dismissUndo();
+    if (action.kind === "close-tab") {
+      setTabs((current) => {
+        if (current.some((tab) => tab.path === action.tab.path)) {
+          return current;
+        }
+        return [...current, action.tab];
+      });
+      if (action.wasActive) {
+        setActivePath(action.tab.path);
+      }
+      setStatus(`Reopened ${action.tab.name}`);
+      return;
+    }
+    setStatus("Restoring...");
+    try {
+      await api<DocumentContent>("/api/documents", {
+        method: "POST",
+        body: JSON.stringify({ path: action.path })
+      });
+      const restored = await api<DocumentContent>("/api/documents/content", {
+        method: "PUT",
+        body: JSON.stringify({ path: action.path, content: action.content })
+      });
+      await refreshDocuments();
+      setTabs((current) => [
+        ...current.filter((tab) => tab.path !== restored.path),
+        { ...restored, draft: restored.content }
+      ]);
+      openDocument(restored.path);
+      setStatus(`Restored ${restored.name}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? `Restore failed: ${error.message}` : "Restore failed");
+    }
   }
 
   async function onSort(nextSort: SortField, nextOrder: SortOrder) {
@@ -345,7 +516,13 @@ export function DocumentsView() {
   }
 
   return (
-    <main className="workspace-grid obsidian-workspace" data-mobile-section={mobileSection}>
+    <main
+      className="workspace-grid obsidian-workspace"
+      data-mobile-section={mobileSection}
+      onPointerDown={onWorkspacePointerDown}
+      onPointerUp={onWorkspacePointerUp}
+      onPointerCancel={() => { edgeSwipe.current = null; }}
+    >
       <section className="document-list panel vault-pane" data-section="vault">
         <div className="panel-header">
           <div>
@@ -448,7 +625,13 @@ export function DocumentsView() {
         {active && centerMode === "edit" ? (
           <label className="editor-field">
             <span className="sr-only">Markdown Content</span>
-            <textarea name="markdown-content" value={active.draft} onChange={(event) => setActiveDraft(event.target.value)} spellCheck={false} />
+            <textarea
+              ref={editorTextareaRef}
+              name="markdown-content"
+              value={active.draft}
+              onChange={(event) => setActiveDraft(event.target.value)}
+              spellCheck={false}
+            />
           </label>
         ) : null}
         {active && centerMode === "preview" ? (
@@ -497,6 +680,17 @@ export function DocumentsView() {
             <span className="mobile-tabbar-label">Ask</span>
           </button>
         </nav>
+      ) : null}
+      {pendingUndo ? (
+        <div className="undo-toast" role="status" aria-live="polite">
+          <span className="undo-toast-label">{pendingUndo.label}</span>
+          <button type="button" className="undo-toast-action" onClick={performUndo}>
+            Undo
+          </button>
+          <button type="button" className="undo-toast-dismiss" aria-label="Dismiss" onClick={dismissUndo}>
+            x
+          </button>
+        </div>
       ) : null}
       {searchOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>

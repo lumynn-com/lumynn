@@ -3229,3 +3229,85 @@ button,
     opacity: 1;
   }
 }
+
+/* Undo toast: appears after a destructive action (close tab, delete
+   document) and offers a quick way to revert. Tapping anywhere outside
+   does not dismiss; the toast auto-dismisses after a few seconds. */
+.undo-toast {
+  position: fixed;
+  z-index: 30;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0.55rem 0.65rem 0.55rem 1.1rem;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-text, var(--text));
+  box-shadow: var(--md-elevation-2, var(--shadow));
+  animation: undo-toast-in 200ms ease;
+}
+
+@keyframes undo-toast-in {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.undo-toast-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.undo-toast-action {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 18%, transparent));
+  color: var(--md-primary, var(--accent-2));
+  font-weight: 650;
+}
+
+.undo-toast-action:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--md-primary-container, var(--accent-2)) 80%, var(--md-primary, var(--accent-2)));
+}
+
+.undo-toast-dismiss {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.95rem;
+}
+
+.undo-toast-dismiss:hover:not(:disabled) {
+  transform: none;
+  background: var(--md-surface-2, rgba(148, 163, 184, 0.12));
+}
+
+@media (max-width: 860px) {
+  .undo-toast {
+    /* Sit just above the bottom tab bar with safe-area awareness. */
+    right: max(0.6rem, env(safe-area-inset-right));
+    left: max(0.6rem, env(safe-area-inset-left));
+    bottom: calc(64px + max(0.6rem, env(safe-area-inset-bottom)));
+    justify-content: space-between;
+  }
+
+  .undo-toast-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
