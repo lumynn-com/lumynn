@@ -523,6 +523,37 @@ export function DocumentsView() {
       onPointerUp={onWorkspacePointerUp}
       onPointerCancel={() => { edgeSwipe.current = null; }}
     >
+      {isMobile ? (
+        <nav className="mobile-segmented" role="tablist" aria-label="Workspace sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileSection === "vault"}
+            className={mobileSection === "vault" ? "active" : ""}
+            onClick={() => setMobileSection("vault")}
+          >
+            Vault
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileSection === "editor"}
+            className={mobileSection === "editor" ? "active" : ""}
+            onClick={() => setMobileSection("editor")}
+          >
+            Editor
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobileSection === "ask"}
+            className={mobileSection === "ask" ? "active" : ""}
+            onClick={() => setMobileSection("ask")}
+          >
+            Ask
+          </button>
+        </nav>
+      ) : null}
       <section className="document-list panel vault-pane" data-section="vault">
         <div className="panel-header">
           <div>
@@ -650,37 +681,6 @@ export function DocumentsView() {
       <div className="qa-section-wrapper" data-section="ask">
         <QaView compact onOpenSource={openDocument} />
       </div>
-      {isMobile ? (
-        <nav className="mobile-tabbar" aria-label="Workspace sections">
-          <button
-            type="button"
-            className={mobileSection === "vault" ? "active" : ""}
-            aria-current={mobileSection === "vault" ? "page" : undefined}
-            onClick={() => setMobileSection("vault")}
-          >
-            <span className="mobile-tabbar-icon" aria-hidden="true">V</span>
-            <span className="mobile-tabbar-label">Vault</span>
-          </button>
-          <button
-            type="button"
-            className={mobileSection === "editor" ? "active" : ""}
-            aria-current={mobileSection === "editor" ? "page" : undefined}
-            onClick={() => setMobileSection("editor")}
-          >
-            <span className="mobile-tabbar-icon" aria-hidden="true">E</span>
-            <span className="mobile-tabbar-label">Editor</span>
-          </button>
-          <button
-            type="button"
-            className={mobileSection === "ask" ? "active" : ""}
-            aria-current={mobileSection === "ask" ? "page" : undefined}
-            onClick={() => setMobileSection("ask")}
-          >
-            <span className="mobile-tabbar-icon" aria-hidden="true">A</span>
-            <span className="mobile-tabbar-label">Ask</span>
-          </button>
-        </nav>
-      ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">
           <span className="undo-toast-label">{pendingUndo.label}</span>

@@ -3031,11 +3031,11 @@ button,
   }
 }
 
-/* Native-feeling mobile experience: bottom tab bar between Vault / Editor /
-   Ask, pull-down-to-search affordance on the vault list, and swipe-left to
-   close editor tabs. None of these styles activate above the mobile
-   breakpoint, so desktop is untouched. */
-.mobile-tabbar {
+/* Native-feeling mobile experience: top segmented control between Vault /
+   Editor / Ask, pull-down-to-search affordance on the vault list, and
+   swipe-left to close editor tabs. None of these styles activate above
+   the mobile breakpoint, so desktop is untouched. */
+.mobile-segmented {
   display: none;
 }
 
@@ -3126,75 +3126,54 @@ button,
     display: contents;
   }
 
-  /* Active section fills the viewport beneath the topbar, leaving room
-     for the bottom tab bar. */
+  /* Active section fills the viewport beneath the topbar and the
+     segmented control. The mobile-segmented bar is ~52px tall, the
+     topbar collapses to ~64px, so panes claim the rest. */
   .obsidian-workspace[data-mobile-section] > [data-section],
   .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
-    min-height: calc(100dvh - 64px - 64px - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - 64px - 60px - env(safe-area-inset-bottom, 0px));
     max-height: none;
   }
 
-  /* Bottom tab bar */
-  .mobile-tabbar {
+  /* Top segmented control: sticky right under the global topbar, easy
+     thumb reach, and visually distinct from the topbar nav so the
+     hierarchy is obvious. */
+  .mobile-segmented {
     position: sticky;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    top: 0;
     z-index: 6;
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
-    margin: 0.6rem -0.55rem -0.55rem;
-    padding: 0.4rem max(0.55rem, env(safe-area-inset-left)) calc(0.4rem + env(safe-area-inset-bottom)) max(0.55rem, env(safe-area-inset-right));
-    border-top: 1px solid var(--md-outline-soft, var(--border));
-    background: color-mix(in srgb, var(--md-surface, var(--panel)) 96%, transparent);
+    gap: 0.25rem;
+    margin: -0.55rem -0.55rem 0.55rem;
+    padding: 0.45rem max(0.55rem, env(safe-area-inset-left));
+    padding-right: max(0.55rem, env(safe-area-inset-right));
+    border-bottom: 1px solid var(--md-outline-soft, var(--border));
+    background: color-mix(in srgb, var(--md-surface, var(--panel)) 94%, transparent);
     backdrop-filter: blur(14px);
   }
 
-  .mobile-tabbar button {
-    display: grid;
-    grid-template-rows: auto auto;
-    gap: 0.15rem;
-    align-items: center;
-    justify-items: center;
-    min-height: 52px;
+  .mobile-segmented button {
+    min-height: 40px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 999px;
+    padding: 0.35rem 0.55rem;
     background: transparent;
     color: var(--md-muted, var(--muted));
+    font-size: 0.92rem;
     font-weight: 600;
     transition: background-color 160ms ease, color 160ms ease;
   }
 
-  .mobile-tabbar button:hover:not(:disabled),
-  .mobile-tabbar button:focus-visible {
+  .mobile-segmented button:hover:not(:disabled),
+  .mobile-segmented button:focus-visible {
     transform: none;
   }
 
-  .mobile-tabbar button.active {
+  .mobile-segmented button.active {
     background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 16%, transparent));
     color: var(--md-primary, var(--accent-2));
-  }
-
-  .mobile-tabbar-icon {
-    display: grid;
-    width: 1.6rem;
-    height: 1.6rem;
-    place-items: center;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 70%, transparent);
-    font-size: 0.78rem;
-    font-weight: 700;
-  }
-
-  .mobile-tabbar button.active .mobile-tabbar-icon {
-    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 18%, transparent);
-  }
-
-  .mobile-tabbar-label {
-    font-size: 0.74rem;
-    letter-spacing: 0.02em;
   }
 
   /* Swipeable tab affordance: a soft red trail behind the tab so the
@@ -3297,10 +3276,11 @@ button,
 
 @media (max-width: 860px) {
   .undo-toast {
-    /* Sit just above the bottom tab bar with safe-area awareness. */
+    /* Float just above the home indicator. The segmented control lives
+       at the top now, so the bottom is free for content + toast. */
     right: max(0.6rem, env(safe-area-inset-right));
     left: max(0.6rem, env(safe-area-inset-left));
-    bottom: calc(64px + max(0.6rem, env(safe-area-inset-bottom)));
+    bottom: max(0.8rem, env(safe-area-inset-bottom));
     justify-content: space-between;
   }
 
