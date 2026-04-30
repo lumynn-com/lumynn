@@ -1,7 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
 import { QaView } from "./QaView";
+
+type MobileSection = "vault" | "editor" | "ask";
+
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+    return window.matchMedia("(max-width: 860px)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return;
+    }
+    const mql = window.matchMedia("(max-width: 860px)");
+    const handler = (event: MediaQueryListEvent) => setIsMobile(event.matches);
+    if (typeof mql.addEventListener === "function") {
+      mql.addEventListener("change", handler);
+      return () => mql.removeEventListener("change", handler);
+    }
+    mql.addListener(handler);
+    return () => mql.removeListener(handler);
+  }, []);
+
+  return isMobile;
+}
 
 interface TreeNode {
   id: string;
@@ -83,6 +111,8 @@ function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
 
 export function DocumentsView() {
   const savedSort = useMemo(readSavedSort, []);
+  const isMobile = useIsMobile();
+  const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
@@ -100,6 +130,62 @@ export function DocumentsView() {
   const [searchHasRun, setSearchHasRun] = useState(false);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
+
+  const openDocument = useCallback(
+    (path: string) => {
+      setActivePath(path);
+      if (isMobile) {
+        setMobileSection("editor");
+      }
+    },
+    [isMobile]
+  );
+
+  // Pull-to-search on the vault pane: when the document tree is already
+  // scrolled to the top and the user pulls down, we open the search modal.
+  const pullStartY = useRef<number | null>(null);
+  const pullStartScrollTop = useRef(0);
+  const [pullDistance, setPullDistance] = useState(0);
+  const pullThreshold = 72;
+
+  function onVaultTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (!isMobile || event.touches.length !== 1) {
+      pullStartY.current = null;
+      return;
+    }
+    const target = event.currentTarget;
+    pullStartScrollTop.current = target.scrollTop;
+    pullStartY.current = event.touches[0].clientY;
+    setPullDistance(0);
+  }
+
+  function onVaultTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    if (!isMobile || pullStartY.current == null) return;
+    if (pullStartScrollTop.current > 0) {
+      pullStartY.current = null;
+      setPullDistance(0);
+      return;
+    }
+    const dy = event.touches[0].clientY - pullStartY.current;
+    if (dy <= 0) {
+      setPullDistance(0);
+      return;
+    }
+    setPullDistance(Math.min(dy, pullThreshold * 1.6));
+  }
+
+  function onVaultTouchEnd() {
+    if (!isMobile || pullStartY.current == null) {
+      setPullDistance(0);
+      return;
+    }
+    const dist = pullDistance;
+    pullStartY.current = null;
+    setPullDistance(0);
+    if (dist >= pullThreshold) {
+      setSearchOpen(true);
+    }
+  }
 
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
     const docs = await api<DocumentSummary[]>(`/api/documents?sort=${nextSort}&order=${nextOrder}`);
@@ -185,7 +271,7 @@ export function DocumentsView() {
       });
       await refreshDocuments();
       setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content }]);
-      setActivePath(created.path);
+      openDocument(created.path);
       setStatus("Created");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Create failed");
@@ -254,13 +340,13 @@ export function DocumentsView() {
   }
 
   function openSearchResult(path: string) {
-    setActivePath(path);
+    openDocument(path);
     setSearchOpen(false);
   }
 
   return (
-    <main className="workspace-grid obsidian-workspace">
-      <section className="document-list panel vault-pane">
+    <main className="workspace-grid obsidian-workspace" data-mobile-section={mobileSection}>
+      <section className="document-list panel vault-pane" data-section="vault">
         <div className="panel-header">
           <div>
             <p className="eyebrow">Vault</p>
@@ -291,15 +377,32 @@ export function DocumentsView() {
             </select>
           </label>
         </div>
-        <DocumentTree
-          nodes={documentTree}
-          selectedPath={activePath}
-          expandedFolders={expandedFolders}
-          onToggleFolder={(folderPath) => setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }))}
-          onSelect={setActivePath}
-        />
+        <div
+          className="vault-scroll"
+          onTouchStart={onVaultTouchStart}
+          onTouchMove={onVaultTouchMove}
+          onTouchEnd={onVaultTouchEnd}
+          onTouchCancel={onVaultTouchEnd}
+        >
+          {isMobile && pullDistance > 0 ? (
+            <div
+              className={`pull-indicator ${pullDistance >= pullThreshold ? "ready" : ""}`}
+              style={{ height: `${pullDistance}px` }}
+              aria-hidden="true"
+            >
+              <span>{pullDistance >= pullThreshold ? "Release to search" : "Pull to search"}</span>
+            </div>
+          ) : null}
+          <DocumentTree
+            nodes={documentTree}
+            selectedPath={activePath}
+            expandedFolders={expandedFolders}
+            onToggleFolder={(folderPath) => setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }))}
+            onSelect={openDocument}
+          />
+        </div>
       </section>
-      <section className="editor panel editor-pane">
+      <section className="editor panel editor-pane" data-section="editor">
         <div className="panel-header">
           <div>
             <p className="eyebrow">{active?.path ?? "No document selected"}</p>
@@ -331,23 +434,14 @@ export function DocumentsView() {
         {tabs.length > 0 ? (
           <div className="tab-strip" role="tablist" aria-label="Open documents">
             {tabs.map((tab) => (
-              <div key={tab.path} className={`editor-tab-shell ${activePath === tab.path ? "active" : ""}`}>
-                <button role="tab" aria-selected={activePath === tab.path} className="editor-tab" onClick={() => setActivePath(tab.path)}>
-                  <span>{tab.name}</span>
-                  <span className="tab-path">{tab.path}</span>
-                </button>
-                <button
-                  className="tab-close"
-                  type="button"
-                  aria-label={`Close ${tab.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    closeTab(tab.path);
-                  }}
-                >
-                  x
-                </button>
-              </div>
+              <SwipeableTab
+                key={tab.path}
+                tab={tab}
+                active={activePath === tab.path}
+                isMobile={isMobile}
+                onActivate={() => setActivePath(tab.path)}
+                onClose={() => closeTab(tab.path)}
+              />
             ))}
           </div>
         ) : null}
@@ -370,7 +464,40 @@ export function DocumentsView() {
           </div>
         ) : null}
       </section>
-      <QaView compact onOpenSource={(path) => setActivePath(path)} />
+      <div className="qa-section-wrapper" data-section="ask">
+        <QaView compact onOpenSource={openDocument} />
+      </div>
+      {isMobile ? (
+        <nav className="mobile-tabbar" aria-label="Workspace sections">
+          <button
+            type="button"
+            className={mobileSection === "vault" ? "active" : ""}
+            aria-current={mobileSection === "vault" ? "page" : undefined}
+            onClick={() => setMobileSection("vault")}
+          >
+            <span className="mobile-tabbar-icon" aria-hidden="true">V</span>
+            <span className="mobile-tabbar-label">Vault</span>
+          </button>
+          <button
+            type="button"
+            className={mobileSection === "editor" ? "active" : ""}
+            aria-current={mobileSection === "editor" ? "page" : undefined}
+            onClick={() => setMobileSection("editor")}
+          >
+            <span className="mobile-tabbar-icon" aria-hidden="true">E</span>
+            <span className="mobile-tabbar-label">Editor</span>
+          </button>
+          <button
+            type="button"
+            className={mobileSection === "ask" ? "active" : ""}
+            aria-current={mobileSection === "ask" ? "page" : undefined}
+            onClick={() => setMobileSection("ask")}
+          >
+            <span className="mobile-tabbar-icon" aria-hidden="true">A</span>
+            <span className="mobile-tabbar-label">Ask</span>
+          </button>
+        </nav>
+      ) : null}
       {searchOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>
           <section className="search-modal panel" role="dialog" aria-modal="true" aria-labelledby="vault-search-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -411,6 +538,105 @@ export function DocumentsView() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function SwipeableTab(props: {
+  tab: OpenTab;
+  active: boolean;
+  isMobile: boolean;
+  onActivate: () => void;
+  onClose: () => void;
+}) {
+  const { tab, active, isMobile, onActivate, onClose } = props;
+  const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const horizontal = useRef(false);
+  const [dx, setDx] = useState(0);
+  const [closing, setClosing] = useState(false);
+  const swipeThreshold = 96;
+
+  function reset(animate = false) {
+    if (animate) {
+      setDx(0);
+    } else {
+      setDx(0);
+    }
+    startX.current = null;
+    startY.current = null;
+    horizontal.current = false;
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!isMobile || event.pointerType === "mouse") return;
+    startX.current = event.clientX;
+    startY.current = event.clientY;
+    horizontal.current = false;
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!isMobile || startX.current == null || startY.current == null) return;
+    const deltaX = event.clientX - startX.current;
+    const deltaY = event.clientY - startY.current;
+    if (!horizontal.current) {
+      if (Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        startX.current = null;
+        startY.current = null;
+        return;
+      }
+      if (Math.abs(deltaX) > 8) {
+        horizontal.current = true;
+      } else {
+        return;
+      }
+    }
+    if (deltaX < 0) {
+      setDx(Math.max(deltaX, -160));
+    } else {
+      setDx(0);
+    }
+  }
+
+  function onPointerUp() {
+    if (!isMobile) return;
+    const distance = -dx;
+    startX.current = null;
+    startY.current = null;
+    horizontal.current = false;
+    if (distance >= swipeThreshold) {
+      setClosing(true);
+      setDx(-260);
+      window.setTimeout(onClose, 160);
+      return;
+    }
+    setDx(0);
+  }
+
+  return (
+    <div
+      className={`editor-tab-shell ${active ? "active" : ""} ${closing ? "closing" : ""}`}
+      style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx === 0 || closing ? "transform 160ms ease" : "none" }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => reset()}
+    >
+      <button role="tab" aria-selected={active} className="editor-tab" onClick={onActivate}>
+        <span>{tab.name}</span>
+        <span className="tab-path">{tab.path}</span>
+      </button>
+      <button
+        className="tab-close"
+        type="button"
+        aria-label={`Close ${tab.name}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }}
+      >
+        x
+      </button>
+    </div>
   );
 }
 

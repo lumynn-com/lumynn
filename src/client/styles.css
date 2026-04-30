@@ -2810,6 +2810,14 @@ button,
   font-weight: 400;
 }
 
+/* The vault scroll wrapper hosts the doc tree and the pull-to-search
+   indicator. On desktop it is a passive wrapper; on mobile it becomes
+   the actual scroll container so we can read scrollTop for pull. */
+.vault-scroll {
+  display: block;
+  min-height: 0;
+}
+
 /* Mobile / iPhone polish: stable viewport heights, safe areas, touch sizing,
    and prevent iOS Safari from auto-zooming when focusing inputs. */
 .obsidian-shell,
@@ -3020,5 +3028,204 @@ button,
 
   .sort-row {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Native-feeling mobile experience: bottom tab bar between Vault / Editor /
+   Ask, pull-down-to-search affordance on the vault list, and swipe-left to
+   close editor tabs. None of these styles activate above the mobile
+   breakpoint, so desktop is untouched. */
+.mobile-tabbar {
+  display: none;
+}
+
+.qa-section-wrapper {
+  display: contents;
+}
+
+@media (max-width: 860px) {
+  /* The vault-scroll element becomes the mobile scroll container so the
+     pull-to-search gesture can reliably read scrollTop. The legacy
+     .doc-tree height/overflow is neutralized inside it. */
+  .vault-scroll {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    max-height: 60dvh;
+    overflow: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vault-scroll .doc-tree {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pull-indicator {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+    padding-bottom: 0.4rem;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: color 160ms ease;
+    pointer-events: none;
+  }
+
+  .pull-indicator.ready {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  .pull-indicator span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pull-indicator span::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 5px 7px 5px;
+    border-color: transparent transparent currentColor transparent;
+    transform: rotate(0deg);
+    transition: transform 160ms ease;
+  }
+
+  .pull-indicator.ready span::before {
+    transform: rotate(180deg);
+  }
+
+  /* Show only the active mobile section. State is preserved because the
+     other sections are merely hidden, not unmounted. */
+  .obsidian-workspace[data-mobile-section] > [data-section] {
+    display: none;
+  }
+
+  .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
+  .obsidian-workspace[data-mobile-section="editor"] > [data-section="editor"] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* QaView is rendered through .qa-section-wrapper which uses display:contents,
+     so [data-section="ask"] lives directly on .qa-panel inside QaView via
+     the wrapper. Apply the same hide/show via the wrapper's parent rule. */
+  .obsidian-workspace[data-mobile-section] > .qa-section-wrapper {
+    display: none;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] > .qa-section-wrapper {
+    display: contents;
+  }
+
+  /* Active section fills the viewport beneath the topbar, leaving room
+     for the bottom tab bar. */
+  .obsidian-workspace[data-mobile-section] > [data-section],
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
+    min-height: calc(100dvh - 64px - 64px - env(safe-area-inset-bottom, 0px));
+    max-height: none;
+  }
+
+  /* Bottom tab bar */
+  .mobile-tabbar {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 6;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0.6rem -0.55rem -0.55rem;
+    padding: 0.4rem max(0.55rem, env(safe-area-inset-left)) calc(0.4rem + env(safe-area-inset-bottom)) max(0.55rem, env(safe-area-inset-right));
+    border-top: 1px solid var(--md-outline-soft, var(--border));
+    background: color-mix(in srgb, var(--md-surface, var(--panel)) 96%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-tabbar button {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 0.15rem;
+    align-items: center;
+    justify-items: center;
+    min-height: 52px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    font-weight: 600;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .mobile-tabbar button:hover:not(:disabled),
+  .mobile-tabbar button:focus-visible {
+    transform: none;
+  }
+
+  .mobile-tabbar button.active {
+    background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 16%, transparent));
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  .mobile-tabbar-icon {
+    display: grid;
+    width: 1.6rem;
+    height: 1.6rem;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 70%, transparent);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .mobile-tabbar button.active .mobile-tabbar-icon {
+    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 18%, transparent);
+  }
+
+  .mobile-tabbar-label {
+    font-size: 0.74rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* Swipeable tab affordance: a soft red trail behind the tab so the
+     swipe-to-close intent is visually obvious. */
+  .editor-tab-shell {
+    position: relative;
+    transition: transform 160ms ease;
+    will-change: transform;
+    touch-action: pan-y;
+  }
+
+  .editor-tab-shell::before {
+    content: "Close";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    display: grid;
+    align-items: center;
+    padding-right: 0.85rem;
+    color: var(--md-danger, var(--danger));
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+
+  .editor-tab-shell:not(.closing)[style*="translateX"]::before {
+    opacity: 1;
   }
 }
