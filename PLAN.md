@@ -43,6 +43,7 @@ The application should keep Markdown files as the source of truth on disk, use O
 - Q&A supports `/chat/completions`, `/responses`, and custom provider paths, with sanitized Markdown answer rendering.
 - HTTPS certificate/private-key settings and `server.sh` operational helper are implemented.
 - Workspace view state (document tree, expanded folders, open tabs, active file, unsaved drafts, sort, search, AI Ask) is preserved when navigating to Indexing/Settings and back; the Workspace is kept mounted and only hidden via CSS, while Settings/Indexing views are lazy-mounted on first visit and then kept mounted to retain their state without firing duplicate API calls on initial load.
+- Responsive layout works on iPhone and other mobile browsers: the workspace, editor, preview, and AI Ask panes stack with usable heights using dynamic viewport units (`100dvh`), the topbar collapses into a touch-friendly nav grid, form inputs render at 16px on mobile so iOS Safari does not auto-zoom on focus, safe-area insets are honored on notched devices, and the search modal goes near full-bleed on phones.
 
 ## Future Implementation Checklist
 
@@ -57,6 +58,7 @@ Use this checklist if rebuilding the project from the plan.
 - Keep core Markdown management working without Obsidian desktop or `obsidian-cli`.
 - Leave room to leverage `obsidian-cli` for Obsidian-native features when available.
 - Provide a modern, polished UI rather than a bare admin console.
+- The site must be usable on both desktop and mobile browsers (including iPhone Safari): viewport meta with `viewport-fit=cover`, dynamic viewport heights for stable layout when the URL bar collapses, safe-area insets on notched devices, 16px-minimum form fonts to avoid iOS focus auto-zoom, touch-friendly minimum tap targets, and a stacked single-column workspace below the mobile breakpoint.
 - Include README dependency/setup guidance for macOS and Debian.
 
 ### Must-Have Document UX

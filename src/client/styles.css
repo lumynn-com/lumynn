@@ -2809,3 +2809,216 @@ button,
   font-size: 0.95rem;
   font-weight: 400;
 }
+
+/* Mobile / iPhone polish: stable viewport heights, safe areas, touch sizing,
+   and prevent iOS Safari from auto-zooming when focusing inputs. */
+.obsidian-shell,
+.app-shell {
+  min-height: 100dvh;
+}
+
+.obsidian-workspace,
+.workspace-grid {
+  min-height: calc(100dvh - 64px);
+}
+
+@supports (padding: max(0px)) {
+  .workspace-topbar {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .obsidian-workspace,
+  .workspace-grid,
+  .qa-view,
+  .settings-view {
+    padding-left: max(0.7rem, env(safe-area-inset-left));
+    padding-right: max(0.7rem, env(safe-area-inset-right));
+    padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 860px) {
+  /* iOS Safari auto-zooms on focus when input font-size < 16px. */
+  input,
+  select,
+  textarea,
+  .editor textarea,
+  .qa-panel .ask-row input,
+  .search-form input {
+    font-size: 16px;
+  }
+
+  /* Stable, usable pane heights on mobile. With dynamic viewport units the
+     URL bar collapse no longer causes layout jumps. */
+  .obsidian-workspace {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.55rem;
+    min-height: auto;
+  }
+
+  .vault-pane {
+    min-height: auto;
+    max-height: none;
+  }
+
+  .vault-pane .doc-tree {
+    max-height: 50dvh;
+  }
+
+  .editor-pane {
+    min-height: 70dvh;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .editor-field {
+    min-height: 50dvh;
+  }
+
+  .editor textarea {
+    min-height: 50dvh;
+    height: 50dvh;
+  }
+
+  .preview-surface {
+    min-height: 50dvh;
+  }
+
+  .qa-panel {
+    min-height: 60dvh;
+    max-height: none;
+  }
+
+  /* Tighten the topbar so it doesn't dominate small screens. */
+  .workspace-topbar {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.5rem;
+    min-height: auto;
+  }
+
+  .topbar-brand {
+    width: 100%;
+  }
+
+  .top-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .top-nav button {
+    min-height: 40px;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .topbar-actions .ghost {
+    width: 100%;
+  }
+
+  /* Avoid horizontal scrolling at the page level. */
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .panel,
+  .login-card {
+    border-radius: 16px;
+  }
+
+  .login-shell {
+    padding: 1rem;
+  }
+
+  /* Search modal full-bleed on phones. */
+  .search-modal {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 18px;
+  }
+
+  /* Modal backdrop already accounts for safe-area; tighten paddings. */
+  .modal-backdrop {
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  }
+
+  /* Tab strip should scroll horizontally instead of wrapping into many rows. */
+  .tab-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-tab-shell {
+    flex: 0 0 auto;
+  }
+
+  /* Citation source buttons can wrap freely on narrow screens so the
+     full path is readable. */
+  .citation-source strong,
+  .citation-source span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Settings page controls breathing room on small screens. */
+  .settings-layout,
+  .settings-grid,
+  .provider-grid,
+  .import-export-grid,
+  .field-grid,
+  .button-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .top-nav button .nav-label {
+    font-size: 0.8rem;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .editor-tab {
+    max-width: 60vw;
+  }
+
+  .editor-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .file-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .file-actions button {
+    flex: 1 1 auto;
+  }
+
+  .vault-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sort-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
