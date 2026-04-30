@@ -1999,6 +1999,7 @@ progress::-webkit-progress-bar {
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background: rgba(2, 6, 23, 0.62);
   backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
 }
 
 .search-modal {
@@ -2009,6 +2010,42 @@ progress::-webkit-progress-bar {
   max-height: min(760px, 90dvh);
   min-height: 0;
   overflow: hidden;
+}
+
+.prompt-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(520px, 100%);
+  max-height: min(720px, 90dvh);
+  padding: 1.25rem;
+  overflow: auto;
+}
+
+.prompt-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.prompt-actions button {
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .prompt-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .prompt-actions button {
+    width: 100%;
+  }
 }
 
 .search-form {

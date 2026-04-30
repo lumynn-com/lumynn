@@ -9,6 +9,7 @@ export function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
     api<{ authenticated: boolean; needsSetup: boolean }>("/api/auth/me")
@@ -21,6 +22,7 @@ export function App() {
 
   async function handleLogin(username: string, password: string) {
     setLoginError("");
+    setLoginLoading(true);
     try {
       await api("/api/auth/login", {
         method: "POST",
@@ -30,31 +32,49 @@ export function App() {
       setNeedsSetup(false);
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Login failed");
+    } finally {
+      setLoginLoading(false);
     }
   }
 
   if (!authenticated) {
-    return <LoginPage needsSetup={needsSetup} error={loginError} onLogin={handleLogin} />;
+    return (
+      <LoginPage
+        needsSetup={needsSetup}
+        error={loginError}
+        loading={loginLoading}
+        onLogin={handleLogin}
+      />
+    );
   }
 
   return <Workspace onLogout={() => setAuthenticated(false)} />;
 }
 
-function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (username: string, password: string) => void }) {
+function LoginPage(props: {
+  needsSetup: boolean;
+  error: string;
+  loading: boolean;
+  onLogin: (username: string, password: string) => void;
+}) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const submitLabel = props.needsSetup ? "Create Account" : "Log In";
+  const submitLoadingLabel = props.needsSetup ? "Creating Account\u2026" : "Logging In\u2026";
   return (
     <main className="login-shell">
       <section className="login-card">
         <p className="eyebrow">Obsidian Web Docs</p>
         <h1>{props.needsSetup ? "Create your admin password" : "Welcome back"}</h1>
         <p className="muted">
-          Manage a plain-text Markdown vault with preview, settings, and RAG Q&A from a modern web interface.
+          Manage a plain-text Markdown vault with preview, settings, and RAG Q&amp;A from a modern web interface.
         </p>
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            props.onLogin(username, password);
+            if (!props.loading) {
+              props.onLogin(username, password);
+            }
           }}
         >
           <label>
@@ -66,8 +86,8 @@ function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (userna
             <input name="password" type="password" autoComplete={props.needsSetup ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
           {props.error ? <div className="error" aria-live="polite">{props.error}</div> : null}
-          <button className="primary" type="submit">
-            {props.needsSetup ? "Create Account" : "Log In"}
+          <button className="primary" type="submit" disabled={props.loading} aria-busy={props.loading}>
+            {props.loading ? submitLoadingLabel : submitLabel}
           </button>
         </form>
       </section>
@@ -80,6 +100,7 @@ function Workspace(props: { onLogout: () => void }) {
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [indexingMounted, setIndexingMounted] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     if (view === "settings") setSettingsMounted(true);
@@ -93,6 +114,8 @@ function Workspace(props: { onLogout: () => void }) {
   }, [theme]);
 
   async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await api("/api/auth/logout", { method: "POST" });
     } finally {
@@ -129,8 +152,8 @@ function Workspace(props: { onLogout: () => void }) {
           <button className="ghost" aria-label="Toggle Theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "Light Theme" : "Dark Theme"}
           </button>
-          <button className="ghost" onClick={logout}>
-            Log Out
+          <button className="ghost" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}>
+            {loggingOut ? "Logging Out\u2026" : "Log Out"}
           </button>
         </div>
       </header>

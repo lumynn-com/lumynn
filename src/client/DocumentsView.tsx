@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
@@ -128,6 +128,9 @@ export function DocumentsView() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchHasRun, setSearchHasRun] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -362,7 +365,7 @@ export function DocumentsView() {
     if (!active) {
       return;
     }
-    setStatus("Saving...");
+    setStatus("Saving\u2026");
     try {
       const saved = await api<DocumentContent>("/api/documents/content", {
         method: "PUT",
@@ -376,11 +379,7 @@ export function DocumentsView() {
     }
   }
 
-  async function createDocument() {
-    const name = window.prompt("New Markdown file path", "Untitled.md");
-    if (!name) {
-      return;
-    }
+  async function createDocument(name: string) {
     try {
       const created = await api<DocumentContent>("/api/documents", {
         method: "POST",
@@ -392,18 +391,18 @@ export function DocumentsView() {
       setStatus("Created");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Create failed");
+      throw error;
     }
   }
 
-  async function renameActive() {
+  async function renameActive(nextPath: string) {
     if (!active) {
       return;
     }
-    const nextPath = window.prompt("Rename Markdown file", active.path);
     if (!nextPath || nextPath === active.path) {
       return;
     }
-    setStatus("Renaming...");
+    setStatus("Renaming\u2026");
     try {
       const renamed = await api<DocumentContent>("/api/documents/rename", {
         method: "PATCH",
@@ -417,32 +416,40 @@ export function DocumentsView() {
       setStatus("Renamed");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Rename failed");
+      throw error;
     }
   }
 
   async function deleteActive() {
-    if (!active || !window.confirm(`Delete ${active.path}?`)) {
+    if (!active) {
       return;
     }
     const snapshotPath = active.path;
     const snapshotContent = active.draft;
     const snapshotName = active.name;
-    await api("/api/documents/content", {
-      method: "DELETE",
-      body: JSON.stringify({ path: snapshotPath })
-    });
-    setTabs((current) => current.filter((tab) => tab.path !== snapshotPath));
-    if (activePath === snapshotPath) {
-      const remaining = tabs.filter((tab) => tab.path !== snapshotPath);
-      setActivePath(remaining[remaining.length - 1]?.path ?? "");
+    setStatus("Deleting\u2026");
+    try {
+      await api("/api/documents/content", {
+        method: "DELETE",
+        body: JSON.stringify({ path: snapshotPath })
+      });
+      setTabs((current) => current.filter((tab) => tab.path !== snapshotPath));
+      if (activePath === snapshotPath) {
+        const remaining = tabs.filter((tab) => tab.path !== snapshotPath);
+        setActivePath(remaining[remaining.length - 1]?.path ?? "");
+      }
+      await refreshDocuments();
+      setStatus("Deleted");
+      offerUndo({
+        kind: "delete-document",
+        path: snapshotPath,
+        content: snapshotContent,
+        label: `Deleted ${snapshotName}`
+      });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Delete failed");
+      throw error;
     }
-    await refreshDocuments();
-    offerUndo({
-      kind: "delete-document",
-      path: snapshotPath,
-      content: snapshotContent,
-      label: `Deleted ${snapshotName}`
-    });
   }
 
   async function performUndo() {
@@ -464,7 +471,7 @@ export function DocumentsView() {
       setStatus(`Reopened ${action.tab.name}`);
       return;
     }
-    setStatus("Restoring...");
+    setStatus("Restoring\u2026");
     try {
       await api<DocumentContent>("/api/documents", {
         method: "POST",
@@ -524,11 +531,33 @@ export function DocumentsView() {
       onPointerCancel={() => { edgeSwipe.current = null; }}
     >
       {isMobile ? (
-        <nav className="mobile-segmented" role="tablist" aria-label="Workspace sections">
+        <nav
+          className="mobile-segmented"
+          role="tablist"
+          aria-label="Workspace sections"
+          aria-orientation="horizontal"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const sections: MobileSection[] = ["vault", "editor", "ask"];
+            const idx = sections.indexOf(mobileSection);
+            const nextIdx = event.key === "ArrowLeft"
+              ? (idx + sections.length - 1) % sections.length
+              : (idx + 1) % sections.length;
+            const next = sections[nextIdx];
+            setMobileSection(next);
+            const target = event.currentTarget.querySelector<HTMLButtonElement>(`[data-section-tab="${next}"]`);
+            target?.focus();
+          }}
+        >
           <button
             type="button"
             role="tab"
+            id="section-tab-vault"
+            data-section-tab="vault"
             aria-selected={mobileSection === "vault"}
+            aria-controls="section-panel-vault"
+            tabIndex={mobileSection === "vault" ? 0 : -1}
             className={mobileSection === "vault" ? "active" : ""}
             onClick={() => setMobileSection("vault")}
           >
@@ -537,7 +566,11 @@ export function DocumentsView() {
           <button
             type="button"
             role="tab"
+            id="section-tab-editor"
+            data-section-tab="editor"
             aria-selected={mobileSection === "editor"}
+            aria-controls="section-panel-editor"
+            tabIndex={mobileSection === "editor" ? 0 : -1}
             className={mobileSection === "editor" ? "active" : ""}
             onClick={() => setMobileSection("editor")}
           >
@@ -546,7 +579,11 @@ export function DocumentsView() {
           <button
             type="button"
             role="tab"
+            id="section-tab-ask"
+            data-section-tab="ask"
             aria-selected={mobileSection === "ask"}
+            aria-controls="section-panel-ask"
+            tabIndex={mobileSection === "ask" ? 0 : -1}
             className={mobileSection === "ask" ? "active" : ""}
             onClick={() => setMobileSection("ask")}
           >
@@ -554,7 +591,13 @@ export function DocumentsView() {
           </button>
         </nav>
       ) : null}
-      <section className="document-list panel vault-pane" data-section="vault">
+      <section
+        className="document-list panel vault-pane"
+        data-section="vault"
+        id={isMobile ? "section-panel-vault" : undefined}
+        role={isMobile ? "tabpanel" : undefined}
+        aria-labelledby={isMobile ? "section-tab-vault" : undefined}
+      >
         <div className="panel-header">
           <div>
             <p className="eyebrow">Vault</p>
@@ -564,7 +607,7 @@ export function DocumentsView() {
         </div>
         <div className="vault-toolbar">
           <button className="primary" onClick={() => setSearchOpen(true)}>Search Vault</button>
-          <button onClick={createDocument}>New Note</button>
+          <button onClick={() => setCreateOpen(true)}>New Note</button>
         </div>
         <div className="sort-row">
           <label>
@@ -610,7 +653,13 @@ export function DocumentsView() {
           />
         </div>
       </section>
-      <section className="editor panel editor-pane" data-section="editor">
+      <section
+        className="editor panel editor-pane"
+        data-section="editor"
+        id={isMobile ? "section-panel-editor" : undefined}
+        role={isMobile ? "tabpanel" : undefined}
+        aria-labelledby={isMobile ? "section-tab-editor" : undefined}
+      >
         <div className="panel-header">
           <div>
             <p className="eyebrow">{active?.path ?? "No document selected"}</p>
@@ -628,10 +677,10 @@ export function DocumentsView() {
             </button>
           </div>
           <div className="file-actions">
-            <button onClick={renameActive} disabled={!active}>
+            <button onClick={() => setRenameOpen(true)} disabled={!active}>
               Rename
             </button>
-            <button className="danger" onClick={deleteActive} disabled={!active}>
+            <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active}>
               Delete
             </button>
             <button className="primary" onClick={save} disabled={!active}>
@@ -678,7 +727,13 @@ export function DocumentsView() {
           </div>
         ) : null}
       </section>
-      <div className="qa-section-wrapper" data-section="ask">
+      <div
+        className="qa-section-wrapper"
+        data-section="ask"
+        id={isMobile ? "section-panel-ask" : undefined}
+        role={isMobile ? "tabpanel" : undefined}
+        aria-labelledby={isMobile ? "section-tab-ask" : undefined}
+      >
         <QaView compact onOpenSource={openDocument} />
       </div>
       {pendingUndo ? (
@@ -688,9 +743,60 @@ export function DocumentsView() {
             Undo
           </button>
           <button type="button" className="undo-toast-dismiss" aria-label="Dismiss" onClick={dismissUndo}>
-            x
+            <span aria-hidden="true">{"\u00d7"}</span>
           </button>
         </div>
+      ) : null}
+      {createOpen ? (
+        <PromptModal
+          title="New note"
+          eyebrow="Vault"
+          description={"File path is relative to the vault root. Include subfolders with /."}
+          label="File path"
+          placeholder={"Untitled.md"}
+          initialValue="Untitled.md"
+          submitLabel="Create"
+          submitLoadingLabel={"Creating\u2026"}
+          isMobile={isMobile}
+          onCancel={() => setCreateOpen(false)}
+          onSubmit={async (value) => {
+            await createDocument(value);
+            setCreateOpen(false);
+          }}
+        />
+      ) : null}
+      {renameOpen && active ? (
+        <PromptModal
+          title="Rename note"
+          eyebrow={active.path}
+          description="Enter a new path. Subfolders will be created if needed."
+          label="New path"
+          placeholder={active.path}
+          initialValue={active.path}
+          submitLabel="Rename"
+          submitLoadingLabel={"Renaming\u2026"}
+          isMobile={isMobile}
+          onCancel={() => setRenameOpen(false)}
+          onSubmit={async (value) => {
+            await renameActive(value);
+            setRenameOpen(false);
+          }}
+        />
+      ) : null}
+      {deleteOpen && active ? (
+        <ConfirmModal
+          title={`Delete ${active.name}?`}
+          eyebrow={active.path}
+          description="The file is removed from the vault. You can restore it from the Undo toast within a few seconds."
+          confirmLabel="Delete"
+          confirmLoadingLabel={"Deleting\u2026"}
+          danger
+          onCancel={() => setDeleteOpen(false)}
+          onConfirm={async () => {
+            await deleteActive();
+            setDeleteOpen(false);
+          }}
+        />
       ) : null}
       {searchOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>
@@ -712,10 +818,19 @@ export function DocumentsView() {
             >
               <label>
                 Search query
-                <input autoFocus value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search file names, tags, headings, or content" />
+                <input
+                  type="search"
+                  inputMode="search"
+                  autoComplete="off"
+                  spellCheck={false}
+                  autoFocus={!isMobile}
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={"Search file names, tags, headings, or content\u2026"}
+                />
               </label>
               <button className="primary" type="submit" disabled={!searchQuery.trim() || searchLoading}>
-                {searchLoading ? "Searching..." : "Search"}
+                {searchLoading ? "Searching\u2026" : "Search"}
               </button>
             </form>
             {searchError ? <div className="error" aria-live="polite">{searchError}</div> : null}
@@ -828,7 +943,7 @@ function SwipeableTab(props: {
           onClose();
         }}
       >
-        x
+        <span aria-hidden="true">{"\u00d7"}</span>
       </button>
     </div>
   );
@@ -883,7 +998,7 @@ function TreeNodeRow(props: {
     <button
       className={`tree-row file-row ${props.selectedPath === props.node.document?.path ? "selected" : ""}`}
       style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }}
-      aria-current={props.selectedPath === props.node.document?.path ? "page" : undefined}
+      aria-current={props.selectedPath === props.node.document?.path ? "true" : undefined}
       onClick={() => props.node.document && props.onSelect(props.node.document.path)}
     >
       <span className="tree-file-dot" />
@@ -892,5 +1007,199 @@ function TreeNodeRow(props: {
         <small>{props.node.document?.path}</small>
       </span>
     </button>
+  );
+}
+
+function PromptModal(props: {
+  title: string;
+  eyebrow?: string;
+  description?: string;
+  label: string;
+  placeholder: string;
+  initialValue: string;
+  submitLabel: string;
+  submitLoadingLabel: string;
+  isMobile: boolean;
+  onCancel: () => void;
+  onSubmit: (value: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(props.initialValue);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  useEffect(() => {
+    if (props.isMobile) return;
+    const node = inputRef.current;
+    if (!node) return;
+    node.focus();
+    if (typeof node.setSelectionRange === "function") {
+      node.setSelectionRange(0, node.value.length);
+    }
+  }, [props.isMobile]);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        if (!submitting) props.onCancel();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props, submitting]);
+
+  async function submit() {
+    const trimmed = value.trim();
+    if (!trimmed || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await props.onSubmit(trimmed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={() => { if (!submitting) props.onCancel(); }}>
+      <section
+        className="prompt-modal panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={props.description ? descId : undefined}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="panel-header">
+          <div>
+            {props.eyebrow ? <p className="eyebrow">{props.eyebrow}</p> : null}
+            <h2 id={titleId}>{props.title}</h2>
+            {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
+          </div>
+          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label="Cancel">
+            Cancel
+          </button>
+        </div>
+        <form
+          className="prompt-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
+          }}
+        >
+          <label>
+            {props.label}
+            <input
+              ref={inputRef}
+              name="prompt-value"
+              autoComplete="off"
+              spellCheck={false}
+              value={value}
+              placeholder={props.placeholder}
+              onChange={(event) => setValue(event.target.value)}
+              disabled={submitting}
+            />
+          </label>
+          {error ? <div className="error" aria-live="polite">{error}</div> : null}
+          <div className="prompt-actions">
+            <button type="button" onClick={props.onCancel} disabled={submitting}>
+              Cancel
+            </button>
+            <button
+              className="primary"
+              type="submit"
+              disabled={!value.trim() || submitting}
+              aria-busy={submitting}
+            >
+              {submitting ? props.submitLoadingLabel : props.submitLabel}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function ConfirmModal(props: {
+  title: string;
+  eyebrow?: string;
+  description?: string;
+  confirmLabel: string;
+  confirmLoadingLabel: string;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        if (!submitting) props.onCancel();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props, submitting]);
+
+  async function confirm() {
+    if (submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await props.onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={() => { if (!submitting) props.onCancel(); }}>
+      <section
+        className="prompt-modal panel"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={props.description ? descId : undefined}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="panel-header">
+          <div>
+            {props.eyebrow ? <p className="eyebrow">{props.eyebrow}</p> : null}
+            <h2 id={titleId}>{props.title}</h2>
+            {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
+          </div>
+        </div>
+        {error ? <div className="error" aria-live="polite">{error}</div> : null}
+        <div className="prompt-actions">
+          <button ref={cancelRef} type="button" onClick={props.onCancel} disabled={submitting}>
+            Cancel
+          </button>
+          <button
+            className={props.danger ? "danger" : "primary"}
+            type="button"
+            onClick={confirm}
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting ? props.confirmLoadingLabel : props.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }

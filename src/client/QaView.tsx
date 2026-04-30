@@ -184,8 +184,13 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
             onChange={(event) => setRuntimeState({ question: event.target.value })}
             placeholder="Example: What did I write about this project?"
           />
-          <button className={state.loading ? "query-button query-loading" : "primary query-button"} type="submit" disabled={!state.question || state.loading}>
-            {state.loading ? "Querying..." : "Ask Vault"}
+          <button
+            className={state.loading ? "query-button query-loading" : "primary query-button"}
+            type="submit"
+            disabled={!state.question || state.loading}
+            aria-busy={state.loading}
+          >
+            {state.loading ? "Querying\u2026" : "Ask Vault"}
           </button>
         </form>
         {state.loading ? <div className="status-pill qa-query-state" aria-live="polite">Query is running. You can switch pages and come back.</div> : null}
