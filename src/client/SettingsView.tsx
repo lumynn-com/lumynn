@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats } from "../shared/types";
 import { api } from "./api";
+import { BusyLabel } from "./icons";
 
 type SettingsSection = "account" | "vault" | "https" | "providers" | "operations" | "import-export";
 type SettingsMode = "settings" | "indexing";
@@ -353,7 +354,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 disabled={accountPassword.length < 8 || isBusy("save-account")}
                 aria-busy={isBusy("save-account")}
               >
-                {isBusy("save-account") ? "Saving\u2026" : "Save account"}
+                <BusyLabel busy={isBusy("save-account")} busyText={"Saving\u2026"}>Save account</BusyLabel>
               </button>
             </section>
           ) : null}
@@ -390,7 +391,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 disabled={isBusy("save-vault")}
                 aria-busy={isBusy("save-vault")}
               >
-                {isBusy("save-vault") ? "Saving\u2026" : "Save vault"}
+                <BusyLabel busy={isBusy("save-vault")} busyText={"Saving\u2026"}>Save vault</BusyLabel>
               </button>
             </section>
           ) : null}
@@ -450,7 +451,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   disabled={isBusy("save-https")}
                   aria-busy={isBusy("save-https")}
                 >
-                  {isBusy("save-https") ? "Saving\u2026" : "Save HTTPS settings"}
+                  <BusyLabel busy={isBusy("save-https")} busyText={"Saving\u2026"}>Save HTTPS settings</BusyLabel>
                 </button>
               </div>
             </section>
@@ -471,14 +472,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={isBusy("save-rag-embedding")}
                     aria-busy={isBusy("save-rag-embedding")}
                   >
-                    {isBusy("save-rag-embedding") ? "Saving\u2026" : "Save AI Providers"}
+                    <BusyLabel busy={isBusy("save-rag-embedding")} busyText={"Saving\u2026"}>Save AI Providers</BusyLabel>
                   </button>
                   <button
                     onClick={() => test("/api/settings/rag/test-embedding", "test-embedding")}
                     disabled={isBusy("test-embedding")}
                     aria-busy={isBusy("test-embedding")}
                   >
-                    {isBusy("test-embedding") ? "Testing\u2026" : "Test Embedding"}
+                    <BusyLabel busy={isBusy("test-embedding")} busyText={"Testing\u2026"}>Test Embedding</BusyLabel>
                   </button>
                 </div>
               </div>
@@ -495,14 +496,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={isBusy("save-rag-qa")}
                     aria-busy={isBusy("save-rag-qa")}
                   >
-                    {isBusy("save-rag-qa") ? "Saving\u2026" : "Save AI Providers"}
+                    <BusyLabel busy={isBusy("save-rag-qa")} busyText={"Saving\u2026"}>Save AI Providers</BusyLabel>
                   </button>
                   <button
                     onClick={() => test("/api/settings/rag/test-qa", "test-qa")}
                     disabled={isBusy("test-qa")}
                     aria-busy={isBusy("test-qa")}
                   >
-                    {isBusy("test-qa") ? "Testing\u2026" : "Test Q&A"}
+                    <BusyLabel busy={isBusy("test-qa")} busyText={"Testing\u2026"}>Test Q&A</BusyLabel>
                   </button>
                 </div>
               </div>
@@ -588,28 +589,28 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   disabled={isBusy("save-rag-index")}
                   aria-busy={isBusy("save-rag-index")}
                 >
-                  {isBusy("save-rag-index") ? "Saving\u2026" : "Save Index Settings"}
+                  <BusyLabel busy={isBusy("save-rag-index")} busyText={"Saving\u2026"}>Save Index Settings</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/settings/rag/test-index", "start-test-index", { sampleSize: 20 })}
                   disabled={isBusy("start-test-index")}
                   aria-busy={isBusy("start-test-index")}
                 >
-                  {isBusy("start-test-index") ? "Starting\u2026" : "Index 20-File Sample"}
+                  <BusyLabel busy={isBusy("start-test-index")} busyText={"Starting\u2026"}>Index 20-File Sample</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/rag/reindex/incremental", "start-incremental-index")}
                   disabled={isBusy("start-incremental-index")}
                   aria-busy={isBusy("start-incremental-index")}
                 >
-                  {isBusy("start-incremental-index") ? "Starting\u2026" : "Start Incremental Index"}
+                  <BusyLabel busy={isBusy("start-incremental-index")} busyText={"Starting\u2026"}>Start Incremental Index</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/rag/reindex", "start-full-index")}
                   disabled={isBusy("start-full-index")}
                   aria-busy={isBusy("start-full-index")}
                 >
-                  {isBusy("start-full-index") ? "Starting\u2026" : "Rebuild Full Index"}
+                  <BusyLabel busy={isBusy("start-full-index")} busyText={"Starting\u2026"}>Rebuild Full Index</BusyLabel>
                 </button>
               </div>
               {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
@@ -627,7 +628,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 <textarea className="config-box" name="rag-export" value={ragExport} readOnly aria-label="RAG configuration export" />
                 <div className="button-row">
                   <button onClick={copyRagConfig} disabled={isBusy("copy-rag")} aria-busy={isBusy("copy-rag")}>
-                    {isBusy("copy-rag") ? "Copying\u2026" : "Copy to clipboard"}
+                    <BusyLabel busy={isBusy("copy-rag")} busyText={"Copying\u2026"}>Copy to clipboard</BusyLabel>
                   </button>
                   <button onClick={exportRagConfigFile}>Export to file</button>
                 </div>
@@ -648,7 +649,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 />
                 <div className="button-row">
                   <button onClick={pasteRagConfig} disabled={isBusy("paste-rag")} aria-busy={isBusy("paste-rag")}>
-                    {isBusy("paste-rag") ? "Pasting\u2026" : "Paste from clipboard"}
+                    <BusyLabel busy={isBusy("paste-rag")} busyText={"Pasting\u2026"}>Paste from clipboard</BusyLabel>
                   </button>
                   <label className="file-button">
                     Import from file
@@ -660,7 +661,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={!importText.trim() || isBusy("import-rag")}
                     aria-busy={isBusy("import-rag")}
                   >
-                    {isBusy("import-rag") ? "Importing\u2026" : "Import RAG config"}
+                    <BusyLabel busy={isBusy("import-rag")} busyText={"Importing\u2026"}>Import RAG config</BusyLabel>
                   </button>
                 </div>
               </div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { DocumentsView } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
-import { IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
+import { BusyLabel, IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
 
 type View = "workspace" | "indexing" | "settings";
 
@@ -108,7 +108,7 @@ function LoginPage(props: {
           </label>
           {props.error ? <div className="error" role="alert" aria-live="assertive">{props.error}</div> : null}
           <button className="primary" type="submit" disabled={props.loading} aria-busy={props.loading}>
-            {props.loading ? submitLoadingLabel : submitLabel}
+            <BusyLabel busy={props.loading} busyText={submitLoadingLabel}>{submitLabel}</BusyLabel>
           </button>
         </form>
       </section>
@@ -186,7 +186,7 @@ function Workspace(props: { onLogout: () => void }) {
             {theme === "dark" ? "Light Theme" : "Dark Theme"}
           </button>
           <button className="ghost" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}>
-            {loggingOut ? "Logging Out\u2026" : "Log Out"}
+            <BusyLabel busy={loggingOut} busyText={"Logging Out\u2026"}>Log Out</BusyLabel>
           </button>
         </div>
       </header>

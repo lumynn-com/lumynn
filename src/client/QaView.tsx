@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
+import { BusyLabel } from "./icons";
 
 type Citation = { path: string; title: string; snippet: string };
 
@@ -190,7 +191,7 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
             disabled={!state.question || state.loading}
             aria-busy={state.loading}
           >
-            {state.loading ? "Querying\u2026" : "Ask Vault"}
+            <BusyLabel busy={state.loading} busyText={"Querying\u2026"}>Ask Vault</BusyLabel>
           </button>
         </form>
         {state.loading ? <div className="status-pill qa-query-state" aria-live="polite">Query is running. You can switch pages and come back.</div> : null}

@@ -1,4 +1,4 @@
-import type { SVGProps } from "react";
+import type { ReactNode, SVGProps } from "react";
 
 const baseProps: SVGProps<SVGSVGElement> = {
   width: 18,
@@ -55,5 +55,48 @@ export function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
     <svg {...baseProps} width={14} height={14} {...props}>
       <path d="M6 9l6 6 6-6" />
     </svg>
+  );
+}
+
+export function ChevronUpIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} width={14} height={14} {...props}>
+      <path d="M6 15l6-6 6 6" />
+    </svg>
+  );
+}
+
+export function SaveIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M4 4h12l4 4v12H4z" />
+      <path d="M8 4v6h8V4" />
+      <path d="M8 14h8v6H8z" />
+    </svg>
+  );
+}
+
+export function SpinnerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...baseProps}
+      width={16}
+      height={16}
+      strokeWidth={2.4}
+      {...props}
+      className={`spinner ${props.className ?? ""}`.trim()}
+    >
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </svg>
+  );
+}
+
+export function BusyLabel(props: { busy: boolean; busyText: string; children: ReactNode }) {
+  if (!props.busy) return <>{props.children}</>;
+  return (
+    <>
+      <SpinnerIcon />
+      {props.busyText}
+    </>
   );
 }

@@ -2,10 +2,26 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
-import { ChevronDownIcon, ChevronRightIcon } from "./icons";
+import { BusyLabel, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, SaveIcon, SpinnerIcon } from "./icons";
 import { QaView } from "./QaView";
 
 type MobileSection = "vault" | "editor" | "ask";
+
+// Best-effort haptic feedback. Works on Android browsers; no-op on iOS
+// Safari and on devices without a vibration motor. Honors prefers-
+// reduced-motion as an opt-out signal because users who disable
+// motion typically want fewer secondary effects.
+function haptic(pattern: number | number[] = 8): void {
+  if (typeof navigator === "undefined" || typeof navigator.vibrate !== "function") return;
+  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  }
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    // ignore
+  }
+}
 
 function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(() => {
@@ -132,6 +148,7 @@ export function DocumentsView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -139,11 +156,21 @@ export function DocumentsView() {
     (path: string) => {
       setActivePath(path);
       if (isMobile) {
-        setMobileSection("editor");
+        setMobileSection((current) => {
+          if (current !== "editor") haptic(6);
+          return "editor";
+        });
       }
     },
     [isMobile]
   );
+
+  const switchSection = useCallback((next: MobileSection) => {
+    setMobileSection((current) => {
+      if (current !== next) haptic(6);
+      return next;
+    });
+  }, []);
 
   // Undo support for destructive actions. We keep at most one pending
   // undo action, with a timeout to auto-dismiss.
@@ -251,9 +278,9 @@ export function DocumentsView() {
     const idx = sections.indexOf(mobileSection);
     if (idx < 0) return;
     if (start.fromEdge === "left" && dx >= 60 && idx > 0) {
-      setMobileSection(sections[idx - 1]);
+      switchSection(sections[idx - 1]);
     } else if (start.fromEdge === "right" && dx <= -60 && idx < sections.length - 1) {
-      setMobileSection(sections[idx + 1]);
+      switchSection(sections[idx + 1]);
     }
   }
 
@@ -263,6 +290,24 @@ export function DocumentsView() {
   const pullStartScrollTop = useRef(0);
   const [pullDistance, setPullDistance] = useState(0);
   const pullThreshold = 72;
+  const vaultScrollRef = useRef<HTMLDivElement | null>(null);
+  const [vaultScrolled, setVaultScrolled] = useState(false);
+
+  function onVaultScroll(event: React.UIEvent<HTMLDivElement>) {
+    const top = event.currentTarget.scrollTop;
+    setVaultScrolled((current) => (top > 220 ? true : top < 60 ? false : current));
+  }
+
+  function scrollVaultToTop() {
+    const node = vaultScrollRef.current;
+    if (!node) return;
+    haptic(4);
+    if (typeof node.scrollTo === "function") {
+      node.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      node.scrollTop = 0;
+    }
+  }
 
   function onVaultTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     if (!isMobile || event.touches.length !== 1) {
@@ -287,7 +332,11 @@ export function DocumentsView() {
       setPullDistance(0);
       return;
     }
-    setPullDistance(Math.min(dy, pullThreshold * 1.6));
+    const next = Math.min(dy, pullThreshold * 1.6);
+    setPullDistance((prev) => {
+      if (prev < pullThreshold && next >= pullThreshold) haptic(4);
+      return next;
+    });
   }
 
   function onVaultTouchEnd() {
@@ -299,6 +348,7 @@ export function DocumentsView() {
     pullStartY.current = null;
     setPullDistance(0);
     if (dist >= pullThreshold) {
+      haptic(10);
       setSearchOpen(true);
     }
   }
@@ -363,9 +413,10 @@ export function DocumentsView() {
   }
 
   async function save() {
-    if (!active) {
+    if (!active || saving) {
       return;
     }
+    setSaving(true);
     setStatus("Saving\u2026");
     try {
       const saved = await api<DocumentContent>("/api/documents/content", {
@@ -377,8 +428,12 @@ export function DocumentsView() {
       setStatus("Saved");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
+    } finally {
+      setSaving(false);
     }
   }
+
+  const dirty = active ? active.draft !== active.content : false;
 
   async function createDocument(name: string) {
     try {
@@ -458,6 +513,7 @@ export function DocumentsView() {
       return;
     }
     const action = pendingUndo;
+    haptic([6, 30, 6]);
     dismissUndo();
     if (action.kind === "close-tab") {
       setTabs((current) => {
@@ -546,7 +602,7 @@ export function DocumentsView() {
               ? (idx + sections.length - 1) % sections.length
               : (idx + 1) % sections.length;
             const next = sections[nextIdx];
-            setMobileSection(next);
+            switchSection(next);
             const target = event.currentTarget.querySelector<HTMLButtonElement>(`[data-section-tab="${next}"]`);
             target?.focus();
           }}
@@ -560,7 +616,7 @@ export function DocumentsView() {
             aria-controls="section-panel-vault"
             tabIndex={mobileSection === "vault" ? 0 : -1}
             className={mobileSection === "vault" ? "active" : ""}
-            onClick={() => setMobileSection("vault")}
+            onClick={() => switchSection("vault")}
           >
             Vault
           </button>
@@ -573,7 +629,7 @@ export function DocumentsView() {
             aria-controls="section-panel-editor"
             tabIndex={mobileSection === "editor" ? 0 : -1}
             className={mobileSection === "editor" ? "active" : ""}
-            onClick={() => setMobileSection("editor")}
+            onClick={() => switchSection("editor")}
           >
             Editor
           </button>
@@ -586,7 +642,7 @@ export function DocumentsView() {
             aria-controls="section-panel-ask"
             tabIndex={mobileSection === "ask" ? 0 : -1}
             className={mobileSection === "ask" ? "active" : ""}
-            onClick={() => setMobileSection("ask")}
+            onClick={() => switchSection("ask")}
           >
             Ask
           </button>
@@ -630,11 +686,13 @@ export function DocumentsView() {
           </label>
         </div>
         <div
+          ref={vaultScrollRef}
           className="vault-scroll"
           onTouchStart={onVaultTouchStart}
           onTouchMove={onVaultTouchMove}
           onTouchEnd={onVaultTouchEnd}
           onTouchCancel={onVaultTouchEnd}
+          onScroll={onVaultScroll}
         >
           {isMobile && pullDistance > 0 ? (
             <div
@@ -653,6 +711,16 @@ export function DocumentsView() {
             onSelect={openDocument}
           />
         </div>
+        {isMobile && vaultScrolled ? (
+          <button
+            type="button"
+            className="back-to-top"
+            onClick={scrollVaultToTop}
+            aria-label="Scroll vault list back to top"
+          >
+            <ChevronUpIcon />
+          </button>
+        ) : null}
       </section>
       <section
         className="editor panel editor-pane"
@@ -684,8 +752,8 @@ export function DocumentsView() {
             <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active}>
               Delete
             </button>
-            <button className="primary" onClick={save} disabled={!active}>
-              Save Note
+            <button className="primary" onClick={save} disabled={!active || saving} aria-busy={saving}>
+              <BusyLabel busy={saving} busyText={"Saving\u2026"}>Save Note</BusyLabel>
             </button>
           </div>
         </div>
@@ -737,6 +805,19 @@ export function DocumentsView() {
       >
         <QaView compact onOpenSource={openDocument} />
       </div>
+      {isMobile && mobileSection === "editor" && active ? (
+        <button
+          type="button"
+          className="editor-fab"
+          onClick={save}
+          disabled={!dirty || saving}
+          aria-busy={saving}
+          aria-label={dirty ? "Save note" : "Note is up to date"}
+        >
+          {saving ? <SpinnerIcon /> : <SaveIcon />}
+          <span className="editor-fab-label">{saving ? "Saving\u2026" : dirty ? "Save" : "Saved"}</span>
+        </button>
+      ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">
           <span className="undo-toast-label">{pendingUndo.label}</span>
@@ -901,7 +982,11 @@ function SwipeableTab(props: {
       }
     }
     if (deltaX < 0) {
-      setDx(Math.max(deltaX, -160));
+      const next = Math.max(deltaX, -160);
+      setDx((prev) => {
+        if (-prev < swipeThreshold && -next >= swipeThreshold) haptic(4);
+        return next;
+      });
     } else {
       setDx(0);
     }
@@ -914,6 +999,7 @@ function SwipeableTab(props: {
     startY.current = null;
     horizontal.current = false;
     if (distance >= swipeThreshold) {
+      haptic(12);
       setClosing(true);
       setDx(-260);
       window.setTimeout(onClose, 160);
@@ -1118,7 +1204,7 @@ function PromptModal(props: {
               disabled={!value.trim() || submitting}
               aria-busy={submitting}
             >
-              {submitting ? props.submitLoadingLabel : props.submitLabel}
+              <BusyLabel busy={submitting} busyText={props.submitLoadingLabel}>{props.submitLabel}</BusyLabel>
             </button>
           </div>
         </form>
@@ -1199,7 +1285,7 @@ function ConfirmModal(props: {
             disabled={submitting}
             aria-busy={submitting}
           >
-            {submitting ? props.confirmLoadingLabel : props.confirmLabel}
+            <BusyLabel busy={submitting} busyText={props.confirmLoadingLabel}>{props.confirmLabel}</BusyLabel>
           </button>
         </div>
       </section>

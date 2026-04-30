@@ -2846,6 +2846,97 @@ button,
   font-weight: 400;
 }
 
+/* Inline spinner used inside buttons (Saving\u2026, Logging In\u2026, etc.).
+   Honors prefers-reduced-motion via the global override above. */
+.spinner {
+  animation: owd-spin 800ms linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes owd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Buttons that include a spinner alongside the label. */
+button[aria-busy="true"] {
+  --owd-busy-gap: 0.4rem;
+}
+
+button[aria-busy="true"] > .spinner,
+button[aria-busy="true"] > .button-spinner {
+  margin-right: var(--owd-busy-gap);
+}
+
+/* Mobile editor FAB: a persistent floating Save button so the action
+   is reachable without scrolling back to the toolbar. Only renders
+   on mobile when the editor pane is active and a document is open. */
+.editor-fab {
+  position: fixed;
+  z-index: 7;
+  right: max(0.85rem, env(safe-area-inset-right));
+  bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 0.15rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1rem 0.65rem 0.85rem;
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+  font-weight: 650;
+  box-shadow: var(--md-elevation-2, 0 8px 24px rgba(0, 0, 0, 0.28));
+  transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease;
+}
+
+.editor-fab[disabled] {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.editor-fab:not([disabled]):hover,
+.editor-fab:not([disabled]):focus-visible {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--md-primary, #9ccaff) 85%, white);
+}
+
+.editor-fab-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Back to top" floating button for the vault list on mobile. */
+.back-to-top {
+  position: absolute;
+  z-index: 4;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-text, var(--text));
+  box-shadow: var(--md-elevation-2, var(--shadow));
+  animation: owd-fade-in 160ms ease;
+}
+
+.back-to-top:hover {
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+@keyframes owd-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (max-width: 860px) {
+  .vault-pane {
+    position: relative;
+  }
+}
+
 /* The vault scroll wrapper hosts the doc tree and the pull-to-search
    indicator. On desktop it is a passive wrapper; on mobile it becomes
    the actual scroll container so we can read scrollTop for pull. */
