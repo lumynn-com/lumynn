@@ -3,6 +3,8 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
 import { BusyLabel, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, SaveIcon, SpinnerIcon } from "./icons";
+import { useT } from "./i18n";
+import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
 
 type MobileSection = "vault" | "editor" | "ask";
@@ -126,7 +128,14 @@ function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
   return sortNodes(root.children);
 }
 
+type StatusValue =
+  | { kind: "key"; key: TKey; params?: Record<string, string | number> }
+  | { kind: "text"; text: string };
+
+const READY_STATUS: StatusValue = { kind: "key", key: "status.ready" };
+
 export function DocumentsView() {
+  const t = useT();
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
@@ -137,7 +146,7 @@ export function DocumentsView() {
   const [centerMode, setCenterMode] = useState<"edit" | "preview">(readSavedEditorMode);
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
-  const [status, setStatus] = useState("Ready");
+  const [status, setStatus] = useState<StatusValue>(READY_STATUS);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -358,8 +367,15 @@ export function DocumentsView() {
     setDocuments(docs);
   }
 
+  function setStatusKey(key: TKey, params?: Record<string, string | number>) {
+    setStatus({ kind: "key", key, params });
+  }
+  function setStatusText(text: string) {
+    setStatus({ kind: "text", text });
+  }
+
   useEffect(() => {
-    refreshDocuments().catch((error) => setStatus(error.message));
+    refreshDocuments().catch((error) => setStatusText(error.message));
   }, []);
 
   useEffect(() => {
@@ -370,7 +386,7 @@ export function DocumentsView() {
       .then((doc) => {
         setTabs((current) => [...current, { ...doc, draft: doc.content }]);
       })
-      .catch((error) => setStatus(error.message));
+      .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
 
   useEffect(() => {
@@ -408,7 +424,7 @@ export function DocumentsView() {
       setActivePath(remaining[remaining.length - 1]?.path ?? "");
     }
     if (closed) {
-      offerUndo({ kind: "close-tab", tab: closed, wasActive, label: `Closed ${closed.name}` });
+      offerUndo({ kind: "close-tab", tab: closed, wasActive, label: `${t("undo.closedPrefix")} ${closed.name}` });
     }
   }
 
@@ -417,7 +433,7 @@ export function DocumentsView() {
       return;
     }
     setSaving(true);
-    setStatus("Saving\u2026");
+    setStatusKey("status.saving");
     try {
       const saved = await api<DocumentContent>("/api/documents/content", {
         method: "PUT",
@@ -425,9 +441,10 @@ export function DocumentsView() {
       });
       setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content } : tab)));
       await refreshDocuments();
-      setStatus("Saved");
+      setStatusKey("status.saved");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Save failed");
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.saveFailed");
     } finally {
       setSaving(false);
     }
@@ -444,9 +461,10 @@ export function DocumentsView() {
       await refreshDocuments();
       setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content }]);
       openDocument(created.path);
-      setStatus("Created");
+      setStatusKey("status.created");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Create failed");
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.createFailed");
       throw error;
     }
   }
@@ -458,7 +476,7 @@ export function DocumentsView() {
     if (!nextPath || nextPath === active.path) {
       return;
     }
-    setStatus("Renaming\u2026");
+    setStatusKey("status.renaming");
     try {
       const renamed = await api<DocumentContent>("/api/documents/rename", {
         method: "PATCH",
@@ -469,9 +487,10 @@ export function DocumentsView() {
       );
       setActivePath(renamed.path);
       await refreshDocuments();
-      setStatus("Renamed");
+      setStatusKey("status.renamed");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Rename failed");
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.renameFailed");
       throw error;
     }
   }
@@ -483,7 +502,7 @@ export function DocumentsView() {
     const snapshotPath = active.path;
     const snapshotContent = active.draft;
     const snapshotName = active.name;
-    setStatus("Deleting\u2026");
+    setStatusKey("status.deleting");
     try {
       await api("/api/documents/content", {
         method: "DELETE",
@@ -495,15 +514,16 @@ export function DocumentsView() {
         setActivePath(remaining[remaining.length - 1]?.path ?? "");
       }
       await refreshDocuments();
-      setStatus("Deleted");
+      setStatusKey("status.deleted");
       offerUndo({
         kind: "delete-document",
         path: snapshotPath,
         content: snapshotContent,
-        label: `Deleted ${snapshotName}`
+        label: `${t("undo.deletedPrefix")} ${snapshotName}`
       });
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Delete failed");
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.deleteFailed");
       throw error;
     }
   }
@@ -525,10 +545,10 @@ export function DocumentsView() {
       if (action.wasActive) {
         setActivePath(action.tab.path);
       }
-      setStatus(`Reopened ${action.tab.name}`);
+      setStatusText(`${t("status.reopenedPrefix")} ${action.tab.name}`);
       return;
     }
-    setStatus("Restoring\u2026");
+    setStatusKey("status.restoring");
     try {
       await api<DocumentContent>("/api/documents", {
         method: "POST",
@@ -544,9 +564,10 @@ export function DocumentsView() {
         { ...restored, draft: restored.content }
       ]);
       openDocument(restored.path);
-      setStatus(`Restored ${restored.name}`);
+      setStatusText(`${t("status.restoredPrefix")} ${restored.name}`);
     } catch (error) {
-      setStatus(error instanceof Error ? `Restore failed: ${error.message}` : "Restore failed");
+      if (error instanceof Error) setStatusText(`${t("status.restoreFailedPrefix")}: ${error.message}`);
+      else setStatusKey("status.restoreFailedPrefix");
     }
   }
 
@@ -591,7 +612,7 @@ export function DocumentsView() {
         <nav
           className="mobile-segmented"
           role="tablist"
-          aria-label="Workspace sections"
+          aria-label={t("section.aria")}
           aria-orientation="horizontal"
           onKeyDown={(event) => {
             if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -618,7 +639,7 @@ export function DocumentsView() {
             className={mobileSection === "vault" ? "active" : ""}
             onClick={() => switchSection("vault")}
           >
-            Vault
+            {t("section.vault")}
           </button>
           <button
             type="button"
@@ -631,7 +652,7 @@ export function DocumentsView() {
             className={mobileSection === "editor" ? "active" : ""}
             onClick={() => switchSection("editor")}
           >
-            Editor
+            {t("section.editor")}
           </button>
           <button
             type="button"
@@ -644,7 +665,7 @@ export function DocumentsView() {
             className={mobileSection === "ask" ? "active" : ""}
             onClick={() => switchSection("ask")}
           >
-            Ask
+            {t("section.ask")}
           </button>
         </nav>
       ) : null}
@@ -657,31 +678,33 @@ export function DocumentsView() {
       >
         <div className="panel-header">
           <div>
-            <p className="eyebrow">Vault</p>
-            <h2>Documents</h2>
-            <p className="muted">{documents.length} Markdown file{documents.length === 1 ? "" : "s"}</p>
+            <p className="eyebrow">{t("vault.eyebrow")}</p>
+            <h2>{t("vault.title")}</h2>
+            <p className="muted">
+              {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
+            </p>
           </div>
         </div>
         <div className="vault-toolbar">
-          <button className="primary" onClick={() => setSearchOpen(true)}>Search Vault</button>
-          <button onClick={() => setCreateOpen(true)}>New Note</button>
+          <button className="primary" onClick={() => setSearchOpen(true)}>{t("vault.searchVault")}</button>
+          <button onClick={() => setCreateOpen(true)}>{t("vault.newNote")}</button>
         </div>
         <div className="sort-row">
           <label>
-            Sort By
+            {t("vault.sortBy")}
             <select name="document-sort" value={sort} onChange={(event) => onSort(event.target.value as SortField, order)}>
-              <option value="name">Name</option>
-              <option value="createdAt">Created</option>
-              <option value="updatedAt">Updated</option>
-              <option value="path">Path</option>
-              <option value="title">Title</option>
+              <option value="name">{t("vault.sortName")}</option>
+              <option value="createdAt">{t("vault.sortCreated")}</option>
+              <option value="updatedAt">{t("vault.sortUpdated")}</option>
+              <option value="path">{t("vault.sortPath")}</option>
+              <option value="title">{t("vault.sortTitle")}</option>
             </select>
           </label>
           <label>
-            Order
+            {t("vault.order")}
             <select name="document-order" value={order} onChange={(event) => onSort(sort, event.target.value as SortOrder)}>
-              <option value="asc">Ascending</option>
-              <option value="desc">Descending</option>
+              <option value="asc">{t("vault.orderAsc")}</option>
+              <option value="desc">{t("vault.orderDesc")}</option>
             </select>
           </label>
         </div>
@@ -700,7 +723,7 @@ export function DocumentsView() {
               style={{ height: `${pullDistance}px` }}
               aria-hidden="true"
             >
-              <span>{pullDistance >= pullThreshold ? "Release to search" : "Pull to search"}</span>
+              <span>{pullDistance >= pullThreshold ? t("vault.releaseToSearch") : t("vault.pullToSearch")}</span>
             </div>
           ) : null}
           <DocumentTree
@@ -709,6 +732,7 @@ export function DocumentsView() {
             expandedFolders={expandedFolders}
             onToggleFolder={(folderPath) => setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }))}
             onSelect={openDocument}
+            emptyLabel={t("vault.empty")}
           />
         </div>
         {isMobile && vaultScrolled ? (
@@ -716,7 +740,7 @@ export function DocumentsView() {
             type="button"
             className="back-to-top"
             onClick={scrollVaultToTop}
-            aria-label="Scroll vault list back to top"
+            aria-label={t("vault.backToTop")}
           >
             <ChevronUpIcon />
           </button>
@@ -731,40 +755,43 @@ export function DocumentsView() {
       >
         <div className="panel-header">
           <div>
-            <p className="eyebrow">{active?.path ?? "No document selected"}</p>
-            <h2>{active?.name ?? "Editor"}</h2>
+            <p className="eyebrow">{active?.path ?? t("editor.noDocSelected")}</p>
+            <h2>{active?.name ?? t("editor.title")}</h2>
           </div>
-          <span className="status status-pill" aria-live="polite">{status}</span>
+          <span className="status status-pill" aria-live="polite">
+            {status.kind === "key" ? t(status.key, status.params) : status.text}
+          </span>
         </div>
-        <div className="editor-toolbar" aria-label="Editor actions">
-          <div className="mode-switch" role="group" aria-label="Editor display mode">
+        <div className="editor-toolbar" aria-label={t("editor.actionsLabel")}>
+          <div className="mode-switch" role="group" aria-label={t("editor.modeLabel")}>
             <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setGlobalCenterMode("edit")}>
-              Edit
+              {t("editor.modeEdit")}
             </button>
             <button className={centerMode === "preview" ? "active" : ""} aria-pressed={centerMode === "preview"} onClick={() => setGlobalCenterMode("preview")}>
-              Preview
+              {t("editor.modePreview")}
             </button>
           </div>
           <div className="file-actions">
             <button onClick={() => setRenameOpen(true)} disabled={!active}>
-              Rename
+              {t("editor.rename")}
             </button>
             <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active}>
-              Delete
+              {t("editor.delete")}
             </button>
             <button className="primary" onClick={save} disabled={!active || saving} aria-busy={saving}>
-              <BusyLabel busy={saving} busyText={"Saving\u2026"}>Save Note</BusyLabel>
+              <BusyLabel busy={saving} busyText={t("editor.saveBusy")}>{t("editor.save")}</BusyLabel>
             </button>
           </div>
         </div>
         {tabs.length > 0 ? (
-          <div className="tab-strip" role="tablist" aria-label="Open documents">
+          <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
             {tabs.map((tab) => (
               <SwipeableTab
                 key={tab.path}
                 tab={tab}
                 active={activePath === tab.path}
                 isMobile={isMobile}
+                closeAriaLabel={t("editor.closeTab", { name: tab.name })}
                 onActivate={() => setActivePath(tab.path)}
                 onClose={() => closeTab(tab.path)}
               />
@@ -773,7 +800,7 @@ export function DocumentsView() {
         ) : null}
         {active && centerMode === "edit" ? (
           <label className="editor-field">
-            <span className="sr-only">Markdown Content</span>
+            <span className="sr-only">{t("editor.contentLabel")}</span>
             <textarea
               ref={editorTextareaRef}
               name="markdown-content"
@@ -785,14 +812,14 @@ export function DocumentsView() {
         ) : null}
         {active && centerMode === "preview" ? (
           <div className="preview-surface">
-            {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">No preview yet.</div>}
+            {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">{t("editor.previewEmpty")}</div>}
           </div>
         ) : null}
         {!active ? (
           <div className="blank-editor">
-            <p className="eyebrow">No file open</p>
-            <h2>Select a document from the tree</h2>
-            <p className="muted">The editor starts blank by default. Open one or more files to work with tabs.</p>
+            <p className="eyebrow">{t("editor.blankEyebrow")}</p>
+            <h2>{t("editor.blankTitle")}</h2>
+            <p className="muted">{t("editor.blankBody")}</p>
           </div>
         ) : null}
       </section>
@@ -812,33 +839,35 @@ export function DocumentsView() {
           onClick={save}
           disabled={!dirty || saving}
           aria-busy={saving}
-          aria-label={dirty ? "Save note" : "Note is up to date"}
+          aria-label={dirty ? t("editor.fab.ariaSave") : t("editor.fab.ariaSaved")}
         >
           {saving ? <SpinnerIcon /> : <SaveIcon />}
-          <span className="editor-fab-label">{saving ? "Saving\u2026" : dirty ? "Save" : "Saved"}</span>
+          <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
         </button>
       ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">
           <span className="undo-toast-label">{pendingUndo.label}</span>
           <button type="button" className="undo-toast-action" onClick={performUndo}>
-            Undo
+            {t("undo.button")}
           </button>
-          <button type="button" className="undo-toast-dismiss" aria-label="Dismiss" onClick={dismissUndo}>
+          <button type="button" className="undo-toast-dismiss" aria-label={t("undo.dismiss")} onClick={dismissUndo}>
             <span aria-hidden="true">{"\u00d7"}</span>
           </button>
         </div>
       ) : null}
       {createOpen ? (
         <PromptModal
-          title="New note"
-          eyebrow="Vault"
-          description={"File path is relative to the vault root. Include subfolders with /."}
-          label="File path"
-          placeholder={"Untitled.md"}
+          title={t("prompt.create.title")}
+          eyebrow={t("prompt.create.eyebrow")}
+          description={t("prompt.create.description")}
+          label={t("prompt.create.label")}
+          placeholder={t("prompt.create.placeholder")}
           initialValue="Untitled.md"
-          submitLabel="Create"
-          submitLoadingLabel={"Creating\u2026"}
+          submitLabel={t("prompt.create.submit")}
+          submitLoadingLabel={t("prompt.create.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
           isMobile={isMobile}
           onCancel={() => setCreateOpen(false)}
           onSubmit={async (value) => {
@@ -849,14 +878,16 @@ export function DocumentsView() {
       ) : null}
       {renameOpen && active ? (
         <PromptModal
-          title="Rename note"
+          title={t("prompt.rename.title")}
           eyebrow={active.path}
-          description="Enter a new path. Subfolders will be created if needed."
-          label="New path"
+          description={t("prompt.rename.description")}
+          label={t("prompt.rename.label")}
           placeholder={active.path}
           initialValue={active.path}
-          submitLabel="Rename"
-          submitLoadingLabel={"Renaming\u2026"}
+          submitLabel={t("prompt.rename.submit")}
+          submitLoadingLabel={t("prompt.rename.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
           isMobile={isMobile}
           onCancel={() => setRenameOpen(false)}
           onSubmit={async (value) => {
@@ -867,11 +898,13 @@ export function DocumentsView() {
       ) : null}
       {deleteOpen && active ? (
         <ConfirmModal
-          title={`Delete ${active.name}?`}
+          title={t("confirm.delete.title", { name: active.name })}
           eyebrow={active.path}
-          description="The file is removed from the vault. You can restore it from the Undo toast within a few seconds."
-          confirmLabel="Delete"
-          confirmLoadingLabel={"Deleting\u2026"}
+          description={t("confirm.delete.description")}
+          confirmLabel={t("confirm.delete.submit")}
+          confirmLoadingLabel={t("confirm.delete.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
           danger
           onCancel={() => setDeleteOpen(false)}
           onConfirm={async () => {
@@ -885,11 +918,11 @@ export function DocumentsView() {
           <section className="search-modal panel" role="dialog" aria-modal="true" aria-labelledby="vault-search-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="panel-header">
               <div>
-                <p className="eyebrow">Vault Search</p>
-                <h2 id="vault-search-title">Search Documents</h2>
-                <p className="muted">Uses obsidian-cli first, with filesystem search as fallback.</p>
+                <p className="eyebrow">{t("search.eyebrow")}</p>
+                <h2 id="vault-search-title">{t("search.title")}</h2>
+                <p className="muted">{t("search.description")}</p>
               </div>
-              <button type="button" onClick={() => setSearchOpen(false)}>Close</button>
+              <button type="button" onClick={() => setSearchOpen(false)}>{t("search.close")}</button>
             </div>
             <form
               className="search-form"
@@ -899,7 +932,7 @@ export function DocumentsView() {
               }}
             >
               <label>
-                Search query
+                {t("search.queryLabel")}
                 <input
                   type="search"
                   inputMode="search"
@@ -908,17 +941,22 @@ export function DocumentsView() {
                   autoFocus={!isMobile}
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder={"Search file names, tags, headings, or content\u2026"}
+                  placeholder={t("search.placeholder")}
                 />
               </label>
-              <button className="primary" type="submit" disabled={!searchQuery.trim() || searchLoading}>
-                {searchLoading ? "Searching\u2026" : "Search"}
+              <button
+                className="primary"
+                type="submit"
+                disabled={!searchQuery.trim() || searchLoading}
+                aria-busy={searchLoading}
+              >
+                <BusyLabel busy={searchLoading} busyText={t("search.submitBusy")}>{t("search.submit")}</BusyLabel>
               </button>
             </form>
             {searchError ? <div className="error" aria-live="polite">{searchError}</div> : null}
             <div className="search-results" aria-live="polite">
-              {!searchHasRun ? <div className="empty-state">Enter a query to search the vault.</div> : null}
-              {searchHasRun && !searchLoading && searchResults.length === 0 ? <div className="empty-state">No matching files found.</div> : null}
+              {!searchHasRun ? <div className="empty-state">{t("search.empty")}</div> : null}
+              {searchHasRun && !searchLoading && searchResults.length === 0 ? <div className="empty-state">{t("search.noResults")}</div> : null}
               {searchResults.map((result) => (
                 <button key={result.path} className="search-result" type="button" onClick={() => openSearchResult(result.path)}>
                   <strong>{result.name}</strong>
@@ -936,10 +974,11 @@ function SwipeableTab(props: {
   tab: OpenTab;
   active: boolean;
   isMobile: boolean;
+  closeAriaLabel: string;
   onActivate: () => void;
   onClose: () => void;
 }) {
-  const { tab, active, isMobile, onActivate, onClose } = props;
+  const { tab, active, isMobile, closeAriaLabel, onActivate, onClose } = props;
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const horizontal = useRef(false);
@@ -1024,7 +1063,7 @@ function SwipeableTab(props: {
       <button
         className="tab-close"
         type="button"
-        aria-label={`Close ${tab.name}`}
+        aria-label={closeAriaLabel}
         onClick={(event) => {
           event.stopPropagation();
           onClose();
@@ -1042,15 +1081,18 @@ function DocumentTree(props: {
   expandedFolders: Record<string, boolean>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
+  emptyLabel: string;
 }) {
   if (props.nodes.length === 0) {
-    return <div className="empty-state">No Markdown documents yet. Create your first note.</div>;
+    return <div className="empty-state">{props.emptyLabel}</div>;
   }
+
+  const { emptyLabel: _empty, ...rowProps } = props;
 
   return (
     <div className="doc-tree">
       {props.nodes.map((node) => (
-        <TreeNodeRow key={node.id} node={node} depth={0} {...props} />
+        <TreeNodeRow key={node.id} node={node} depth={0} {...rowProps} />
       ))}
     </div>
   );
@@ -1108,6 +1150,8 @@ function PromptModal(props: {
   initialValue: string;
   submitLabel: string;
   submitLoadingLabel: string;
+  cancelLabel: string;
+  errorFallback: string;
   isMobile: boolean;
   onCancel: () => void;
   onSubmit: (value: string) => Promise<void>;
@@ -1148,7 +1192,7 @@ function PromptModal(props: {
     try {
       await props.onSubmit(trimmed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(err instanceof Error ? err.message : props.errorFallback);
       setSubmitting(false);
     }
   }
@@ -1169,8 +1213,8 @@ function PromptModal(props: {
             <h2 id={titleId}>{props.title}</h2>
             {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
           </div>
-          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label="Cancel">
-            Cancel
+          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label={props.cancelLabel}>
+            {props.cancelLabel}
           </button>
         </div>
         <form
@@ -1196,7 +1240,7 @@ function PromptModal(props: {
           {error ? <div className="error" aria-live="polite">{error}</div> : null}
           <div className="prompt-actions">
             <button type="button" onClick={props.onCancel} disabled={submitting}>
-              Cancel
+              {props.cancelLabel}
             </button>
             <button
               className="primary"
@@ -1219,6 +1263,8 @@ function ConfirmModal(props: {
   description?: string;
   confirmLabel: string;
   confirmLoadingLabel: string;
+  cancelLabel: string;
+  errorFallback: string;
   danger?: boolean;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
@@ -1251,7 +1297,7 @@ function ConfirmModal(props: {
     try {
       await props.onConfirm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(err instanceof Error ? err.message : props.errorFallback);
       setSubmitting(false);
     }
   }
@@ -1276,7 +1322,7 @@ function ConfirmModal(props: {
         {error ? <div className="error" aria-live="polite">{error}</div> : null}
         <div className="prompt-actions">
           <button ref={cancelRef} type="button" onClick={props.onCancel} disabled={submitting}>
-            Cancel
+            {props.cancelLabel}
           </button>
           <button
             className={props.danger ? "danger" : "primary"}

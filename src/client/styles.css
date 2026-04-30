@@ -2867,6 +2867,49 @@ button[aria-busy="true"] > .button-spinner {
   margin-right: var(--owd-busy-gap);
 }
 
+/* Language switcher: a small segmented pill in the topbar actions
+   area. Visually distinct from the primary nav so users see it as a
+   secondary control. */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0.15rem;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+.lang-switch button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch button:hover:not(:disabled),
+.lang-switch button:focus-visible {
+  transform: none;
+  background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 12%, transparent);
+}
+
+.lang-switch button.active {
+  background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 18%, transparent));
+  color: var(--md-primary, var(--accent-2));
+}
+
+@media (max-width: 860px) {
+  .lang-switch {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
 /* Mobile editor FAB: a persistent floating Save button so the action
    is reachable without scrolling back to the toolbar. Only renders
    on mobile when the editor pane is active and a document is open. */

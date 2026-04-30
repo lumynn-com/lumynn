@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
 import { BusyLabel } from "./icons";
+import { useT } from "./i18n";
 
 type Citation = { path: string; title: string; snippet: string };
 
@@ -139,6 +140,7 @@ async function runAsk(question: string): Promise<void> {
 }
 
 export function QaView(props: { compact?: boolean; onOpenSource?: (path: string) => void }) {
+  const t = useT();
   const [state, setState] = useState(getRuntimeState);
 
   useEffect(() => {
@@ -164,11 +166,11 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
   }
 
   return (
-    <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label="Ask AI">
+    <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label={t("qa.eyebrow")}>
       <section className={props.compact ? "qa-hero" : "panel hero"}>
-        <p className="eyebrow">Ask AI</p>
-        {props.compact ? <h2>Ask your vault</h2> : <h1>Ask your vault</h1>}
-        <p className="muted">Get answers grounded in indexed Markdown notes, with citations you can inspect.</p>
+        <p className="eyebrow">{t("qa.eyebrow")}</p>
+        {props.compact ? <h2>{t("qa.title")}</h2> : <h1>{t("qa.title")}</h1>}
+        <p className="muted">{t("qa.description")}</p>
         <form
           className="ask-row"
           onSubmit={(event) => {
@@ -176,14 +178,14 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
             ask();
           }}
         >
-          <label className="sr-only" htmlFor="qa-question">Question</label>
+          <label className="sr-only" htmlFor="qa-question">{t("qa.question")}</label>
           <input
             id="qa-question"
             name="question"
             autoComplete="off"
             value={state.question}
             onChange={(event) => setRuntimeState({ question: event.target.value })}
-            placeholder="Example: What did I write about this project?"
+            placeholder={t("qa.placeholder")}
           />
           <button
             className={state.loading ? "query-button query-loading" : "primary query-button"}
@@ -191,28 +193,28 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
             disabled={!state.question || state.loading}
             aria-busy={state.loading}
           >
-            <BusyLabel busy={state.loading} busyText={"Querying\u2026"}>Ask Vault</BusyLabel>
+            <BusyLabel busy={state.loading} busyText={t("qa.submitBusy")}>{t("qa.submit")}</BusyLabel>
           </button>
         </form>
-        {state.loading ? <div className="status-pill qa-query-state" aria-live="polite">Query is running. You can switch pages and come back.</div> : null}
+        {state.loading ? <div className="status-pill qa-query-state" aria-live="polite">{t("qa.runningHint")}</div> : null}
         {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}
       </section>
       {state.answer ? (
         <section className={props.compact ? "qa-response" : "panel"}>
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Answer</p>
-              <h2>Response</h2>
+              <p className="eyebrow">{t("qa.answerEyebrow")}</p>
+              <h2>{t("qa.answerTitle")}</h2>
             </div>
-            {state.indexNamespace ? <span className="status-pill">Source: {state.indexNamespace}</span> : null}
+            {state.indexNamespace ? <span className="status-pill">{t("qa.sourceLabel", { name: state.indexNamespace })}</span> : null}
           </div>
-          {state.retrievalWarning ? <div className="error">Retrieval warning: {state.retrievalWarning}</div> : null}
-          {state.providerError ? <div className="error">Provider warning: {state.providerError}</div> : null}
+          {state.retrievalWarning ? <div className="error">{t("qa.retrievalWarning", { message: state.retrievalWarning })}</div> : null}
+          {state.providerError ? <div className="error">{t("qa.providerWarning", { message: state.providerError })}</div> : null}
           {state.answerHtml ? <article className="qa-answer" onClick={openAnswerReference} dangerouslySetInnerHTML={{ __html: state.answerHtml }} /> : <p>{state.answer}</p>}
         </section>
       ) : null}
       <section className="citation-grid">
-        {state.answer && state.citations.length === 0 ? <div className="empty-state">No citations returned. Rebuild or resume the index, then ask again.</div> : null}
+        {state.answer && state.citations.length === 0 ? <div className="empty-state">{t("qa.noCitations")}</div> : null}
         {state.citations.map((citation, index) => (
           <article className={`${props.compact ? "" : "panel"} citation`} key={`${citation.path}-${index}`}>
             <button

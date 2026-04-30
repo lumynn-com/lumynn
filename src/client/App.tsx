@@ -3,6 +3,7 @@ import { api } from "./api";
 import { DocumentsView } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
 import { BusyLabel, IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
+import { useLocale } from "./i18n";
 
 type View = "workspace" | "indexing" | "settings";
 
@@ -58,11 +59,12 @@ function LoginPage(props: {
   loading: boolean;
   onLogin: (username: string, password: string) => void;
 }) {
+  const { t } = useLocale();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const passwordRef = useRef<HTMLInputElement | null>(null);
-  const submitLabel = props.needsSetup ? "Create Account" : "Log In";
-  const submitLoadingLabel = props.needsSetup ? "Creating Account\u2026" : "Logging In\u2026";
+  const submitLabel = props.needsSetup ? t("login.submitSetup") : t("login.submitLogin");
+  const submitLoadingLabel = props.needsSetup ? t("login.submitSetupBusy") : t("login.submitLoginBusy");
 
   useEffect(() => {
     if (!props.error) return;
@@ -77,11 +79,9 @@ function LoginPage(props: {
   return (
     <main className="login-shell">
       <section className="login-card">
-        <p className="eyebrow">Obsidian Web Docs</p>
-        <h1>{props.needsSetup ? "Create your admin password" : "Welcome back"}</h1>
-        <p className="muted">
-          Manage a plain-text Markdown vault with preview, settings, and RAG Q&amp;A from a modern web interface.
-        </p>
+        <p className="eyebrow" translate="no">{t("login.eyebrow")}</p>
+        <h1>{props.needsSetup ? t("login.titleSetup") : t("login.titleWelcome")}</h1>
+        <p className="muted">{t("login.description")}</p>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -91,11 +91,11 @@ function LoginPage(props: {
           }}
         >
           <label>
-            Username
+            {t("login.username")}
             <input name="username" autoComplete="username" spellCheck={false} value={username} onChange={(event) => setUsername(event.target.value)} />
           </label>
           <label>
-            Password
+            {t("login.password")}
             <input
               ref={passwordRef}
               name="password"
@@ -117,6 +117,7 @@ function LoginPage(props: {
 }
 
 function Workspace(props: { onLogout: () => void }) {
+  const { t, locale, setLocale } = useLocale();
   const [view, setView] = useState<View>("workspace");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
   const [settingsMounted, setSettingsMounted] = useState(false);
@@ -146,13 +147,13 @@ function Workspace(props: { onLogout: () => void }) {
 
   return (
     <div className="app-shell obsidian-shell">
-      <a className="skip-link" href="#main-content">Skip to Main Content</a>
+      <a className="skip-link" href="#main-content">{t("skipToMain")}</a>
       <header className="workspace-topbar">
-        <button className="brand topbar-brand" type="button" onClick={() => setView("workspace")} aria-label="Open workspace">
-          <span className="logo" aria-hidden="true">OW</span>
+        <button className="brand topbar-brand" type="button" onClick={() => setView("workspace")} aria-label={t("app.openWorkspace")}>
+          <span className="logo" aria-hidden="true" translate="no">OW</span>
           <div>
-            <strong>Obsidian Web</strong>
-            <span>Markdown vault</span>
+            <strong translate="no">{t("app.brand.name")}</strong>
+            <span>{t("app.brand.tagline")}</span>
           </div>
         </button>
         <nav className="top-nav" aria-label="Primary">
@@ -162,7 +163,7 @@ function Workspace(props: { onLogout: () => void }) {
             aria-current={view === "workspace" ? "page" : undefined}
           >
             <span className="nav-icon" aria-hidden="true"><WorkspaceIcon /></span>
-            <span className="nav-label">Workspace</span>
+            <span className="nav-label">{t("nav.workspace")}</span>
           </button>
           <button
             className={view === "indexing" ? "active" : ""}
@@ -170,7 +171,7 @@ function Workspace(props: { onLogout: () => void }) {
             aria-current={view === "indexing" ? "page" : undefined}
           >
             <span className="nav-icon" aria-hidden="true"><IndexingIcon /></span>
-            <span className="nav-label">Indexing</span>
+            <span className="nav-label">{t("nav.indexing")}</span>
           </button>
           <button
             className={view === "settings" ? "active" : ""}
@@ -178,15 +179,34 @@ function Workspace(props: { onLogout: () => void }) {
             aria-current={view === "settings" ? "page" : undefined}
           >
             <span className="nav-icon" aria-hidden="true"><SettingsIcon /></span>
-            <span className="nav-label">Settings</span>
+            <span className="nav-label">{t("nav.settings")}</span>
           </button>
         </nav>
         <div className="topbar-actions">
-          <button className="ghost" aria-label="Toggle Theme" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-            {theme === "dark" ? "Light Theme" : "Dark Theme"}
+          <div className="lang-switch" role="group" aria-label={t("topbar.language")}>
+            <button
+              type="button"
+              className={locale === "en" ? "active" : ""}
+              aria-pressed={locale === "en"}
+              onClick={() => setLocale("en")}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              className={locale === "zh" ? "active" : ""}
+              aria-pressed={locale === "zh"}
+              onClick={() => setLocale("zh")}
+              lang="zh-Hans"
+            >
+              {"\u4e2d\u6587"}
+            </button>
+          </div>
+          <button className="ghost" aria-label={t("topbar.toggleTheme")} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+            {theme === "dark" ? t("topbar.themeLight") : t("topbar.themeDark")}
           </button>
           <button className="ghost" onClick={logout} disabled={loggingOut} aria-busy={loggingOut}>
-            <BusyLabel busy={loggingOut} busyText={"Logging Out\u2026"}>Log Out</BusyLabel>
+            <BusyLabel busy={loggingOut} busyText={t("topbar.logoutBusy")}>{t("topbar.logout")}</BusyLabel>
           </button>
         </div>
       </header>

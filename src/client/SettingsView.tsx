@@ -2,19 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats } from "../shared/types";
 import { api } from "./api";
 import { BusyLabel } from "./icons";
+import { useT } from "./i18n";
+import type { TKey } from "./i18n";
 
 type SettingsSection = "account" | "vault" | "https" | "providers" | "operations" | "import-export";
 type SettingsMode = "settings" | "indexing";
 
-const settingsSections: Array<{ id: SettingsSection; label: string }> = [
-  { id: "vault", label: "Vault" },
-  { id: "providers", label: "AI Providers" },
-  { id: "import-export", label: "Import / Export" },
-  { id: "https", label: "HTTPS" },
-  { id: "account", label: "Account" }
+const settingsSections: Array<{ id: SettingsSection; labelKey: TKey }> = [
+  { id: "vault", labelKey: "settings.section.vault" },
+  { id: "providers", labelKey: "settings.section.providers" },
+  { id: "import-export", labelKey: "settings.section.importExport" },
+  { id: "https", labelKey: "settings.section.https" },
+  { id: "account", labelKey: "settings.section.account" }
 ];
 
 export function SettingsView(props: { mode?: SettingsMode }) {
+  const t = useT();
   const mode = props.mode ?? "settings";
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [message, setMessage] = useState("");
@@ -115,7 +118,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
   const ragExport = useMemo(() => (settings ? JSON.stringify({ schemaVersion: 1, rag: settings.rag }, null, 2) : ""), [settings]);
 
   if (!settings) {
-    return <main className="single-view panel">Loading settings\u2026</main>;
+    return <main className="single-view panel">{t("settings.loading")}</main>;
   }
 
   async function saveAccount() {
@@ -126,9 +129,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           body: JSON.stringify({ username: settings!.auth.username, password: accountPassword })
         });
         setAccountPassword("");
-        setMessage("Account credentials saved. Existing sessions were cleared.");
+        setMessage(t("settings.account.savedMessage"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to save account");
+        setMessage(error instanceof Error ? error.message : t("settings.account.saveError"));
       }
     });
   }
@@ -141,9 +144,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           body: JSON.stringify(settings!.vault)
         });
         setSettings(saved);
-        setMessage("Vault settings saved");
+        setMessage(t("settings.vault.savedMessage"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to save vault");
+        setMessage(error instanceof Error ? error.message : t("settings.vault.saveError"));
       }
     });
   }
@@ -162,9 +165,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
         setSettings(saved);
         setHttpsCertificate("");
         setHttpsPrivateKey("");
-        setMessage("HTTPS settings saved. Restart the server for protocol changes to take effect.");
+        setMessage(t("settings.https.savedMessage"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to save HTTPS settings");
+        setMessage(error instanceof Error ? error.message : t("settings.https.saveError"));
       }
     });
   }
@@ -177,9 +180,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           body: JSON.stringify(settings!.rag)
         });
         setSettings(saved);
-        setMessage("RAG settings saved");
+        setMessage(t("settings.providers.savedMessage"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to save RAG settings");
+        setMessage(error instanceof Error ? error.message : t("settings.providers.saveError"));
       }
     });
   }
@@ -202,7 +205,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
         }
         setMessage(JSON.stringify(result, null, 2));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Test failed");
+        setMessage(error instanceof Error ? error.message : t("settings.providers.testFailed"));
       }
     });
   }
@@ -216,9 +219,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
         });
         setIndexJob(job);
         refreshIndexStats();
-        setMessage(`Started ${job.mode} indexing job ${job.id}`);
+        setMessage(t("settings.ops.startedMessage", { mode: job.mode, id: job.id }));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to start indexing");
+        setMessage(error instanceof Error ? error.message : t("settings.ops.startError"));
       }
     });
   }
@@ -234,9 +237,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           body: JSON.stringify({})
         });
         setIndexJob(updated);
-        setMessage(action === "cancel" ? "Stop requested for indexing job" : "Skip requested for current file");
+        setMessage(action === "cancel" ? t("settings.ops.stopRequested") : t("settings.ops.skipRequested"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Unable to update indexing job");
+        setMessage(error instanceof Error ? error.message : t("settings.ops.controlError"));
       }
     });
   }
@@ -250,9 +253,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           body: JSON.stringify(parsed)
         });
         setSettings(saved);
-        setMessage("RAG configuration imported");
+        setMessage(t("settings.import.success"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : "Import failed");
+        setMessage(error instanceof Error ? error.message : t("settings.import.failed"));
       }
     });
   }
@@ -261,9 +264,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
     await runBusy("copy-rag", async () => {
       try {
         await navigator.clipboard.writeText(ragExport);
-        setMessage("RAG configuration copied to clipboard");
+        setMessage(t("settings.export.copySuccess"));
       } catch {
-        setMessage("Clipboard write failed. Select the export text and copy it manually.");
+        setMessage(t("settings.export.copyError"));
       }
     });
   }
@@ -272,9 +275,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
     await runBusy("paste-rag", async () => {
       try {
         setImportText(await navigator.clipboard.readText());
-        setMessage("RAG configuration pasted from clipboard");
+        setMessage(t("settings.import.pasteSuccess"));
       } catch {
-        setMessage("Clipboard read failed. Paste the configuration manually.");
+        setMessage(t("settings.import.pasteError"));
       }
     });
   }
@@ -287,7 +290,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
     link.download = "rag-config.json";
     link.click();
     URL.revokeObjectURL(url);
-    setMessage("RAG configuration exported to file");
+    setMessage(t("settings.export.fileSavedMessage"));
   }
 
   async function importRagConfigFile(file: File | undefined) {
@@ -295,26 +298,24 @@ export function SettingsView(props: { mode?: SettingsMode }) {
       return;
     }
     setImportText(await file.text());
-    setMessage(`Loaded ${file.name}. Review it, then click Import RAG config.`);
+    setMessage(t("settings.import.loadedFile", { name: file.name }));
   }
 
   return (
     <main className={`settings-view ${mode === "indexing" ? "indexing-view" : ""}`}>
       <section className="panel settings-hero">
-        <p className="eyebrow">{mode === "indexing" ? "Knowledge Base" : "Configuration"}</p>
-        <h1>{mode === "indexing" ? "Indexing" : "Settings"}</h1>
+        <p className="eyebrow">{mode === "indexing" ? t("settings.eyebrowKb") : t("settings.eyebrowConfig")}</p>
+        <h1>{mode === "indexing" ? t("settings.titleIndexing") : t("settings.titleSettings")}</h1>
         <p className="muted">
-          {mode === "indexing"
-            ? "Build, resume, and monitor the searchable RAG index for your Markdown vault."
-            : "Configure the vault, AI providers, import/export, HTTPS, and the admin account."}
+          {mode === "indexing" ? t("settings.descriptionIndexing") : t("settings.descriptionSettings")}
         </p>
       </section>
       <section className="settings-layout">
         {mode === "settings" ? (
-          <aside className="settings-nav panel" aria-label="Settings sections">
+          <aside className="settings-nav panel" aria-label={t("settings.navAria")}>
             {settingsSections.map((item) => (
               <button key={item.id} className={section === item.id ? "active" : ""} onClick={() => setSection(item.id)}>
-                {item.label}
+                {t(item.labelKey)}
               </button>
             ))}
           </aside>
@@ -324,12 +325,12 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           {section === "account" ? (
             <section className="panel form-panel">
               <div>
-                <p className="eyebrow">Authentication</p>
-                <h2>Account</h2>
-                <p className="muted">Update the single admin account used by this MVP.</p>
+                <p className="eyebrow">{t("settings.account.eyebrow")}</p>
+                <h2>{t("settings.account.title")}</h2>
+                <p className="muted">{t("settings.account.description")}</p>
               </div>
               <label>
-                Username
+                {t("settings.account.username")}
                 <input
                   name="account-username"
                   autoComplete="username"
@@ -339,7 +340,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 />
               </label>
               <label>
-                New password
+                {t("settings.account.newPassword")}
                 <input
                   name="account-password"
                   type="password"
@@ -354,7 +355,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 disabled={accountPassword.length < 8 || isBusy("save-account")}
                 aria-busy={isBusy("save-account")}
               >
-                <BusyLabel busy={isBusy("save-account")} busyText={"Saving\u2026"}>Save account</BusyLabel>
+                <BusyLabel busy={isBusy("save-account")} busyText={t("settings.account.saveBusy")}>{t("settings.account.save")}</BusyLabel>
               </button>
             </section>
           ) : null}
@@ -362,12 +363,12 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           {section === "vault" ? (
             <section className="panel form-panel">
               <div>
-                <p className="eyebrow">Documents</p>
-                <h2>Obsidian Vault</h2>
-                <p className="muted">Choose the filesystem vault used by the document manager.</p>
+                <p className="eyebrow">{t("settings.vault.eyebrow")}</p>
+                <h2>{t("settings.vault.title")}</h2>
+                <p className="muted">{t("settings.vault.description")}</p>
               </div>
               <label>
-                Vault path
+                {t("settings.vault.path")}
                 <input
                   name="vault-path"
                   autoComplete="off"
@@ -382,7 +383,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   checked={settings.vault.allowPlainMarkdownFolder}
                   onChange={(event) => setSettings({ ...settings, vault: { ...settings.vault, allowPlainMarkdownFolder: event.target.checked } })}
                 />
-                Allow plain Markdown folders
+                {t("settings.vault.allowPlain")}
               </label>
               {settings.vault.validation ? <div className="info-box">{settings.vault.validation.message}</div> : null}
               <button
@@ -391,7 +392,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 disabled={isBusy("save-vault")}
                 aria-busy={isBusy("save-vault")}
               >
-                <BusyLabel busy={isBusy("save-vault")} busyText={"Saving\u2026"}>Save vault</BusyLabel>
+                <BusyLabel busy={isBusy("save-vault")} busyText={t("settings.vault.saveBusy")}>{t("settings.vault.save")}</BusyLabel>
               </button>
             </section>
           ) : null}
@@ -399,9 +400,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           {section === "https" ? (
             <section className="panel form-panel">
               <div>
-                <p className="eyebrow">Transport</p>
-                <h2>HTTPS Certificate</h2>
-                <p className="muted">Paste or import PEM certificate and private key files. A server restart is required after saving.</p>
+                <p className="eyebrow">{t("settings.https.eyebrow")}</p>
+                <h2>{t("settings.https.title")}</h2>
+                <p className="muted">{t("settings.https.description")}</p>
               </div>
               <label className="check">
                 <input
@@ -409,39 +410,42 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   checked={settings.https.enabled}
                   onChange={(event) => setSettings({ ...settings, https: { ...settings.https, enabled: event.target.checked } })}
                 />
-                Enable HTTPS on server restart
+                {t("settings.https.enable")}
               </label>
               <div className="info-box">
-                Certificate: {settings.https.hasCertificate ? "configured" : "not configured"} · Private key: {settings.https.hasPrivateKey ? "configured" : "not configured"}
+                {t("settings.https.statusLine", {
+                  cert: settings.https.hasCertificate ? t("settings.https.statusConfigured") : t("settings.https.statusNot"),
+                  key: settings.https.hasPrivateKey ? t("settings.https.statusConfigured") : t("settings.https.statusNot")
+                })}
               </div>
               <label>
-                Certificate PEM
+                {t("settings.https.cert")}
                 <textarea
                   className="config-box"
                   name="https-certificate"
                   spellCheck={false}
                   value={httpsCertificate}
-                  placeholder={"Paste -----BEGIN CERTIFICATE----- \u2026 Leave blank to keep the existing certificate."}
+                  placeholder={t("settings.https.certPlaceholder")}
                   onChange={(event) => setHttpsCertificate(event.target.value)}
                 />
               </label>
               <label className="file-button">
-                Import certificate file
+                {t("settings.https.importCert")}
                 <input type="file" accept=".pem,.crt,.cert,text/plain" onChange={(event) => event.target.files?.[0]?.text().then(setHttpsCertificate)} />
               </label>
               <label>
-                Private key PEM
+                {t("settings.https.privateKey")}
                 <textarea
                   className="config-box"
                   name="https-private-key"
                   spellCheck={false}
                   value={httpsPrivateKey}
-                  placeholder={"Paste -----BEGIN PRIVATE KEY----- \u2026 Leave blank to keep the existing private key."}
+                  placeholder={t("settings.https.privateKeyPlaceholder")}
                   onChange={(event) => setHttpsPrivateKey(event.target.value)}
                 />
               </label>
               <label className="file-button">
-                Import private key file
+                {t("settings.https.importKey")}
                 <input type="file" accept=".pem,.key,text/plain" onChange={(event) => event.target.files?.[0]?.text().then(setHttpsPrivateKey)} />
               </label>
               <div className="button-row">
@@ -451,7 +455,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   disabled={isBusy("save-https")}
                   aria-busy={isBusy("save-https")}
                 >
-                  <BusyLabel busy={isBusy("save-https")} busyText={"Saving\u2026"}>Save HTTPS settings</BusyLabel>
+                  <BusyLabel busy={isBusy("save-https")} busyText={t("settings.https.saveBusy")}>{t("settings.https.save")}</BusyLabel>
                 </button>
               </div>
             </section>
@@ -461,8 +465,8 @@ export function SettingsView(props: { mode?: SettingsMode }) {
             <section className="provider-grid">
               <div className="panel form-panel">
                 <div>
-                  <p className="eyebrow">Embeddings</p>
-                  <h2>Embedding Provider</h2>
+                  <p className="eyebrow">{t("settings.providers.embeddingEyebrow")}</p>
+                  <h2>{t("settings.providers.embeddingTitle")}</h2>
                 </div>
                 <ProviderFields kind="embedding" value={settings.rag.embedding} onChange={(embedding) => setSettings({ ...settings, rag: { ...settings.rag, embedding } })} />
                 <div className="button-row">
@@ -472,21 +476,21 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={isBusy("save-rag-embedding")}
                     aria-busy={isBusy("save-rag-embedding")}
                   >
-                    <BusyLabel busy={isBusy("save-rag-embedding")} busyText={"Saving\u2026"}>Save AI Providers</BusyLabel>
+                    <BusyLabel busy={isBusy("save-rag-embedding")} busyText={t("settings.providers.saveBusy")}>{t("settings.providers.save")}</BusyLabel>
                   </button>
                   <button
                     onClick={() => test("/api/settings/rag/test-embedding", "test-embedding")}
                     disabled={isBusy("test-embedding")}
                     aria-busy={isBusy("test-embedding")}
                   >
-                    <BusyLabel busy={isBusy("test-embedding")} busyText={"Testing\u2026"}>Test Embedding</BusyLabel>
+                    <BusyLabel busy={isBusy("test-embedding")} busyText={t("settings.providers.testEmbeddingBusy")}>{t("settings.providers.testEmbedding")}</BusyLabel>
                   </button>
                 </div>
               </div>
               <div className="panel form-panel">
                 <div>
-                  <p className="eyebrow">Chat</p>
-                  <h2>Q&A Provider</h2>
+                  <p className="eyebrow">{t("settings.providers.qaEyebrow")}</p>
+                  <h2>{t("settings.providers.qaTitle")}</h2>
                 </div>
                 <ProviderFields kind="qa" value={settings.rag.qa} onChange={(qa) => setSettings({ ...settings, rag: { ...settings.rag, qa } })} />
                 <div className="button-row">
@@ -496,14 +500,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={isBusy("save-rag-qa")}
                     aria-busy={isBusy("save-rag-qa")}
                   >
-                    <BusyLabel busy={isBusy("save-rag-qa")} busyText={"Saving\u2026"}>Save AI Providers</BusyLabel>
+                    <BusyLabel busy={isBusy("save-rag-qa")} busyText={t("settings.providers.saveBusy")}>{t("settings.providers.save")}</BusyLabel>
                   </button>
                   <button
                     onClick={() => test("/api/settings/rag/test-qa", "test-qa")}
                     disabled={isBusy("test-qa")}
                     aria-busy={isBusy("test-qa")}
                   >
-                    <BusyLabel busy={isBusy("test-qa")} busyText={"Testing\u2026"}>Test Q&A</BusyLabel>
+                    <BusyLabel busy={isBusy("test-qa")} busyText={t("settings.providers.testQaBusy")}>{t("settings.providers.testQa")}</BusyLabel>
                   </button>
                 </div>
               </div>
@@ -513,13 +517,13 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           {section === "operations" ? (
             <section className="panel form-panel">
               <div>
-                <p className="eyebrow">Search Index</p>
-                <h2>Build Index</h2>
-                <p className="muted">Create the knowledge base used by Ask AI. Start with a small sample, then run incremental indexing for day-to-day updates.</p>
+                <p className="eyebrow">{t("settings.ops.eyebrow")}</p>
+                <h2>{t("settings.ops.title")}</h2>
+                <p className="muted">{t("settings.ops.description")}</p>
               </div>
               <div className="field-grid">
                 <label>
-                  Top K
+                  {t("settings.ops.topK")}
                   <input
                     type="number"
                     value={settings.rag.retrieval.topK}
@@ -529,7 +533,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
                 <label>
-                  Chunk size
+                  {t("settings.ops.chunkSize")}
                   <input
                     type="number"
                     value={settings.rag.retrieval.chunkSize}
@@ -539,7 +543,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
                 <label>
-                  Chunk overlap
+                  {t("settings.ops.chunkOverlap")}
                   <input
                     type="number"
                     value={settings.rag.retrieval.chunkOverlap}
@@ -549,7 +553,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
                 <label>
-                  Embedding batch size
+                  {t("settings.ops.batchSize")}
                   <input
                     type="number"
                     value={settings.rag.indexing.embeddingBatchSize}
@@ -565,7 +569,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
                 <label>
-                  Embedding requests/min
+                  {t("settings.ops.rpm")}
                   <input
                     type="number"
                     value={settings.rag.indexing.embeddingRequestsPerMinute}
@@ -581,7 +585,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   />
                 </label>
               </div>
-              {indexStats ? <IndexStatus stats={indexStats} /> : null}
+              {indexStats ? <IndexStatus stats={indexStats} t={t} /> : null}
               <div className="button-row">
                 <button
                   className="primary"
@@ -589,31 +593,31 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   disabled={isBusy("save-rag-index")}
                   aria-busy={isBusy("save-rag-index")}
                 >
-                  <BusyLabel busy={isBusy("save-rag-index")} busyText={"Saving\u2026"}>Save Index Settings</BusyLabel>
+                  <BusyLabel busy={isBusy("save-rag-index")} busyText={t("settings.ops.saveIndexBusy")}>{t("settings.ops.saveIndex")}</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/settings/rag/test-index", "start-test-index", { sampleSize: 20 })}
                   disabled={isBusy("start-test-index")}
                   aria-busy={isBusy("start-test-index")}
                 >
-                  <BusyLabel busy={isBusy("start-test-index")} busyText={"Starting\u2026"}>Index 20-File Sample</BusyLabel>
+                  <BusyLabel busy={isBusy("start-test-index")} busyText={t("settings.ops.testIndexBusy")}>{t("settings.ops.testIndex")}</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/rag/reindex/incremental", "start-incremental-index")}
                   disabled={isBusy("start-incremental-index")}
                   aria-busy={isBusy("start-incremental-index")}
                 >
-                  <BusyLabel busy={isBusy("start-incremental-index")} busyText={"Starting\u2026"}>Start Incremental Index</BusyLabel>
+                  <BusyLabel busy={isBusy("start-incremental-index")} busyText={t("settings.ops.incrementalBusy")}>{t("settings.ops.incremental")}</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/rag/reindex", "start-full-index")}
                   disabled={isBusy("start-full-index")}
                   aria-busy={isBusy("start-full-index")}
                 >
-                  <BusyLabel busy={isBusy("start-full-index")} busyText={"Starting\u2026"}>Rebuild Full Index</BusyLabel>
+                  <BusyLabel busy={isBusy("start-full-index")} busyText={t("settings.ops.fullBusy")}>{t("settings.ops.full")}</BusyLabel>
                 </button>
               </div>
-              {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
+              {indexJob ? <IndexProgress job={indexJob} t={t} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
             </section>
           ) : null}
 
@@ -621,23 +625,23 @@ export function SettingsView(props: { mode?: SettingsMode }) {
             <section className="import-export-grid">
               <div className="panel form-panel">
                 <div>
-                  <p className="eyebrow">Export</p>
-                  <h2>RAG Export</h2>
-                  <p className="muted">Exported config omits real API keys from normal settings responses.</p>
+                  <p className="eyebrow">{t("settings.export.eyebrow")}</p>
+                  <h2>{t("settings.export.title")}</h2>
+                  <p className="muted">{t("settings.export.description")}</p>
                 </div>
-                <textarea className="config-box" name="rag-export" value={ragExport} readOnly aria-label="RAG configuration export" />
+                <textarea className="config-box" name="rag-export" value={ragExport} readOnly aria-label={t("settings.export.aria")} />
                 <div className="button-row">
                   <button onClick={copyRagConfig} disabled={isBusy("copy-rag")} aria-busy={isBusy("copy-rag")}>
-                    <BusyLabel busy={isBusy("copy-rag")} busyText={"Copying\u2026"}>Copy to clipboard</BusyLabel>
+                    <BusyLabel busy={isBusy("copy-rag")} busyText={t("settings.export.copyBusy")}>{t("settings.export.copy")}</BusyLabel>
                   </button>
-                  <button onClick={exportRagConfigFile}>Export to file</button>
+                  <button onClick={exportRagConfigFile}>{t("settings.export.toFile")}</button>
                 </div>
               </div>
               <div className="panel form-panel">
                 <div>
-                  <p className="eyebrow">Import</p>
-                  <h2>RAG Import</h2>
-                  <p className="muted">Paste from clipboard or load a schemaVersion 1 RAG config JSON file.</p>
+                  <p className="eyebrow">{t("settings.import.eyebrow")}</p>
+                  <h2>{t("settings.import.title")}</h2>
+                  <p className="muted">{t("settings.import.description")}</p>
                 </div>
                 <textarea
                   className="config-box"
@@ -645,14 +649,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   spellCheck={false}
                   value={importText}
                   onChange={(event) => setImportText(event.target.value)}
-                  aria-label="RAG configuration import"
+                  aria-label={t("settings.import.aria")}
                 />
                 <div className="button-row">
                   <button onClick={pasteRagConfig} disabled={isBusy("paste-rag")} aria-busy={isBusy("paste-rag")}>
-                    <BusyLabel busy={isBusy("paste-rag")} busyText={"Pasting\u2026"}>Paste from clipboard</BusyLabel>
+                    <BusyLabel busy={isBusy("paste-rag")} busyText={t("settings.import.pasteBusy")}>{t("settings.import.paste")}</BusyLabel>
                   </button>
                   <label className="file-button">
-                    Import from file
+                    {t("settings.import.fromFile")}
                     <input type="file" accept="application/json,.json" onChange={(event) => importRagConfigFile(event.target.files?.[0])} />
                   </label>
                   <button
@@ -661,7 +665,7 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                     disabled={!importText.trim() || isBusy("import-rag")}
                     aria-busy={isBusy("import-rag")}
                   >
-                    <BusyLabel busy={isBusy("import-rag")} busyText={"Importing\u2026"}>Import RAG config</BusyLabel>
+                    <BusyLabel busy={isBusy("import-rag")} busyText={t("settings.import.submitBusy")}>{t("settings.import.submit")}</BusyLabel>
                   </button>
                 </div>
               </div>
@@ -674,72 +678,80 @@ export function SettingsView(props: { mode?: SettingsMode }) {
   );
 }
 
-function formatDate(value: string | undefined): string {
-  return value ? new Date(value).toLocaleString() : "Never";
+type Translator = (key: TKey, params?: Record<string, string | number>) => string;
+
+function formatDate(value: string | undefined, neverLabel: string): string {
+  return value ? new Date(value).toLocaleString() : neverLabel;
 }
 
-function IndexStatus(props: { stats: RagIndexStats }) {
+function IndexStatus(props: { stats: RagIndexStats; t: Translator }) {
+  const { t } = props;
   const items = [
-    { label: "Production Index", stats: props.stats.production },
-    { label: "Test Index", stats: props.stats.test }
+    { labelKey: "settings.indexStatus.production" as TKey, stats: props.stats.production },
+    { labelKey: "settings.indexStatus.test" as TKey, stats: props.stats.test }
   ];
 
   return (
-    <div className="index-status-grid" aria-label="RAG index status">
+    <div className="index-status-grid" aria-label={t("settings.indexStatus.aria")}>
       {items.map((item) => (
-        <article key={item.label} className={`index-status-card ${item.stats.hasIndex ? "ready" : "empty"}`}>
+        <article key={item.labelKey} className={`index-status-card ${item.stats.hasIndex ? "ready" : "empty"}`}>
           <div>
-            <p className="eyebrow">{item.label}</p>
-            <h3>{item.stats.hasIndex ? "Indexed" : "Not Indexed"}</h3>
+            <p className="eyebrow">{t(item.labelKey)}</p>
+            <h3>{item.stats.hasIndex ? t("settings.indexStatus.indexed") : t("settings.indexStatus.notIndexed")}</h3>
           </div>
           <div className="index-status-metrics">
-            <span>{item.stats.fileCount} files</span>
-            <span>{item.stats.chunkCount} chunks</span>
+            <span>{t("settings.indexStatus.files", { count: item.stats.fileCount })}</span>
+            <span>{t("settings.indexStatus.chunks", { count: item.stats.chunkCount })}</span>
           </div>
-          <small>Last updated: {formatDate(item.stats.updatedAt)}</small>
+          <small>{t("settings.indexStatus.lastUpdated", { value: formatDate(item.stats.updatedAt, t("settings.indexStatus.never")) })}</small>
         </article>
       ))}
     </div>
   );
 }
 
-function IndexProgress(props: { job: RagIndexJob; onStop: () => void; onSkipCurrentFile: () => void }) {
+function IndexProgress(props: { job: RagIndexJob; t: Translator; onStop: () => void; onSkipCurrentFile: () => void }) {
+  const { t } = props;
   const filePercent = props.job.totalFiles > 0 ? Math.round((props.job.processedFiles / props.job.totalFiles) * 100) : 0;
   const chunkPercent = props.job.totalChunks > 0 ? Math.round((props.job.embeddedChunks / props.job.totalChunks) * 100) : 0;
   const canControl = props.job.status === "queued" || props.job.status === "running";
+  const modeKey: TKey =
+    props.job.mode === "test" ? "settings.progress.test"
+    : props.job.mode === "incremental" ? "settings.progress.incremental"
+    : "settings.progress.full";
 
   return (
     <div className={`index-progress ${props.job.status}`}>
       <div className="progress-header">
         <div>
-          <strong>{props.job.mode === "test" ? "Test index" : props.job.mode === "incremental" ? "Incremental index" : "Full index"}</strong>
+          <strong>{t(modeKey)}</strong>
           <span>{props.job.status}</span>
         </div>
         <small>{props.job.elapsedMs ? `${props.job.elapsedMs} ms` : props.job.namespace}</small>
       </div>
       <div className="progress-row">
-        <span>Files</span>
+        <span>{t("settings.progress.files")}</span>
         <progress value={props.job.processedFiles} max={Math.max(1, props.job.totalFiles)} />
         <span>{props.job.processedFiles}/{props.job.totalFiles} ({filePercent}%)</span>
       </div>
       <div className="progress-row">
-        <span>Chunks</span>
+        <span>{t("settings.progress.chunks")}</span>
         <progress value={props.job.embeddedChunks} max={Math.max(1, props.job.totalChunks)} />
         <span>{props.job.embeddedChunks}/{props.job.totalChunks} ({chunkPercent}%)</span>
       </div>
       <div className="progress-details">
-        <span>Skipped files: {props.job.skippedFiles}</span>
-        <span>Reused chunks: {props.job.reusedChunks}</span>
-        <span>Failed chunks: {props.job.failedChunks}</span>
-        {props.job.currentFile ? <span>Current: {props.job.currentFile}</span> : null}
+        <span>{t("settings.progress.skippedFiles", { count: props.job.skippedFiles })}</span>
+        <span>{t("settings.progress.reusedChunks", { count: props.job.reusedChunks })}</span>
+        <span>{t("settings.progress.failedChunks", { count: props.job.failedChunks })}</span>
+        {props.job.currentFile ? <span>{t("settings.progress.currentFile", { name: props.job.currentFile })}</span> : null}
       </div>
       {canControl ? (
         <div className="button-row">
           <button onClick={props.onSkipCurrentFile} disabled={!props.job.currentFile || props.job.skipRequested || props.job.cancelRequested}>
-            {props.job.skipRequested ? "Skip requested" : "Skip current file"}
+            {props.job.skipRequested ? t("settings.progress.skipRequestedShort") : t("settings.progress.skipCurrent")}
           </button>
           <button onClick={props.onStop} disabled={props.job.cancelRequested}>
-            {props.job.cancelRequested ? "Stopping\u2026" : "Stop indexing"}
+            {props.job.cancelRequested ? t("settings.progress.stopping") : t("settings.progress.stop")}
           </button>
         </div>
       ) : null}
@@ -756,20 +768,21 @@ function defaultEndpointPath(kind: "embedding" | "qa", mode: ProviderSettings["a
 }
 
 function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettings; onChange: (value: ProviderSettings) => void }) {
+  const t = useT();
   const mode = props.value.apiMode ?? (props.kind === "embedding" ? "embeddings" : "chat-completions");
   const endpointPath = props.value.endpointPath ?? defaultEndpointPath(props.kind, mode);
 
   return (
     <>
       <label>
-        Provider
+        {t("settings.providers.provider")}
         <select name={`${props.kind}-provider`} value={props.value.provider} onChange={(event) => props.onChange({ ...props.value, provider: event.target.value as ProviderSettings["provider"] })}>
-          <option value="disabled">Disabled</option>
-          <option value="openai-compatible">OpenAI compatible</option>
+          <option value="disabled">{t("settings.providers.providerDisabled")}</option>
+          <option value="openai-compatible">{t("settings.providers.providerOpenAi")}</option>
         </select>
       </label>
       <label>
-        API mode
+        {t("settings.providers.apiMode")}
         <select
           value={mode}
           name={`${props.kind}-api-mode`}
@@ -784,24 +797,24 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
         >
           {props.kind === "embedding" ? (
             <>
-              <option value="embeddings">Embeddings API (/embeddings)</option>
-              <option value="custom">Custom embeddings-compatible path</option>
+              <option value="embeddings">{t("settings.providers.apiModeEmbeddings")}</option>
+              <option value="custom">{t("settings.providers.apiModeCustomEmbedding")}</option>
             </>
           ) : (
             <>
-              <option value="chat-completions">Chat Completions API (/chat/completions)</option>
-              <option value="responses">Responses API (/responses)</option>
-              <option value="custom">Custom chat-completions-compatible path</option>
+              <option value="chat-completions">{t("settings.providers.apiModeChat")}</option>
+              <option value="responses">{t("settings.providers.apiModeResponses")}</option>
+              <option value="custom">{t("settings.providers.apiModeCustomChat")}</option>
             </>
           )}
         </select>
       </label>
       <label>
-        Base URL
+        {t("settings.providers.baseUrl")}
         <input name={`${props.kind}-base-url`} type="url" inputMode="url" autoComplete="off" value={props.value.baseUrl} placeholder="https://api.openai.com/v1" onChange={(event) => props.onChange({ ...props.value, baseUrl: event.target.value })} />
       </label>
       <label>
-        Endpoint path
+        {t("settings.providers.endpointPath")}
         <input
           value={endpointPath}
           name={`${props.kind}-endpoint-path`}
@@ -812,25 +825,25 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
       </label>
       {props.kind === "qa" ? (
         <label>
-          Reasoning mode
+          {t("settings.providers.reasoning")}
           <select
             value={props.value.reasoningMode === "provider-default" ? "provider-default" : "disabled"}
             name="qa-reasoning-mode"
             onChange={(event) => props.onChange({ ...props.value, reasoningMode: event.target.value as ProviderSettings["reasoningMode"] })}
           >
-            <option value="disabled">Disable reasoning/thinking</option>
-            <option value="provider-default">Provider default</option>
+            <option value="disabled">{t("settings.providers.reasoningDisabled")}</option>
+            <option value="provider-default">{t("settings.providers.reasoningDefault")}</option>
           </select>
-          <small className="muted">Use disabled for reasoning models that may spend output tokens before the final answer.</small>
+          <small className="muted">{t("settings.providers.reasoningHelp")}</small>
         </label>
       ) : null}
       <label>
-        Model
+        {t("settings.providers.model")}
         <input name={`${props.kind}-model`} autoComplete="off" spellCheck={false} value={props.value.model} onChange={(event) => props.onChange({ ...props.value, model: event.target.value })} />
       </label>
       <label>
-        API key
-        <input name={`${props.kind}-api-key`} type="password" autoComplete="off" spellCheck={false} placeholder="Leave blank to keep existing key" onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
+        {t("settings.providers.apiKey")}
+        <input name={`${props.kind}-api-key`} type="password" autoComplete="off" spellCheck={false} placeholder={t("settings.providers.apiKeyPlaceholder")} onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
       </label>
     </>
   );
