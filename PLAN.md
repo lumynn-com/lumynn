@@ -42,6 +42,7 @@ The application should keep Markdown files as the source of truth on disk, use O
 - Hybrid retrieval combines vector search, indexed keyword search, metadata boosts, and limited live-vault fallback.
 - Q&A supports `/chat/completions`, `/responses`, and custom provider paths, with sanitized Markdown answer rendering.
 - HTTPS certificate/private-key settings and `server.sh` operational helper are implemented.
+- Workspace view state (document tree, expanded folders, open tabs, active file, unsaved drafts, sort, search, AI Ask) is preserved when navigating to Indexing/Settings and back; the Workspace is kept mounted and only hidden via CSS, while Settings/Indexing views are lazy-mounted on first visit and then kept mounted to retain their state without firing duplicate API calls on initial load.
 
 ## Future Implementation Checklist
 
@@ -95,6 +96,7 @@ Use this checklist if rebuilding the project from the plan.
 - Search results must be clickable and open the selected file in the editor.
 - Search result rows should stay visually simple: file name only, one line, with ellipsis for long names.
 - Search modal result lists must scroll so all matches are reachable.
+- Switching between Workspace, Indexing, and Settings tabs must preserve workspace state: the document tree, expanded folders, open tabs, active file, unsaved editor drafts, sort/search state, and AI Ask state must not be reset when returning to the Workspace.
 - AI source citations must be clickable and open the cited file in the editor.
 - Bracket references inside AI answers, such as `[1]`, must be rendered as clickable links to the corresponding source file.
 - AI source lists should show concise source metadata only: title and file path, not full snippets.

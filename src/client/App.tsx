@@ -78,6 +78,13 @@ function LoginPage(props: { needsSetup: boolean; error: string; onLogin: (userna
 function Workspace(props: { onLogout: () => void }) {
   const [view, setView] = useState<View>("workspace");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
+  const [settingsMounted, setSettingsMounted] = useState(false);
+  const [indexingMounted, setIndexingMounted] = useState(false);
+
+  useEffect(() => {
+    if (view === "settings") setSettingsMounted(true);
+    if (view === "indexing") setIndexingMounted(true);
+  }, [view]);
 
   useEffect(() => {
     document.body.dataset.theme = theme;
@@ -128,9 +135,19 @@ function Workspace(props: { onLogout: () => void }) {
         </div>
       </header>
       <div id="main-content" className="main-content">
-        {view === "workspace" ? <DocumentsView /> : null}
-        {view === "indexing" ? <SettingsView mode="indexing" /> : null}
-        {view === "settings" ? <SettingsView mode="settings" /> : null}
+        <div hidden={view !== "workspace"} style={{ display: view === "workspace" ? undefined : "none" }}>
+          <DocumentsView />
+        </div>
+        {indexingMounted ? (
+          <div hidden={view !== "indexing"} style={{ display: view === "indexing" ? undefined : "none" }}>
+            <SettingsView mode="indexing" />
+          </div>
+        ) : null}
+        {settingsMounted ? (
+          <div hidden={view !== "settings"} style={{ display: view === "settings" ? undefined : "none" }}>
+            <SettingsView mode="settings" />
+          </div>
+        ) : null}
       </div>
     </div>
   );
