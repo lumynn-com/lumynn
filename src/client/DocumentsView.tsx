@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
+import { ChevronDownIcon, ChevronRightIcon } from "./icons";
 import { QaView } from "./QaView";
 
 type MobileSection = "vault" | "editor" | "ask";
@@ -983,7 +984,9 @@ function TreeNodeRow(props: {
     return (
       <div className="tree-group">
         <button className="tree-row folder-row" aria-expanded={isExpanded} style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }} onClick={() => props.onToggleFolder(props.node.id)}>
-          <span className="tree-caret">{isExpanded ? "-" : "+"}</span>
+          <span className="tree-caret" aria-hidden="true">
+            {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          </span>
           <span className="tree-label">{props.node.name}</span>
           <span className="tree-count">{props.node.children.length}</span>
         </button>

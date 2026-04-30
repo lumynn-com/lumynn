@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { DocumentsView } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
+import { IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
 
 type View = "workspace" | "indexing" | "settings";
 
@@ -59,8 +60,20 @@ function LoginPage(props: {
 }) {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const passwordRef = useRef<HTMLInputElement | null>(null);
   const submitLabel = props.needsSetup ? "Create Account" : "Log In";
   const submitLoadingLabel = props.needsSetup ? "Creating Account\u2026" : "Logging In\u2026";
+
+  useEffect(() => {
+    if (!props.error) return;
+    const node = passwordRef.current;
+    if (!node) return;
+    node.focus();
+    if (typeof node.setSelectionRange === "function") {
+      node.setSelectionRange(0, node.value.length);
+    }
+  }, [props.error]);
+
   return (
     <main className="login-shell">
       <section className="login-card">
@@ -83,9 +96,17 @@ function LoginPage(props: {
           </label>
           <label>
             Password
-            <input name="password" type="password" autoComplete={props.needsSetup ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input
+              ref={passwordRef}
+              name="password"
+              type="password"
+              autoComplete={props.needsSetup ? "new-password" : "current-password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={props.error ? true : undefined}
+            />
           </label>
-          {props.error ? <div className="error" aria-live="polite">{props.error}</div> : null}
+          {props.error ? <div className="error" role="alert" aria-live="assertive">{props.error}</div> : null}
           <button className="primary" type="submit" disabled={props.loading} aria-busy={props.loading}>
             {props.loading ? submitLoadingLabel : submitLabel}
           </button>
@@ -135,16 +156,28 @@ function Workspace(props: { onLogout: () => void }) {
           </div>
         </button>
         <nav className="top-nav" aria-label="Primary">
-          <button className={view === "workspace" ? "active" : ""} onClick={() => setView("workspace")}>
-            <span aria-hidden="true">D</span>
+          <button
+            className={view === "workspace" ? "active" : ""}
+            onClick={() => setView("workspace")}
+            aria-current={view === "workspace" ? "page" : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true"><WorkspaceIcon /></span>
             <span className="nav-label">Workspace</span>
           </button>
-          <button className={view === "indexing" ? "active" : ""} onClick={() => setView("indexing")}>
-            <span aria-hidden="true">I</span>
+          <button
+            className={view === "indexing" ? "active" : ""}
+            onClick={() => setView("indexing")}
+            aria-current={view === "indexing" ? "page" : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true"><IndexingIcon /></span>
             <span className="nav-label">Indexing</span>
           </button>
-          <button className={view === "settings" ? "active" : ""} onClick={() => setView("settings")}>
-            <span aria-hidden="true">S</span>
+          <button
+            className={view === "settings" ? "active" : ""}
+            onClick={() => setView("settings")}
+            aria-current={view === "settings" ? "page" : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true"><SettingsIcon /></span>
             <span className="nav-label">Settings</span>
           </button>
         </nav>

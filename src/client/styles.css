@@ -259,10 +259,7 @@ nav .active {
   height: 18px;
   place-items: center;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #9da7b3;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 0.78rem;
+  color: var(--md-muted, #9da7b3);
 }
 
 .tree-file-dot {
@@ -775,8 +772,7 @@ body[data-theme="light"] .tree-row:hover,
 body[data-theme="light"] .blank-editor,
 body[data-theme="light"] .message,
 body[data-theme="light"] .qa-answer code,
-body[data-theme="light"] .preview article code,
-body[data-theme="light"] .tree-caret {
+body[data-theme="light"] .preview article code {
   background: rgba(23, 32, 51, 0.06);
 }
 
@@ -2293,7 +2289,7 @@ body {
 }
 
 .tree-caret {
-  background: color-mix(in srgb, var(--muted) 11%, transparent);
+  color: var(--md-muted, var(--muted));
 }
 
 .tree-file-dot {
@@ -2649,9 +2645,12 @@ label,
   color: var(--md-text);
 }
 
-.tree-caret,
 .tree-count {
   background: var(--md-surface-3);
+  color: var(--md-muted);
+}
+
+.tree-caret {
   color: var(--md-muted);
 }
 

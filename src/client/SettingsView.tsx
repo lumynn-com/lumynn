@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats } from "../shared/types";
 import { api } from "./api";
 
@@ -24,6 +24,27 @@ export function SettingsView(props: { mode?: SettingsMode }) {
   const [importText, setImportText] = useState("");
   const [indexJob, setIndexJob] = useState<RagIndexJob | null>(null);
   const [indexStats, setIndexStats] = useState<RagIndexStats | null>(null);
+  const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(() => new Set());
+
+  const isBusy = useCallback((key: string) => busyKeys.has(key), [busyKeys]);
+  const runBusy = useCallback(async <T,>(key: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    setBusyKeys((current) => {
+      if (current.has(key)) return current;
+      const next = new Set(current);
+      next.add(key);
+      return next;
+    });
+    try {
+      return await fn();
+    } finally {
+      setBusyKeys((current) => {
+        if (!current.has(key)) return current;
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, []);
 
   function refreshIndexStats() {
     api<RagIndexStats>("/api/rag/index-stats")
@@ -93,148 +114,168 @@ export function SettingsView(props: { mode?: SettingsMode }) {
   const ragExport = useMemo(() => (settings ? JSON.stringify({ schemaVersion: 1, rag: settings.rag }, null, 2) : ""), [settings]);
 
   if (!settings) {
-    return <main className="single-view panel">Loading settings...</main>;
+    return <main className="single-view panel">Loading settings\u2026</main>;
   }
 
   async function saveAccount() {
-    try {
-      await api("/api/settings/auth", {
-        method: "PUT",
-        body: JSON.stringify({ username: settings!.auth.username, password: accountPassword })
-      });
-      setAccountPassword("");
-      setMessage("Account credentials saved. Existing sessions were cleared.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save account");
-    }
+    await runBusy("save-account", async () => {
+      try {
+        await api("/api/settings/auth", {
+          method: "PUT",
+          body: JSON.stringify({ username: settings!.auth.username, password: accountPassword })
+        });
+        setAccountPassword("");
+        setMessage("Account credentials saved. Existing sessions were cleared.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to save account");
+      }
+    });
   }
 
   async function saveVault() {
-    try {
-      const saved = await api<AppSettings>("/api/settings/vault", {
-        method: "PUT",
-        body: JSON.stringify(settings!.vault)
-      });
-      setSettings(saved);
-      setMessage("Vault settings saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save vault");
-    }
+    await runBusy("save-vault", async () => {
+      try {
+        const saved = await api<AppSettings>("/api/settings/vault", {
+          method: "PUT",
+          body: JSON.stringify(settings!.vault)
+        });
+        setSettings(saved);
+        setMessage("Vault settings saved");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to save vault");
+      }
+    });
   }
 
   async function saveHttps() {
-    try {
-      const saved = await api<AppSettings>("/api/settings/https", {
-        method: "PUT",
-        body: JSON.stringify({
-          enabled: settings!.https.enabled,
-          certificate: httpsCertificate || undefined,
-          privateKey: httpsPrivateKey || undefined
-        })
-      });
-      setSettings(saved);
-      setHttpsCertificate("");
-      setHttpsPrivateKey("");
-      setMessage("HTTPS settings saved. Restart the server for protocol changes to take effect.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save HTTPS settings");
-    }
-  }
-
-  async function saveRag() {
-    try {
-      const saved = await api<AppSettings>("/api/settings/rag", {
-        method: "PUT",
-        body: JSON.stringify(settings!.rag)
-      });
-      setSettings(saved);
-      setMessage("RAG settings saved");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save RAG settings");
-    }
-  }
-
-  async function test(url: string) {
-    try {
-      const result = await api<Record<string, unknown>>(url, { method: "POST", body: JSON.stringify({ sampleSize: 20 }) });
-      if (url.endsWith("/test-qa") && typeof result.reasoningDetected === "boolean") {
-        setSettings({
-          ...settings!,
-          rag: {
-            ...settings!.rag,
-            qa: {
-              ...settings!.rag.qa,
-              reasoningDetected: result.reasoningDetected
-            }
-          }
+    await runBusy("save-https", async () => {
+      try {
+        const saved = await api<AppSettings>("/api/settings/https", {
+          method: "PUT",
+          body: JSON.stringify({
+            enabled: settings!.https.enabled,
+            certificate: httpsCertificate || undefined,
+            privateKey: httpsPrivateKey || undefined
+          })
         });
+        setSettings(saved);
+        setHttpsCertificate("");
+        setHttpsPrivateKey("");
+        setMessage("HTTPS settings saved. Restart the server for protocol changes to take effect.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to save HTTPS settings");
       }
-      setMessage(JSON.stringify(result, null, 2));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Test failed");
-    }
+    });
   }
 
-  async function startIndex(url: string, body?: Record<string, unknown>) {
-    try {
-      const job = await api<RagIndexJob>(url, {
-        method: "POST",
-        body: body ? JSON.stringify(body) : undefined
-      });
-      setIndexJob(job);
-      refreshIndexStats();
-      setMessage(`Started ${job.mode} indexing job ${job.id}`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to start indexing");
-    }
+  async function saveRag(busyKey = "save-rag") {
+    await runBusy(busyKey, async () => {
+      try {
+        const saved = await api<AppSettings>("/api/settings/rag", {
+          method: "PUT",
+          body: JSON.stringify(settings!.rag)
+        });
+        setSettings(saved);
+        setMessage("RAG settings saved");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to save RAG settings");
+      }
+    });
+  }
+
+  async function test(url: string, busyKey: string) {
+    await runBusy(busyKey, async () => {
+      try {
+        const result = await api<Record<string, unknown>>(url, { method: "POST", body: JSON.stringify({ sampleSize: 20 }) });
+        if (url.endsWith("/test-qa") && typeof result.reasoningDetected === "boolean") {
+          setSettings({
+            ...settings!,
+            rag: {
+              ...settings!.rag,
+              qa: {
+                ...settings!.rag.qa,
+                reasoningDetected: result.reasoningDetected
+              }
+            }
+          });
+        }
+        setMessage(JSON.stringify(result, null, 2));
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Test failed");
+      }
+    });
+  }
+
+  async function startIndex(url: string, busyKey: string, body?: Record<string, unknown>) {
+    await runBusy(busyKey, async () => {
+      try {
+        const job = await api<RagIndexJob>(url, {
+          method: "POST",
+          body: body ? JSON.stringify(body) : undefined
+        });
+        setIndexJob(job);
+        refreshIndexStats();
+        setMessage(`Started ${job.mode} indexing job ${job.id}`);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to start indexing");
+      }
+    });
   }
 
   async function controlIndexJob(action: "cancel" | "skip-current-file") {
     if (!indexJob) {
       return;
     }
-    try {
-      const updated = await api<RagIndexJob>(`/api/rag/index-jobs/${indexJob.id}/${action}`, {
-        method: "POST",
-        body: JSON.stringify({})
-      });
-      setIndexJob(updated);
-      setMessage(action === "cancel" ? "Stop requested for indexing job" : "Skip requested for current file");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update indexing job");
-    }
+    await runBusy(`index-${action}`, async () => {
+      try {
+        const updated = await api<RagIndexJob>(`/api/rag/index-jobs/${indexJob.id}/${action}`, {
+          method: "POST",
+          body: JSON.stringify({})
+        });
+        setIndexJob(updated);
+        setMessage(action === "cancel" ? "Stop requested for indexing job" : "Skip requested for current file");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to update indexing job");
+      }
+    });
   }
 
   async function importRagConfig() {
-    try {
-      const parsed = JSON.parse(importText);
-      const saved = await api<AppSettings>("/api/settings/rag/import", {
-        method: "POST",
-        body: JSON.stringify(parsed)
-      });
-      setSettings(saved);
-      setMessage("RAG configuration imported");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Import failed");
-    }
+    await runBusy("import-rag", async () => {
+      try {
+        const parsed = JSON.parse(importText);
+        const saved = await api<AppSettings>("/api/settings/rag/import", {
+          method: "POST",
+          body: JSON.stringify(parsed)
+        });
+        setSettings(saved);
+        setMessage("RAG configuration imported");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Import failed");
+      }
+    });
   }
 
   async function copyRagConfig() {
-    try {
-      await navigator.clipboard.writeText(ragExport);
-      setMessage("RAG configuration copied to clipboard");
-    } catch {
-      setMessage("Clipboard write failed. Select the export text and copy it manually.");
-    }
+    await runBusy("copy-rag", async () => {
+      try {
+        await navigator.clipboard.writeText(ragExport);
+        setMessage("RAG configuration copied to clipboard");
+      } catch {
+        setMessage("Clipboard write failed. Select the export text and copy it manually.");
+      }
+    });
   }
 
   async function pasteRagConfig() {
-    try {
-      setImportText(await navigator.clipboard.readText());
-      setMessage("RAG configuration pasted from clipboard");
-    } catch {
-      setMessage("Clipboard read failed. Paste the configuration manually.");
-    }
+    await runBusy("paste-rag", async () => {
+      try {
+        setImportText(await navigator.clipboard.readText());
+        setMessage("RAG configuration pasted from clipboard");
+      } catch {
+        setMessage("Clipboard read failed. Paste the configuration manually.");
+      }
+    });
   }
 
   function exportRagConfigFile() {
@@ -288,14 +329,31 @@ export function SettingsView(props: { mode?: SettingsMode }) {
               </div>
               <label>
                 Username
-                <input value={settings.auth.username} onChange={(event) => setSettings({ ...settings, auth: { ...settings.auth, username: event.target.value } })} />
+                <input
+                  name="account-username"
+                  autoComplete="username"
+                  spellCheck={false}
+                  value={settings.auth.username}
+                  onChange={(event) => setSettings({ ...settings, auth: { ...settings.auth, username: event.target.value } })}
+                />
               </label>
               <label>
                 New password
-                <input type="password" value={accountPassword} onChange={(event) => setAccountPassword(event.target.value)} />
+                <input
+                  name="account-password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={accountPassword}
+                  onChange={(event) => setAccountPassword(event.target.value)}
+                />
               </label>
-              <button className="primary" onClick={saveAccount} disabled={accountPassword.length < 8}>
-                Save account
+              <button
+                className="primary"
+                onClick={saveAccount}
+                disabled={accountPassword.length < 8 || isBusy("save-account")}
+                aria-busy={isBusy("save-account")}
+              >
+                {isBusy("save-account") ? "Saving\u2026" : "Save account"}
               </button>
             </section>
           ) : null}
@@ -309,7 +367,13 @@ export function SettingsView(props: { mode?: SettingsMode }) {
               </div>
               <label>
                 Vault path
-                <input value={settings.vault.path} onChange={(event) => setSettings({ ...settings, vault: { ...settings.vault, path: event.target.value } })} />
+                <input
+                  name="vault-path"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={settings.vault.path}
+                  onChange={(event) => setSettings({ ...settings, vault: { ...settings.vault, path: event.target.value } })}
+                />
               </label>
               <label className="check">
                 <input
@@ -320,7 +384,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 Allow plain Markdown folders
               </label>
               {settings.vault.validation ? <div className="info-box">{settings.vault.validation.message}</div> : null}
-              <button className="primary" onClick={saveVault}>Save vault</button>
+              <button
+                className="primary"
+                onClick={saveVault}
+                disabled={isBusy("save-vault")}
+                aria-busy={isBusy("save-vault")}
+              >
+                {isBusy("save-vault") ? "Saving\u2026" : "Save vault"}
+              </button>
             </section>
           ) : null}
 
@@ -346,8 +417,10 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 Certificate PEM
                 <textarea
                   className="config-box"
+                  name="https-certificate"
+                  spellCheck={false}
                   value={httpsCertificate}
-                  placeholder="Paste -----BEGIN CERTIFICATE----- ... Leave blank to keep the existing certificate."
+                  placeholder={"Paste -----BEGIN CERTIFICATE----- \u2026 Leave blank to keep the existing certificate."}
                   onChange={(event) => setHttpsCertificate(event.target.value)}
                 />
               </label>
@@ -359,8 +432,10 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 Private key PEM
                 <textarea
                   className="config-box"
+                  name="https-private-key"
+                  spellCheck={false}
                   value={httpsPrivateKey}
-                  placeholder="Paste -----BEGIN PRIVATE KEY----- ... Leave blank to keep the existing private key."
+                  placeholder={"Paste -----BEGIN PRIVATE KEY----- \u2026 Leave blank to keep the existing private key."}
                   onChange={(event) => setHttpsPrivateKey(event.target.value)}
                 />
               </label>
@@ -369,7 +444,14 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 <input type="file" accept=".pem,.key,text/plain" onChange={(event) => event.target.files?.[0]?.text().then(setHttpsPrivateKey)} />
               </label>
               <div className="button-row">
-                <button className="primary" onClick={saveHttps}>Save HTTPS settings</button>
+                <button
+                  className="primary"
+                  onClick={saveHttps}
+                  disabled={isBusy("save-https")}
+                  aria-busy={isBusy("save-https")}
+                >
+                  {isBusy("save-https") ? "Saving\u2026" : "Save HTTPS settings"}
+                </button>
               </div>
             </section>
           ) : null}
@@ -383,8 +465,21 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 </div>
                 <ProviderFields kind="embedding" value={settings.rag.embedding} onChange={(embedding) => setSettings({ ...settings, rag: { ...settings.rag, embedding } })} />
                 <div className="button-row">
-                  <button className="primary" onClick={saveRag}>Save AI Providers</button>
-                  <button onClick={() => test("/api/settings/rag/test-embedding")}>Test Embedding</button>
+                  <button
+                    className="primary"
+                    onClick={() => saveRag("save-rag-embedding")}
+                    disabled={isBusy("save-rag-embedding")}
+                    aria-busy={isBusy("save-rag-embedding")}
+                  >
+                    {isBusy("save-rag-embedding") ? "Saving\u2026" : "Save AI Providers"}
+                  </button>
+                  <button
+                    onClick={() => test("/api/settings/rag/test-embedding", "test-embedding")}
+                    disabled={isBusy("test-embedding")}
+                    aria-busy={isBusy("test-embedding")}
+                  >
+                    {isBusy("test-embedding") ? "Testing\u2026" : "Test Embedding"}
+                  </button>
                 </div>
               </div>
               <div className="panel form-panel">
@@ -394,8 +489,21 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                 </div>
                 <ProviderFields kind="qa" value={settings.rag.qa} onChange={(qa) => setSettings({ ...settings, rag: { ...settings.rag, qa } })} />
                 <div className="button-row">
-                  <button className="primary" onClick={saveRag}>Save AI Providers</button>
-                  <button onClick={() => test("/api/settings/rag/test-qa")}>Test Q&A</button>
+                  <button
+                    className="primary"
+                    onClick={() => saveRag("save-rag-qa")}
+                    disabled={isBusy("save-rag-qa")}
+                    aria-busy={isBusy("save-rag-qa")}
+                  >
+                    {isBusy("save-rag-qa") ? "Saving\u2026" : "Save AI Providers"}
+                  </button>
+                  <button
+                    onClick={() => test("/api/settings/rag/test-qa", "test-qa")}
+                    disabled={isBusy("test-qa")}
+                    aria-busy={isBusy("test-qa")}
+                  >
+                    {isBusy("test-qa") ? "Testing\u2026" : "Test Q&A"}
+                  </button>
                 </div>
               </div>
             </section>
@@ -474,10 +582,35 @@ export function SettingsView(props: { mode?: SettingsMode }) {
               </div>
               {indexStats ? <IndexStatus stats={indexStats} /> : null}
               <div className="button-row">
-                <button className="primary" onClick={saveRag}>Save Index Settings</button>
-                <button onClick={() => startIndex("/api/settings/rag/test-index", { sampleSize: 20 })}>Index 20-File Sample</button>
-                <button onClick={() => startIndex("/api/rag/reindex/incremental")}>Start Incremental Index</button>
-                <button onClick={() => startIndex("/api/rag/reindex")}>Rebuild Full Index</button>
+                <button
+                  className="primary"
+                  onClick={() => saveRag("save-rag-index")}
+                  disabled={isBusy("save-rag-index")}
+                  aria-busy={isBusy("save-rag-index")}
+                >
+                  {isBusy("save-rag-index") ? "Saving\u2026" : "Save Index Settings"}
+                </button>
+                <button
+                  onClick={() => startIndex("/api/settings/rag/test-index", "start-test-index", { sampleSize: 20 })}
+                  disabled={isBusy("start-test-index")}
+                  aria-busy={isBusy("start-test-index")}
+                >
+                  {isBusy("start-test-index") ? "Starting\u2026" : "Index 20-File Sample"}
+                </button>
+                <button
+                  onClick={() => startIndex("/api/rag/reindex/incremental", "start-incremental-index")}
+                  disabled={isBusy("start-incremental-index")}
+                  aria-busy={isBusy("start-incremental-index")}
+                >
+                  {isBusy("start-incremental-index") ? "Starting\u2026" : "Start Incremental Index"}
+                </button>
+                <button
+                  onClick={() => startIndex("/api/rag/reindex", "start-full-index")}
+                  disabled={isBusy("start-full-index")}
+                  aria-busy={isBusy("start-full-index")}
+                >
+                  {isBusy("start-full-index") ? "Starting\u2026" : "Rebuild Full Index"}
+                </button>
               </div>
               {indexJob ? <IndexProgress job={indexJob} onStop={() => controlIndexJob("cancel")} onSkipCurrentFile={() => controlIndexJob("skip-current-file")} /> : null}
             </section>
@@ -491,9 +624,11 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   <h2>RAG Export</h2>
                   <p className="muted">Exported config omits real API keys from normal settings responses.</p>
                 </div>
-                <textarea className="config-box" value={ragExport} readOnly />
+                <textarea className="config-box" name="rag-export" value={ragExport} readOnly aria-label="RAG configuration export" />
                 <div className="button-row">
-                  <button onClick={copyRagConfig}>Copy to clipboard</button>
+                  <button onClick={copyRagConfig} disabled={isBusy("copy-rag")} aria-busy={isBusy("copy-rag")}>
+                    {isBusy("copy-rag") ? "Copying\u2026" : "Copy to clipboard"}
+                  </button>
                   <button onClick={exportRagConfigFile}>Export to file</button>
                 </div>
               </div>
@@ -503,14 +638,30 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   <h2>RAG Import</h2>
                   <p className="muted">Paste from clipboard or load a schemaVersion 1 RAG config JSON file.</p>
                 </div>
-                <textarea className="config-box" value={importText} onChange={(event) => setImportText(event.target.value)} />
+                <textarea
+                  className="config-box"
+                  name="rag-import"
+                  spellCheck={false}
+                  value={importText}
+                  onChange={(event) => setImportText(event.target.value)}
+                  aria-label="RAG configuration import"
+                />
                 <div className="button-row">
-                  <button onClick={pasteRagConfig}>Paste from clipboard</button>
+                  <button onClick={pasteRagConfig} disabled={isBusy("paste-rag")} aria-busy={isBusy("paste-rag")}>
+                    {isBusy("paste-rag") ? "Pasting\u2026" : "Paste from clipboard"}
+                  </button>
                   <label className="file-button">
                     Import from file
                     <input type="file" accept="application/json,.json" onChange={(event) => importRagConfigFile(event.target.files?.[0])} />
                   </label>
-                  <button className="primary" onClick={importRagConfig} disabled={!importText.trim()}>Import RAG config</button>
+                  <button
+                    className="primary"
+                    onClick={importRagConfig}
+                    disabled={!importText.trim() || isBusy("import-rag")}
+                    aria-busy={isBusy("import-rag")}
+                  >
+                    {isBusy("import-rag") ? "Importing\u2026" : "Import RAG config"}
+                  </button>
                 </div>
               </div>
             </section>
@@ -587,7 +738,7 @@ function IndexProgress(props: { job: RagIndexJob; onStop: () => void; onSkipCurr
             {props.job.skipRequested ? "Skip requested" : "Skip current file"}
           </button>
           <button onClick={props.onStop} disabled={props.job.cancelRequested}>
-            {props.job.cancelRequested ? "Stopping..." : "Stop indexing"}
+            {props.job.cancelRequested ? "Stopping\u2026" : "Stop indexing"}
           </button>
         </div>
       ) : null}
