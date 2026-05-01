@@ -3955,8 +3955,7 @@ button[aria-busy="true"] > .button-spinner {
   .mobile-app-bar,
   .overflow-menu,
   .action-sheet,
-  .sheet-backdrop,
-  .quick-note-fab {
+  .sheet-backdrop {
     display: none !important;
   }
 }
@@ -3990,36 +3989,6 @@ button[aria-busy="true"] > .button-spinner {
   margin-left: 0.2rem;
   color: var(--md-primary, var(--accent-2));
   font-style: normal;
-}
-
-/* Bottom-left FAB on mobile: opens a fresh quick-note draft. Sits
-   opposite the bottom-right Save FAB so the two never overlap. */
-.quick-note-fab {
-  position: fixed;
-  z-index: 7;
-  left: max(0.85rem, env(safe-area-inset-left));
-  bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 0.15rem);
-  display: inline-grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  border: 0;
-  border-radius: 999px;
-  padding: 0;
-  background: var(--md-surface, var(--panel-strong));
-  color: var(--md-primary, var(--accent-2));
-  box-shadow: var(--md-elevation-2, 0 8px 24px rgba(0, 0, 0, 0.28));
-  transition: transform 160ms ease, background-color 160ms ease;
-}
-
-.quick-note-fab:hover:not(:disabled),
-.quick-note-fab:focus-visible {
-  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
-}
-
-.quick-note-fab svg {
-  width: 22px;
-  height: 22px;
 }
 
 /* Desktop topbar quick-note trigger: a small pill with icon + label. */

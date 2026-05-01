@@ -1128,16 +1128,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
         </button>
       ) : null}
-      {isMobile && mobileSection === "editor" && (!active || !active.isDraft) ? (
-        <button
-          type="button"
-          className="quick-note-fab"
-          onClick={createQuickNoteDraft}
-          aria-label={t("quick.trigger")}
-        >
-          <PlusIcon />
-        </button>
-      ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">
           <span className="undo-toast-label" translate="no">{pendingUndo.label}</span>
