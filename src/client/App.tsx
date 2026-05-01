@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { DocumentsView } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
-import { BusyLabel, IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
+import { BusyLabel, IndexingIcon, PlusIcon, SettingsIcon, WorkspaceIcon } from "./icons";
 import { useLocale } from "./i18n";
 
 type View = "workspace" | "indexing" | "settings";
@@ -183,6 +183,15 @@ function Workspace(props: { onLogout: () => void }) {
           </button>
         </nav>
         <div className="topbar-actions">
+          <button
+            type="button"
+            className="ghost topbar-quick-note"
+            onClick={() => window.dispatchEvent(new Event("owd:quick-note"))}
+            title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
+          >
+            <PlusIcon />
+            <span className="topbar-quick-note-label">{t("quick.trigger")}</span>
+          </button>
           <div className="lang-switch" role="group" aria-label={t("topbar.language")}>
             <button
               type="button"

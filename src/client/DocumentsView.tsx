@@ -98,6 +98,39 @@ type OpenTab = DocumentContent & {
 const sortStorageKey = "owd_document_sort";
 const editorModeStorageKey = "owd_editor_mode";
 
+// File-segment sanitizer: keep letters/digits/space/hyphen/underscore/CJK,
+// collapse whitespace, trim, and cap length so the resulting file name is
+// safe across macOS/Linux/Windows and inside the vault path validator.
+function sanitizeFileSegment(value: string): string {
+  return value
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60)
+    .replace(/[. ]+$/g, "");
+}
+
+// Pick a human-friendly name from quick-note content: prefer the first
+// markdown heading, then the first non-empty line, then "" so the caller
+// can fall back to a timestamp.
+function deriveQuickNoteName(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) return "";
+  const headingMatch = trimmed.match(/^\s*#{1,6}\s+(.+?)\s*$/m);
+  if (headingMatch && headingMatch[1].trim()) {
+    return headingMatch[1].trim();
+  }
+  const firstLine = trimmed.split(/\r?\n/).find((line) => line.trim().length > 0);
+  return firstLine ? firstLine.trim() : "";
+}
+
+// Local timestamp formatted as YYYY-MM-DD HH-mm so it sorts naturally
+// and is filesystem-safe.
+function formatTimestamp(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}-${pad(date.getMinutes())}`;
+}
+
 function readSavedSort(): { sort: SortField; order: SortOrder } {
   const fallback: { sort: SortField; order: SortOrder } = { sort: "updatedAt", order: "desc" };
   try {
@@ -198,6 +231,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
+  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
 
   // On mobile we default to the editor as the always-visible main view;
   // the vault is a left drawer and Ask is a bottom sheet.
@@ -227,6 +261,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [commandSheetOpen]);
+
+  // Global quick-note triggers: window event (used by the desktop topbar
+  // button) and a keyboard shortcut (Cmd/Ctrl + Shift + N).
+  useEffect(() => {
+    function open() {
+      setQuickNoteOpen(true);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (!event.shiftKey) return;
+      if (event.key.toLowerCase() !== "n") return;
+      event.preventDefault();
+      setQuickNoteOpen(true);
+    }
+    window.addEventListener("owd:quick-note", open);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("owd:quick-note", open);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -599,6 +654,42 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
+  async function saveQuickNote(content: string): Promise<string> {
+    const folder = "Quick notes";
+    const baseName = deriveQuickNoteName(content) || `${t("quick.timestampPrefix")} ${formatTimestamp(new Date())}`;
+    const sanitizedBase = sanitizeFileSegment(baseName) || "untitled";
+    let attempt = 0;
+    while (attempt < 20) {
+      const candidate = attempt === 0 ? sanitizedBase : `${sanitizedBase} (${attempt + 1})`;
+      const candidatePath = `${folder}/${candidate}.md`;
+      try {
+        const created = await api<DocumentContent>("/api/documents", {
+          method: "POST",
+          body: JSON.stringify({ path: candidatePath, content })
+        });
+        await refreshDocuments();
+        setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content }]);
+        openDocument(created.path);
+        setStatusKey("status.created");
+        offerUndo({
+          kind: "delete-document",
+          path: created.path,
+          content: created.content,
+          label: t("quick.savedToast", { path: created.path })
+        });
+        return created.path;
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        if (message.includes("already exists")) {
+          attempt += 1;
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error("Could not pick a unique file name");
+  }
+
   async function performUndo() {
     if (!pendingUndo) {
       return;
@@ -701,6 +792,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <strong>{active?.name ?? t("editor.title")}</strong>
             {active ? <span className="muted" translate="no">{active.path}</span> : null}
           </div>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t("quick.trigger")}
+            onClick={() => setQuickNoteOpen(true)}
+          >
+            <PlusIcon />
+          </button>
           <button
             type="button"
             className="icon-button"
@@ -998,6 +1097,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             await deleteActive();
             setDeleteOpen(false);
           }}
+        />
+      ) : null}
+      {quickNoteOpen ? (
+        <QuickNoteSheet
+          isMobile={isMobile}
+          onCancel={() => setQuickNoteOpen(false)}
+          onSave={async (content) => {
+            await saveQuickNote(content);
+            setQuickNoteOpen(false);
+          }}
+          folderLabel="Quick notes"
         />
       ) : null}
       {commandSheetOpen ? (
@@ -1438,6 +1548,110 @@ function CheckMark() {
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M5 12l5 5 9-11" />
     </svg>
+  );
+}
+
+function QuickNoteSheet(props: {
+  isMobile: boolean;
+  folderLabel: string;
+  onCancel: () => void;
+  onSave: (content: string) => Promise<void>;
+}) {
+  const t = useT();
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  useEffect(() => {
+    // On desktop, autofocus immediately. On mobile, focus the textarea
+    // too so the keyboard pops up (the user opened this surface
+    // explicitly, so the keyboard is welcome).
+    textareaRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !submitting) {
+        props.onCancel();
+        return;
+      }
+      // Cmd/Ctrl + Enter saves.
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        if (content.trim() && !submitting) {
+          submit();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, submitting]);
+
+  async function submit() {
+    if (!content.trim() || submitting) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await props.onSave(content);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("error.actionFailed"));
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop sheet-backdrop quick-note-backdrop" role="presentation" onMouseDown={() => { if (!submitting) props.onCancel(); }}>
+      <section
+        className="quick-note-sheet panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="quick-note-header">
+          <div>
+            <h2 id={titleId}>{t("quick.title")}</h2>
+            <p className="muted" id={descId}>
+              {t("quick.description", { folder: props.folderLabel })}
+            </p>
+          </div>
+          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label={t("quick.cancel")}>
+            <span aria-hidden="true">{"\u00d7"}</span>
+          </button>
+        </header>
+        <textarea
+          ref={textareaRef}
+          className="quick-note-textarea"
+          name="quick-note-content"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder={t("quick.placeholder")}
+          spellCheck
+          disabled={submitting}
+          aria-label={t("quick.title")}
+        />
+        {error ? <div className="error" aria-live="polite">{error}</div> : null}
+        <div className="quick-note-actions">
+          <button type="button" onClick={props.onCancel} disabled={submitting}>
+            {t("quick.cancel")}
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={submit}
+            disabled={!content.trim() || submitting}
+            aria-busy={submitting}
+          >
+            <BusyLabel busy={submitting} busyText={t("quick.saveBusy")}>{t("quick.save")}</BusyLabel>
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
