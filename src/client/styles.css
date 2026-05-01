@@ -3489,3 +3489,75 @@ button[aria-busy="true"] > .button-spinner {
     white-space: nowrap;
   }
 }
+
+/* Tactile press feedback: a quick scale-down on :active gives tappable
+   surfaces a sense of physicality. Gated by prefers-reduced-motion so
+   motion-sensitive users get no scale effect. The global reduced-motion
+   override above also caps transition-duration to 0.01ms, which keeps
+   this rule from firing visibly even if the cascade lets it through. */
+@media (prefers-reduced-motion: no-preference) {
+  .editor-fab,
+  .editor-fab:disabled,
+  .undo-toast-action,
+  .mobile-segmented button,
+  .lang-switch button,
+  .top-nav button,
+  .search-result,
+  .file-row,
+  .citation-source,
+  .back-to-top,
+  .tab-close,
+  .message-dismiss {
+    transition:
+      transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .editor-fab:not(:disabled):active,
+  .undo-toast-action:active,
+  .mobile-segmented button:active,
+  .lang-switch button:active,
+  .top-nav button:active,
+  .search-result:active,
+  .file-row:active,
+  .citation-source:not(:disabled):active,
+  .back-to-top:active,
+  .tab-close:active,
+  .message-dismiss:active {
+    transform: scale(0.97);
+  }
+
+  .editor-fab:not(:disabled):active {
+    /* Slightly stronger press feedback for the FAB since it's larger. */
+    transform: scale(0.95);
+  }
+}
+
+/* Modal entrance animation: scale-fade in over 160ms. The exit is
+   instant since dismissing a modal should feel responsive. */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-backdrop {
+    animation: owd-modal-backdrop-in 140ms ease-out;
+  }
+
+  .search-modal,
+  .prompt-modal {
+    animation: owd-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center;
+  }
+
+  @keyframes owd-modal-backdrop-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes owd-modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+}
