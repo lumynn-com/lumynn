@@ -66,6 +66,71 @@ export function ChevronUpIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function SearchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-3.5-3.5" />
+    </svg>
+  );
+}
+
+export function PlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+export function SortIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M7 4v16M3 8l4-4 4 4" />
+      <path d="M17 20V4M13 16l4 4 4-4" />
+    </svg>
+  );
+}
+
+export function MoreIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
+}
+
+export function EyeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function PencilIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M4 20h4l10-10-4-4L4 16v4z" />
+      <path d="M14 6l4 4" />
+    </svg>
+  );
+}
+
+export function TrashIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M6 6l1 14h10l1-14" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 export function SaveIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>

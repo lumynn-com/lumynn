@@ -168,9 +168,9 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
   return (
     <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label={t("qa.eyebrow")}>
       <section className={props.compact ? "qa-hero" : "panel hero"}>
-        <p className="eyebrow">{t("qa.eyebrow")}</p>
-        {props.compact ? <h2>{t("qa.title")}</h2> : <h1>{t("qa.title")}</h1>}
-        <p className="muted">{t("qa.description")}</p>
+        <p className="eyebrow desktop-only">{t("qa.eyebrow")}</p>
+        {props.compact ? <h2 className="desktop-only">{t("qa.title")}</h2> : <h1>{t("qa.title")}</h1>}
+        <p className="muted desktop-only">{t("qa.description")}</p>
         <form
           className="ask-row"
           onSubmit={(event) => {
@@ -206,7 +206,7 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
       {state.answer ? (
         <section className={props.compact ? "qa-response" : "panel"}>
           <div className="panel-header">
-            <div>
+            <div className="desktop-only">
               <p className="eyebrow">{t("qa.answerEyebrow")}</p>
               <h2>{t("qa.answerTitle")}</h2>
             </div>

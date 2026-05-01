@@ -2,7 +2,21 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
-import { BusyLabel, ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, SaveIcon, SpinnerIcon } from "./icons";
+import {
+  BusyLabel,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  EyeIcon,
+  MoreIcon,
+  PencilIcon,
+  PlusIcon,
+  SaveIcon,
+  SearchIcon,
+  SortIcon,
+  SpinnerIcon,
+  TrashIcon
+} from "./icons";
 import { useT } from "./i18n";
 import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
@@ -158,6 +172,39 @@ export function DocumentsView() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sortSheetOpen, setSortSheetOpen] = useState(false);
+  const [editorMenuOpen, setEditorMenuOpen] = useState(false);
+
+  // Close any open mobile menus when leaving mobile or switching section.
+  useEffect(() => {
+    if (!isMobile) {
+      setSortSheetOpen(false);
+      setEditorMenuOpen(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    setEditorMenuOpen(false);
+  }, [mobileSection]);
+
+  useEffect(() => {
+    if (!editorMenuOpen) return;
+    function onDocPointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest(".overflow-menu") || target.closest(".mobile-section-actions")) return;
+      setEditorMenuOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setEditorMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onDocPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [editorMenuOpen]);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -676,7 +723,26 @@ export function DocumentsView() {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-vault" : undefined}
       >
-        <div className="panel-header">
+        <div className="mobile-section-header" aria-hidden={!isMobile}>
+          <div className="mobile-section-title">
+            <strong>{t("vault.title")}</strong>
+            <span className="muted">
+              {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
+            </span>
+          </div>
+          <div className="mobile-section-actions">
+            <button type="button" className="icon-button" aria-label={t("vault.search")} onClick={() => setSearchOpen(true)}>
+              <SearchIcon />
+            </button>
+            <button type="button" className="icon-button" aria-label={t("vault.new")} onClick={() => setCreateOpen(true)}>
+              <PlusIcon />
+            </button>
+            <button type="button" className="icon-button" aria-label={t("vault.sort")} onClick={() => setSortSheetOpen(true)}>
+              <SortIcon />
+            </button>
+          </div>
+        </div>
+        <div className="panel-header desktop-only">
           <div>
             <p className="eyebrow">{t("vault.eyebrow")}</p>
             <h2>{t("vault.title")}</h2>
@@ -685,11 +751,11 @@ export function DocumentsView() {
             </p>
           </div>
         </div>
-        <div className="vault-toolbar">
+        <div className="vault-toolbar desktop-only">
           <button className="primary" onClick={() => setSearchOpen(true)}>{t("vault.searchVault")}</button>
           <button onClick={() => setCreateOpen(true)}>{t("vault.newNote")}</button>
         </div>
-        <div className="sort-row">
+        <div className="sort-row desktop-only">
           <label>
             {t("vault.sortBy")}
             <select name="document-sort" value={sort} onChange={(event) => onSort(event.target.value as SortField, order)}>
@@ -753,7 +819,37 @@ export function DocumentsView() {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-editor" : undefined}
       >
-        <div className="panel-header">
+        <div className="mobile-section-header" aria-hidden={!isMobile}>
+          <div className="mobile-section-title">
+            <strong translate={active ? "no" : undefined}>
+              {active?.name ?? t("editor.title")}
+            </strong>
+            {active ? <span className="muted" translate="no">{active.path}</span> : null}
+          </div>
+          <div className="mobile-section-actions">
+            <button
+              type="button"
+              className={`icon-button ${centerMode === "preview" ? "active" : ""}`}
+              aria-label={t("editor.toggleMode")}
+              aria-pressed={centerMode === "preview"}
+              onClick={() => setGlobalCenterMode(centerMode === "edit" ? "preview" : "edit")}
+            >
+              {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("editor.moreActions")}
+              aria-expanded={editorMenuOpen}
+              aria-haspopup="menu"
+              disabled={!active}
+              onClick={() => setEditorMenuOpen((open) => !open)}
+            >
+              <MoreIcon />
+            </button>
+          </div>
+        </div>
+        <div className="panel-header desktop-only">
           <div>
             <p className="eyebrow" translate={active ? "no" : undefined}>{active?.path ?? t("editor.noDocSelected")}</p>
             <h2 translate={active ? "no" : undefined}>{active?.name ?? t("editor.title")}</h2>
@@ -762,7 +858,7 @@ export function DocumentsView() {
             {status.kind === "key" ? t(status.key, status.params) : status.text}
           </span>
         </div>
-        <div className="editor-toolbar" aria-label={t("editor.actionsLabel")}>
+        <div className="editor-toolbar desktop-only" aria-label={t("editor.actionsLabel")}>
           <div className="mode-switch" role="group" aria-label={t("editor.modeLabel")}>
             <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setGlobalCenterMode("edit")}>
               {t("editor.modeEdit")}
@@ -783,6 +879,33 @@ export function DocumentsView() {
             </button>
           </div>
         </div>
+        {isMobile && editorMenuOpen && active ? (
+          <div className="overflow-menu" role="menu" aria-label={t("editor.moreActions")}>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setEditorMenuOpen(false);
+                setRenameOpen(true);
+              }}
+            >
+              <PencilIcon />
+              <span>{t("editor.rename")}</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="danger"
+              onClick={() => {
+                setEditorMenuOpen(false);
+                setDeleteOpen(true);
+              }}
+            >
+              <TrashIcon />
+              <span>{t("editor.delete")}</span>
+            </button>
+          </div>
+        ) : null}
         {tabs.length > 0 ? (
           <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
             {tabs.map((tab) => (
@@ -912,6 +1035,61 @@ export function DocumentsView() {
             setDeleteOpen(false);
           }}
         />
+      ) : null}
+      {sortSheetOpen ? (
+        <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={() => setSortSheetOpen(false)}>
+          <section
+            className="action-sheet panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sort-sheet-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="action-sheet-header">
+              <h2 id="sort-sheet-title">{t("vault.sortOptions")}</h2>
+              <button type="button" onClick={() => setSortSheetOpen(false)}>{t("vault.done")}</button>
+            </header>
+            <div className="action-sheet-group" role="radiogroup" aria-label={t("vault.sortBy")}>
+              {([
+                ["name", t("vault.sortName")],
+                ["createdAt", t("vault.sortCreated")],
+                ["updatedAt", t("vault.sortUpdated")],
+                ["path", t("vault.sortPath")],
+                ["title", t("vault.sortTitle")]
+              ] as Array<[SortField, string]>).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={sort === value}
+                  className={sort === value ? "active" : ""}
+                  onClick={() => onSort(value, order)}
+                >
+                  <span>{label}</span>
+                  {sort === value ? <CheckMark /> : null}
+                </button>
+              ))}
+            </div>
+            <div className="action-sheet-group" role="radiogroup" aria-label={t("vault.order")}>
+              {([
+                ["asc", t("vault.orderAsc")],
+                ["desc", t("vault.orderDesc")]
+              ] as Array<[SortOrder, string]>).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={order === value}
+                  className={order === value ? "active" : ""}
+                  onClick={() => onSort(sort, value)}
+                >
+                  <span>{label}</span>
+                  {order === value ? <CheckMark /> : null}
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       ) : null}
       {searchOpen ? (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setSearchOpen(false)}>
@@ -1143,6 +1321,14 @@ function TreeNodeRow(props: {
         <small>{props.node.document?.path}</small>
       </span>
     </button>
+  );
+}
+
+function CheckMark() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M5 12l5 5 9-11" />
+    </svg>
   );
 }
 
