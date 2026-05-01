@@ -755,8 +755,8 @@ export function DocumentsView() {
       >
         <div className="panel-header">
           <div>
-            <p className="eyebrow">{active?.path ?? t("editor.noDocSelected")}</p>
-            <h2>{active?.name ?? t("editor.title")}</h2>
+            <p className="eyebrow" translate={active ? "no" : undefined}>{active?.path ?? t("editor.noDocSelected")}</p>
+            <h2 translate={active ? "no" : undefined}>{active?.name ?? t("editor.title")}</h2>
           </div>
           <span className="status status-pill" aria-live="polite">
             {status.kind === "key" ? t(status.key, status.params) : status.text}
@@ -847,7 +847,7 @@ export function DocumentsView() {
       ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">
-          <span className="undo-toast-label">{pendingUndo.label}</span>
+          <span className="undo-toast-label" translate="no">{pendingUndo.label}</span>
           <button type="button" className="undo-toast-action" onClick={performUndo}>
             {t("undo.button")}
           </button>
@@ -959,7 +959,7 @@ export function DocumentsView() {
               {searchHasRun && !searchLoading && searchResults.length === 0 ? <div className="empty-state">{t("search.noResults")}</div> : null}
               {searchResults.map((result) => (
                 <button key={result.path} className="search-result" type="button" onClick={() => openSearchResult(result.path)}>
-                  <strong>{result.name}</strong>
+                  <strong translate="no">{result.name}</strong>
                 </button>
               ))}
             </div>
@@ -1002,6 +1002,11 @@ function SwipeableTab(props: {
     startX.current = event.clientX;
     startY.current = event.clientY;
     horizontal.current = false;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // setPointerCapture can fail if the element has lost focus
+    }
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1057,8 +1062,8 @@ function SwipeableTab(props: {
       onPointerCancel={() => reset()}
     >
       <button role="tab" aria-selected={active} className="editor-tab" onClick={onActivate}>
-        <span>{tab.name}</span>
-        <span className="tab-path">{tab.path}</span>
+        <span translate="no">{tab.name}</span>
+        <span className="tab-path" translate="no">{tab.path}</span>
       </button>
       <button
         className="tab-close"
@@ -1133,7 +1138,7 @@ function TreeNodeRow(props: {
       onClick={() => props.node.document && props.onSelect(props.node.document.path)}
     >
       <span className="tree-file-dot" />
-      <span className="tree-file-text">
+      <span className="tree-file-text" translate="no">
         <span className="tree-file-name">{props.node.name}</span>
         <small>{props.node.document?.path}</small>
       </span>
@@ -1213,7 +1218,7 @@ function PromptModal(props: {
             <h2 id={titleId}>{props.title}</h2>
             {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
           </div>
-          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label={props.cancelLabel}>
+          <button type="button" onClick={props.onCancel} disabled={submitting}>
             {props.cancelLabel}
           </button>
         </div>

@@ -347,7 +347,9 @@ export function SettingsView(props: { mode?: SettingsMode }) {
                   autoComplete="new-password"
                   value={accountPassword}
                   onChange={(event) => setAccountPassword(event.target.value)}
+                  aria-describedby="account-password-help"
                 />
+                <small id="account-password-help" className="muted">{t("settings.account.passwordHelp")}</small>
               </label>
               <button
                 className="primary"
@@ -673,7 +675,19 @@ export function SettingsView(props: { mode?: SettingsMode }) {
           ) : null}
         </div>
       </section>
-      {message ? <pre className="message" aria-live="polite">{message}</pre> : null}
+      {message ? (
+        <div className="message-bar">
+          <pre className="message" aria-live="polite">{message}</pre>
+          <button
+            type="button"
+            className="message-dismiss"
+            aria-label={t("settings.message.dismiss")}
+            onClick={() => setMessage("")}
+          >
+            <span aria-hidden="true">{"\u00d7"}</span>
+          </button>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -719,15 +733,22 @@ function IndexProgress(props: { job: RagIndexJob; t: Translator; onStop: () => v
     props.job.mode === "test" ? "settings.progress.test"
     : props.job.mode === "incremental" ? "settings.progress.incremental"
     : "settings.progress.full";
+  const statusKey: TKey | null =
+    props.job.status === "queued" ? "settings.jobStatus.queued"
+    : props.job.status === "running" ? "settings.jobStatus.running"
+    : props.job.status === "completed" ? "settings.jobStatus.completed"
+    : props.job.status === "cancelled" ? "settings.jobStatus.cancelled"
+    : props.job.status === "failed" ? "settings.jobStatus.failed"
+    : null;
 
   return (
     <div className={`index-progress ${props.job.status}`}>
       <div className="progress-header">
         <div>
           <strong>{t(modeKey)}</strong>
-          <span>{props.job.status}</span>
+          <span>{statusKey ? t(statusKey) : props.job.status}</span>
         </div>
-        <small>{props.job.elapsedMs ? `${props.job.elapsedMs} ms` : props.job.namespace}</small>
+        <small>{props.job.elapsedMs ? t("settings.progress.elapsed", { ms: props.job.elapsedMs }) : props.job.namespace}</small>
       </div>
       <div className="progress-row">
         <span>{t("settings.progress.files")}</span>

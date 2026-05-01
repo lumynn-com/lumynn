@@ -156,7 +156,7 @@ function Workspace(props: { onLogout: () => void }) {
             <span>{t("app.brand.tagline")}</span>
           </div>
         </button>
-        <nav className="top-nav" aria-label="Primary">
+        <nav className="top-nav" aria-label={t("nav.aria")}>
           <button
             className={view === "workspace" ? "active" : ""}
             onClick={() => setView("workspace")}

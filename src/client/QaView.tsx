@@ -182,7 +182,11 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
           <input
             id="qa-question"
             name="question"
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
             autoComplete="off"
+            spellCheck={false}
             value={state.question}
             onChange={(event) => setRuntimeState({ question: event.target.value })}
             placeholder={t("qa.placeholder")}
@@ -223,8 +227,8 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
               onClick={() => props.onOpenSource?.(citation.path)}
               disabled={!props.onOpenSource}
             >
-              <strong>{citation.title}</strong>
-              <span>{citation.path}</span>
+              <strong translate="no">{citation.title}</strong>
+              <span translate="no">{citation.path}</span>
             </button>
           </article>
         ))}
