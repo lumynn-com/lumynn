@@ -3247,9 +3247,8 @@ button[aria-busy="true"] > .button-spinner {
      .doc-tree height/overflow is neutralized inside it. */
   .vault-scroll {
     position: relative;
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
-    max-height: 60dvh;
     overflow: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
