@@ -99,13 +99,18 @@ const sortStorageKey = "owd_document_sort";
 const editorModeStorageKey = "owd_editor_mode";
 
 function readSavedSort(): { sort: SortField; order: SortOrder } {
+  const fallback: { sort: SortField; order: SortOrder } = { sort: "updatedAt", order: "desc" };
   try {
-    const saved = JSON.parse(localStorage.getItem(sortStorageKey) ?? "{}") as { sort?: SortField; order?: SortOrder };
-    const sort: SortField = ["name", "createdAt", "updatedAt", "path", "title"].includes(saved.sort ?? "") ? saved.sort! : "name";
-    const order: SortOrder = saved.order === "desc" ? "desc" : "asc";
+    const raw = localStorage.getItem(sortStorageKey);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw) as { sort?: SortField; order?: SortOrder };
+    const sort: SortField = ["name", "createdAt", "updatedAt", "path", "title"].includes(saved.sort ?? "")
+      ? saved.sort!
+      : fallback.sort;
+    const order: SortOrder = saved.order === "asc" || saved.order === "desc" ? saved.order : fallback.order;
     return { sort, order };
   } catch {
-    return { sort: "name", order: "asc" };
+    return fallback;
   }
 }
 
