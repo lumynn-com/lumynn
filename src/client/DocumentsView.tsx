@@ -723,13 +723,37 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </span>
           </div>
           <div className="mobile-section-actions">
-            <button type="button" className="icon-button" aria-label={t("vault.search")} onClick={() => setSearchOpen(true)}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("vault.search")}
+              onClick={() => {
+                if (isMobile) closeOverlays();
+                setSearchOpen(true);
+              }}
+            >
               <SearchIcon />
             </button>
-            <button type="button" className="icon-button" aria-label={t("vault.new")} onClick={() => setCreateOpen(true)}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("vault.new")}
+              onClick={() => {
+                if (isMobile) closeOverlays();
+                setCreateOpen(true);
+              }}
+            >
               <PlusIcon />
             </button>
-            <button type="button" className="icon-button" aria-label={t("vault.sort")} onClick={() => setSortSheetOpen(true)}>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={t("vault.sort")}
+              onClick={() => {
+                if (isMobile) closeOverlays();
+                setSortSheetOpen(true);
+              }}
+            >
               <SortIcon />
             </button>
           </div>
