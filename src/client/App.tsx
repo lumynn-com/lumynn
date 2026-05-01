@@ -148,7 +148,7 @@ function Workspace(props: { onLogout: () => void }) {
   return (
     <div className="app-shell obsidian-shell">
       <a className="skip-link" href="#main-content">{t("skipToMain")}</a>
-      <header className="workspace-topbar">
+      <header className="workspace-topbar desktop-only">
         <button className="brand topbar-brand" type="button" onClick={() => setView("workspace")} aria-label={t("app.openWorkspace")}>
           <span className="logo" aria-hidden="true" translate="no">OW</span>
           <div>
@@ -212,16 +212,23 @@ function Workspace(props: { onLogout: () => void }) {
       </header>
       <div id="main-content" className="main-content">
         <div hidden={view !== "workspace"} style={{ display: view === "workspace" ? undefined : "none" }}>
-          <DocumentsView />
+          <DocumentsView
+            currentView={view}
+            theme={theme}
+            loggingOut={loggingOut}
+            onSwitchView={setView}
+            onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onLogout={logout}
+          />
         </div>
         {indexingMounted ? (
           <div hidden={view !== "indexing"} style={{ display: view === "indexing" ? undefined : "none" }}>
-            <SettingsView mode="indexing" />
+            <SettingsView mode="indexing" onBackToWorkspace={() => setView("workspace")} />
           </div>
         ) : null}
         {settingsMounted ? (
           <div hidden={view !== "settings"} style={{ display: view === "settings" ? undefined : "none" }}>
-            <SettingsView mode="settings" />
+            <SettingsView mode="settings" onBackToWorkspace={() => setView("workspace")} />
           </div>
         ) : null}
       </div>

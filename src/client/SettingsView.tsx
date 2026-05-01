@@ -16,7 +16,7 @@ const settingsSections: Array<{ id: SettingsSection; labelKey: TKey }> = [
   { id: "account", labelKey: "settings.section.account" }
 ];
 
-export function SettingsView(props: { mode?: SettingsMode }) {
+export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: () => void }) {
   const t = useT();
   const mode = props.mode ?? "settings";
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -303,6 +303,22 @@ export function SettingsView(props: { mode?: SettingsMode }) {
 
   return (
     <main className={`settings-view ${mode === "indexing" ? "indexing-view" : ""}`}>
+      {props.onBackToWorkspace ? (
+        <header className="mobile-app-bar settings-back-bar" aria-hidden={false}>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={t("nav.workspace")}
+            onClick={props.onBackToWorkspace}
+          >
+            <span aria-hidden="true">{"\u2190"}</span>
+          </button>
+          <div className="mobile-app-bar-title">
+            <strong>{mode === "indexing" ? t("settings.titleIndexing") : t("settings.titleSettings")}</strong>
+          </div>
+          <div style={{ width: 40 }} aria-hidden="true" />
+        </header>
+      ) : null}
       <section className="panel settings-hero">
         <p className="eyebrow">{mode === "indexing" ? t("settings.eyebrowKb") : t("settings.eyebrowConfig")}</p>
         <h1>{mode === "indexing" ? t("settings.titleIndexing") : t("settings.titleSettings")}</h1>

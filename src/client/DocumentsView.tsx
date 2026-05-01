@@ -3,25 +3,43 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
 import {
+  AskIcon,
   BusyLabel,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronUpIcon,
   EyeIcon,
+  GlobeIcon,
+  IndexingIcon,
+  LogoutIcon,
+  MenuIcon,
+  MoonIcon,
   MoreIcon,
   PencilIcon,
   PlusIcon,
   SaveIcon,
   SearchIcon,
+  SettingsIcon,
   SortIcon,
   SpinnerIcon,
+  SunIcon,
   TrashIcon
 } from "./icons";
-import { useT } from "./i18n";
+import { useLocale, useT } from "./i18n";
 import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
 
 type MobileSection = "vault" | "editor" | "ask";
+type AppView = "workspace" | "indexing" | "settings";
+
+interface DocumentsViewProps {
+  currentView?: AppView;
+  theme?: "dark" | "light";
+  loggingOut?: boolean;
+  onSwitchView?: (view: AppView) => void;
+  onToggleTheme?: () => void;
+  onLogout?: () => void;
+}
 
 // Best-effort haptic feedback. Works on Android browsers; no-op on iOS
 // Safari and on devices without a vibration motor. Honors prefers-
@@ -148,8 +166,9 @@ type StatusValue =
 
 const READY_STATUS: StatusValue = { kind: "key", key: "status.ready" };
 
-export function DocumentsView() {
+export function DocumentsView(props: DocumentsViewProps = {}) {
   const t = useT();
+  const { locale, setLocale } = useLocale();
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
@@ -173,38 +192,36 @@ export function DocumentsView() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
-  const [editorMenuOpen, setEditorMenuOpen] = useState(false);
+  const [commandSheetOpen, setCommandSheetOpen] = useState(false);
 
-  // Close any open mobile menus when leaving mobile or switching section.
+  // On mobile we default to the editor as the always-visible main view;
+  // the vault is a left drawer and Ask is a bottom sheet.
+  useEffect(() => {
+    if (isMobile && mobileSection !== "editor") {
+      // Snap the implicit default to editor so re-entering the workspace
+      // doesn't dump the user back into the file list.
+      setMobileSection("editor");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
+  // Close any open mobile menus when leaving mobile.
   useEffect(() => {
     if (!isMobile) {
       setSortSheetOpen(false);
-      setEditorMenuOpen(false);
+      setCommandSheetOpen(false);
     }
   }, [isMobile]);
 
+  // Escape closes the command sheet.
   useEffect(() => {
-    setEditorMenuOpen(false);
-  }, [mobileSection]);
-
-  useEffect(() => {
-    if (!editorMenuOpen) return;
-    function onDocPointerDown(event: PointerEvent) {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest(".overflow-menu") || target.closest(".mobile-section-actions")) return;
-      setEditorMenuOpen(false);
-    }
+    if (!commandSheetOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setEditorMenuOpen(false);
+      if (event.key === "Escape") setCommandSheetOpen(false);
     }
-    document.addEventListener("pointerdown", onDocPointerDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDocPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [editorMenuOpen]);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [commandSheetOpen]);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -212,10 +229,8 @@ export function DocumentsView() {
     (path: string) => {
       setActivePath(path);
       if (isMobile) {
-        setMobileSection((current) => {
-          if (current !== "editor") haptic(6);
-          return "editor";
-        });
+        haptic(6);
+        setMobileSection("editor");
       }
     },
     [isMobile]
@@ -226,6 +241,10 @@ export function DocumentsView() {
       if (current !== next) haptic(6);
       return next;
     });
+  }, []);
+
+  const closeOverlays = useCallback(() => {
+    setMobileSection("editor");
   }, []);
 
   // Undo support for destructive actions. We keep at most one pending
@@ -330,13 +349,13 @@ export function DocumentsView() {
     const dx = event.clientX - start.startX;
     const dy = Math.abs(event.clientY - start.startY);
     if (dy > 60) return;
-    const sections: MobileSection[] = ["vault", "editor", "ask"];
-    const idx = sections.indexOf(mobileSection);
-    if (idx < 0) return;
-    if (start.fromEdge === "left" && dx >= 60 && idx > 0) {
-      switchSection(sections[idx - 1]);
-    } else if (start.fromEdge === "right" && dx <= -60 && idx < sections.length - 1) {
-      switchSection(sections[idx + 1]);
+    // Editor-first model on mobile:
+    //   swipe right from the left edge -> open vault drawer
+    //   swipe left  from the right edge -> open ask sheet
+    if (start.fromEdge === "left" && dx >= 60) {
+      switchSection("vault");
+    } else if (start.fromEdge === "right" && dx <= -60) {
+      switchSection("ask");
     }
   }
 
@@ -655,66 +674,39 @@ export function DocumentsView() {
       onPointerUp={onWorkspacePointerUp}
       onPointerCancel={() => { edgeSwipe.current = null; }}
     >
+      {isMobile && (mobileSection === "vault" || mobileSection === "ask") ? (
+        <div
+          className="mobile-overlay-backdrop"
+          aria-hidden="true"
+          onClick={closeOverlays}
+        />
+      ) : null}
       {isMobile ? (
-        <nav
-          className="mobile-segmented"
-          role="tablist"
-          aria-label={t("section.aria")}
-          aria-orientation="horizontal"
-          onKeyDown={(event) => {
-            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-            event.preventDefault();
-            const sections: MobileSection[] = ["vault", "editor", "ask"];
-            const idx = sections.indexOf(mobileSection);
-            const nextIdx = event.key === "ArrowLeft"
-              ? (idx + sections.length - 1) % sections.length
-              : (idx + 1) % sections.length;
-            const next = sections[nextIdx];
-            switchSection(next);
-            const target = event.currentTarget.querySelector<HTMLButtonElement>(`[data-section-tab="${next}"]`);
-            target?.focus();
-          }}
-        >
+        <header className="mobile-app-bar">
           <button
             type="button"
-            role="tab"
-            id="section-tab-vault"
-            data-section-tab="vault"
-            aria-selected={mobileSection === "vault"}
-            aria-controls="section-panel-vault"
-            tabIndex={mobileSection === "vault" ? 0 : -1}
-            className={mobileSection === "vault" ? "active" : ""}
+            className="icon-button"
+            aria-label={t("section.vault")}
+            aria-expanded={mobileSection === "vault"}
             onClick={() => switchSection("vault")}
           >
-            {t("section.vault")}
+            <MenuIcon />
           </button>
+          <div className="mobile-app-bar-title" translate={active ? "no" : undefined}>
+            <strong>{active?.name ?? t("editor.title")}</strong>
+            {active ? <span className="muted" translate="no">{active.path}</span> : null}
+          </div>
           <button
             type="button"
-            role="tab"
-            id="section-tab-editor"
-            data-section-tab="editor"
-            aria-selected={mobileSection === "editor"}
-            aria-controls="section-panel-editor"
-            tabIndex={mobileSection === "editor" ? 0 : -1}
-            className={mobileSection === "editor" ? "active" : ""}
-            onClick={() => switchSection("editor")}
+            className="icon-button"
+            aria-label={t("editor.moreActions")}
+            aria-expanded={commandSheetOpen}
+            aria-haspopup="menu"
+            onClick={() => setCommandSheetOpen(true)}
           >
-            {t("section.editor")}
+            <MoreIcon />
           </button>
-          <button
-            type="button"
-            role="tab"
-            id="section-tab-ask"
-            data-section-tab="ask"
-            aria-selected={mobileSection === "ask"}
-            aria-controls="section-panel-ask"
-            tabIndex={mobileSection === "ask" ? 0 : -1}
-            className={mobileSection === "ask" ? "active" : ""}
-            onClick={() => switchSection("ask")}
-          >
-            {t("section.ask")}
-          </button>
-        </nav>
+        </header>
       ) : null}
       <section
         className="document-list panel vault-pane"
@@ -819,36 +811,6 @@ export function DocumentsView() {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-editor" : undefined}
       >
-        <div className="mobile-section-header" aria-hidden={!isMobile}>
-          <div className="mobile-section-title">
-            <strong translate={active ? "no" : undefined}>
-              {active?.name ?? t("editor.title")}
-            </strong>
-            {active ? <span className="muted" translate="no">{active.path}</span> : null}
-          </div>
-          <div className="mobile-section-actions">
-            <button
-              type="button"
-              className={`icon-button ${centerMode === "preview" ? "active" : ""}`}
-              aria-label={t("editor.toggleMode")}
-              aria-pressed={centerMode === "preview"}
-              onClick={() => setGlobalCenterMode(centerMode === "edit" ? "preview" : "edit")}
-            >
-              {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
-            </button>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={t("editor.moreActions")}
-              aria-expanded={editorMenuOpen}
-              aria-haspopup="menu"
-              disabled={!active}
-              onClick={() => setEditorMenuOpen((open) => !open)}
-            >
-              <MoreIcon />
-            </button>
-          </div>
-        </div>
         <div className="panel-header desktop-only">
           <div>
             <p className="eyebrow" translate={active ? "no" : undefined}>{active?.path ?? t("editor.noDocSelected")}</p>
@@ -879,33 +841,6 @@ export function DocumentsView() {
             </button>
           </div>
         </div>
-        {isMobile && editorMenuOpen && active ? (
-          <div className="overflow-menu" role="menu" aria-label={t("editor.moreActions")}>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setEditorMenuOpen(false);
-                setRenameOpen(true);
-              }}
-            >
-              <PencilIcon />
-              <span>{t("editor.rename")}</span>
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="danger"
-              onClick={() => {
-                setEditorMenuOpen(false);
-                setDeleteOpen(true);
-              }}
-            >
-              <TrashIcon />
-              <span>{t("editor.delete")}</span>
-            </button>
-          </div>
-        ) : null}
         {tabs.length > 0 ? (
           <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
             {tabs.map((tab) => (
@@ -1035,6 +970,151 @@ export function DocumentsView() {
             setDeleteOpen(false);
           }}
         />
+      ) : null}
+      {commandSheetOpen ? (
+        <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={() => setCommandSheetOpen(false)}>
+          <section
+            className="action-sheet panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="command-sheet-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="action-sheet-header">
+              <h2 id="command-sheet-title">{t("editor.moreActions")}</h2>
+              <button type="button" onClick={() => setCommandSheetOpen(false)}>{t("vault.done")}</button>
+            </header>
+            {/* Editor actions (only when there is an active document). */}
+            {active ? (
+              <div className="action-sheet-group" aria-label={t("editor.actionsLabel")}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    setGlobalCenterMode(centerMode === "edit" ? "preview" : "edit");
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true">
+                    {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
+                  </span>
+                  <span>{centerMode === "edit" ? t("editor.modePreview") : t("editor.modeEdit")}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={!dirty || saving}
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    save();
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><SaveIcon /></span>
+                  <span>{t("editor.save")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    setRenameOpen(true);
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><PencilIcon /></span>
+                  <span>{t("editor.rename")}</span>
+                </button>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    setDeleteOpen(true);
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><TrashIcon /></span>
+                  <span>{t("editor.delete")}</span>
+                </button>
+              </div>
+            ) : null}
+            {/* Workspace navigation: open Ask, jump to Indexing or Settings. */}
+            <div className="action-sheet-group">
+              <button
+                type="button"
+                onClick={() => {
+                  setCommandSheetOpen(false);
+                  switchSection("ask");
+                }}
+              >
+                <span className="action-sheet-icon" aria-hidden="true"><AskIcon /></span>
+                <span>{t("section.ask")}</span>
+              </button>
+              {props.onSwitchView ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommandSheetOpen(false);
+                      props.onSwitchView!("indexing");
+                    }}
+                  >
+                    <span className="action-sheet-icon" aria-hidden="true"><IndexingIcon /></span>
+                    <span>{t("nav.indexing")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCommandSheetOpen(false);
+                      props.onSwitchView!("settings");
+                    }}
+                  >
+                    <span className="action-sheet-icon" aria-hidden="true"><SettingsIcon /></span>
+                    <span>{t("nav.settings")}</span>
+                  </button>
+                </>
+              ) : null}
+            </div>
+            {/* Preferences: theme, language, logout. */}
+            <div className="action-sheet-group">
+              {props.onToggleTheme ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    props.onToggleTheme!();
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true">
+                    {props.theme === "dark" ? <SunIcon /> : <MoonIcon />}
+                  </span>
+                  <span>{props.theme === "dark" ? t("topbar.themeLight") : t("topbar.themeDark")}</span>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = locale === "en" ? "zh" : "en";
+                  setLocale(next);
+                }}
+              >
+                <span className="action-sheet-icon" aria-hidden="true"><GlobeIcon /></span>
+                <span>{locale === "en" ? "\u4e2d\u6587" : "English"}</span>
+              </button>
+              {props.onLogout ? (
+                <button
+                  type="button"
+                  className="danger"
+                  disabled={props.loggingOut}
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    props.onLogout!();
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><LogoutIcon /></span>
+                  <span>
+                    <BusyLabel busy={!!props.loggingOut} busyText={t("topbar.logoutBusy")}>{t("topbar.logout")}</BusyLabel>
+                  </span>
+                </button>
+              ) : null}
+            </div>
+          </section>
+        </div>
       ) : null}
       {sortSheetOpen ? (
         <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={() => setSortSheetOpen(false)}>
