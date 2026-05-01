@@ -93,6 +93,10 @@ interface TreeNode {
 
 type OpenTab = DocumentContent & {
   draft: string;
+  // Quick-capture buffer that has not been saved to disk yet. The
+  // path on the OpenTab is a temporary client-side id (see
+  // makeDraftPath); on save we derive the real name and swap the tab.
+  isDraft?: boolean;
 };
 
 const sortStorageKey = "owd_document_sort";
@@ -129,6 +133,19 @@ function deriveQuickNoteName(content: string): string {
 function formatTimestamp(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}-${pad(date.getMinutes())}`;
+}
+
+// Synthetic, client-only path used as the unique id of an unsaved
+// quick-capture buffer. The "__draft__/" prefix is intentionally not
+// a valid vault folder so we can never confuse a draft tab with a
+// real document.
+function makeDraftPath(): string {
+  const stamp = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return `__draft__/quick-${stamp}.md`;
+}
+
+function isDraftPath(value: string): boolean {
+  return value.startsWith("__draft__/");
 }
 
 function readSavedSort(): { sort: SortField; order: SortOrder } {
@@ -231,7 +248,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
-  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
 
   // On mobile we default to the editor as the always-visible main view;
   // the vault is a left drawer and Ask is a bottom sheet.
@@ -263,17 +279,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, [commandSheetOpen]);
 
   // Global quick-note triggers: window event (used by the desktop topbar
-  // button) and a keyboard shortcut (Cmd/Ctrl + Shift + N).
+  // button) and a keyboard shortcut (Cmd/Ctrl + Shift + N). Both spawn
+  // a fresh draft tab in the editor instead of opening a separate
+  // capture window.
   useEffect(() => {
     function open() {
-      setQuickNoteOpen(true);
+      createQuickNoteDraft();
     }
     function onKey(event: KeyboardEvent) {
       if (!(event.metaKey || event.ctrlKey)) return;
       if (!event.shiftKey) return;
       if (event.key.toLowerCase() !== "n") return;
       event.preventDefault();
-      setQuickNoteOpen(true);
+      createQuickNoteDraft();
     }
     window.addEventListener("owd:quick-note", open);
     window.addEventListener("keydown", onKey);
@@ -281,7 +299,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       window.removeEventListener("owd:quick-note", open);
       window.removeEventListener("keydown", onKey);
     };
-  }, []);
+    // createQuickNoteDraft uses closures over isMobile/centerMode/etc.,
+    // we want the latest version each time but we don't want to rebind
+    // listeners on every render either; rebind only when dependencies
+    // that change rarely flip.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, centerMode, locale]);
   const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
@@ -508,6 +531,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (!activePath || tabs.some((tab) => tab.path === activePath)) {
       return;
     }
+    if (isDraftPath(activePath)) {
+      // Drafts are created with their tab already in place; if a draft
+      // path becomes active without a tab, that means the tab was
+      // closed and we should clear the active path.
+      setActivePath("");
+      return;
+    }
     api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
       .then((doc) => {
         setTabs((current) => [...current, { ...doc, draft: doc.content }]);
@@ -524,7 +554,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const timer = window.setTimeout(() => {
       api<{ html: string }>("/api/documents/preview", {
         method: "POST",
-        body: JSON.stringify({ path: active.path, content: active.draft })
+        body: JSON.stringify({
+          // Don't send a synthetic draft path to the server.
+          path: active.isDraft ? undefined : active.path,
+          content: active.draft
+        })
       })
         .then((result) => setPreview(result.html))
         .catch(() => setPreview(""));
@@ -550,7 +584,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setActivePath(remaining[remaining.length - 1]?.path ?? "");
     }
     if (closed) {
-      offerUndo({ kind: "close-tab", tab: closed, wasActive, label: `${t("undo.closedPrefix")} ${closed.name}` });
+      const label = closed.isDraft
+        ? `${t("undo.closedPrefix")} ${t("quick.draftTitle")}`
+        : `${t("undo.closedPrefix")} ${closed.name}`;
+      offerUndo({ kind: "close-tab", tab: closed, wasActive, label });
     }
   }
 
@@ -561,19 +598,107 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setSaving(true);
     setStatusKey("status.saving");
     try {
-      const saved = await api<DocumentContent>("/api/documents/content", {
-        method: "PUT",
-        body: JSON.stringify({ path: active.path, content: active.draft, expectedHash: active.hash })
-      });
-      setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content } : tab)));
-      await refreshDocuments();
-      setStatusKey("status.saved");
+      if (active.isDraft) {
+        await commitDraft(active);
+      } else {
+        const saved = await api<DocumentContent>("/api/documents/content", {
+          method: "PUT",
+          body: JSON.stringify({ path: active.path, content: active.draft, expectedHash: active.hash })
+        });
+        setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content } : tab)));
+        await refreshDocuments();
+        setStatusKey("status.saved");
+      }
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
       else setStatusKey("status.saveFailed");
     } finally {
       setSaving(false);
     }
+  }
+
+  // Commit an unsaved draft tab: derive a name, POST to create the
+  // file, then swap the synthetic draft tab for the freshly-created
+  // real tab. If the derived name fell back to the timestamp (i.e. we
+  // could not find a meaningful title in the content), open the
+  // Rename dialog right away so the user can name it.
+  async function commitDraft(draftTab: OpenTab): Promise<void> {
+    const folder = "Quick notes";
+    const derived = deriveQuickNoteName(draftTab.draft);
+    const usedFallback = !derived;
+    const baseName = derived || `${t("quick.timestampPrefix")} ${formatTimestamp(new Date())}`;
+    const sanitizedBase = sanitizeFileSegment(baseName) || "untitled";
+    let attempt = 0;
+    while (attempt < 20) {
+      const candidate = attempt === 0 ? sanitizedBase : `${sanitizedBase} (${attempt + 1})`;
+      const candidatePath = `${folder}/${candidate}.md`;
+      try {
+        const created = await api<DocumentContent>("/api/documents", {
+          method: "POST",
+          body: JSON.stringify({ path: candidatePath, content: draftTab.draft })
+        });
+        setTabs((current) => current.map((tab) => (tab.path === draftTab.path ? { ...created, draft: created.content } : tab)));
+        setActivePath(created.path);
+        await refreshDocuments();
+        setStatusKey("status.saved");
+        offerUndo({
+          kind: "delete-document",
+          path: created.path,
+          content: created.content,
+          label: t("quick.savedToast", { path: created.path })
+        });
+        if (usedFallback) {
+          // No meaningful title yet — give the user a chance to name it.
+          setRenameOpen(true);
+        }
+        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message.toLowerCase() : "";
+        if (message.includes("already exists")) {
+          attempt += 1;
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error("Could not pick a unique file name");
+  }
+
+  // Open a brand-new draft tab in the editor and switch to it. No
+  // server roundtrip; the file is only created when the user saves.
+  function createQuickNoteDraft() {
+    const draftPath = makeDraftPath();
+    const draftName = t("quick.title");
+    const now = new Date().toISOString();
+    const draftTab: OpenTab = {
+      path: draftPath,
+      name: draftName,
+      title: draftName,
+      content: "",
+      draft: "",
+      hash: "",
+      createdAt: now,
+      updatedAt: now,
+      tags: [],
+      aliases: [],
+      headings: [],
+      frontmatter: {},
+      links: [],
+      isDraft: true
+    };
+    setTabs((current) => [...current, draftTab]);
+    setActivePath(draftPath);
+    if (isMobile) {
+      setMobileSection("editor");
+    }
+    if (centerMode !== "edit") {
+      setGlobalCenterMode("edit");
+    }
+    haptic(6);
+    // Focus the editor textarea after the draft mounts.
+    window.setTimeout(() => {
+      editorTextareaRef.current?.focus();
+    }, 50);
   }
 
   const dirty = active ? active.draft !== active.content : false;
@@ -652,42 +777,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       else setStatusKey("status.deleteFailed");
       throw error;
     }
-  }
-
-  async function saveQuickNote(content: string): Promise<string> {
-    const folder = "Quick notes";
-    const baseName = deriveQuickNoteName(content) || `${t("quick.timestampPrefix")} ${formatTimestamp(new Date())}`;
-    const sanitizedBase = sanitizeFileSegment(baseName) || "untitled";
-    let attempt = 0;
-    while (attempt < 20) {
-      const candidate = attempt === 0 ? sanitizedBase : `${sanitizedBase} (${attempt + 1})`;
-      const candidatePath = `${folder}/${candidate}.md`;
-      try {
-        const created = await api<DocumentContent>("/api/documents", {
-          method: "POST",
-          body: JSON.stringify({ path: candidatePath, content })
-        });
-        await refreshDocuments();
-        setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content }]);
-        openDocument(created.path);
-        setStatusKey("status.created");
-        offerUndo({
-          kind: "delete-document",
-          path: created.path,
-          content: created.content,
-          label: t("quick.savedToast", { path: created.path })
-        });
-        return created.path;
-      } catch (error) {
-        const message = error instanceof Error ? error.message.toLowerCase() : "";
-        if (message.includes("already exists")) {
-          attempt += 1;
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new Error("Could not pick a unique file name");
   }
 
   async function performUndo() {
@@ -788,15 +877,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           >
             <MenuIcon />
           </button>
-          <div className="mobile-app-bar-title" translate={active ? "no" : undefined}>
-            <strong>{active?.name ?? t("editor.title")}</strong>
-            {active ? <span className="muted" translate="no">{active.path}</span> : null}
+          <div className="mobile-app-bar-title" translate={active && !active.isDraft ? "no" : undefined}>
+            <strong>
+              {active?.isDraft ? t("quick.draftTitle") : (active?.name ?? t("editor.title"))}
+            </strong>
+            {active && !active.isDraft ? <span className="muted" translate="no">{active.path}</span> : null}
+            {active?.isDraft ? <span className="muted">{t("quick.draftEyebrow")}</span> : null}
           </div>
           <button
             type="button"
             className="icon-button"
             aria-label={t("quick.trigger")}
-            onClick={() => setQuickNoteOpen(true)}
+            onClick={createQuickNoteDraft}
           >
             <PlusIcon />
           </button>
@@ -941,8 +1033,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       >
         <div className="panel-header desktop-only">
           <div>
-            <p className="eyebrow" translate={active ? "no" : undefined}>{active?.path ?? t("editor.noDocSelected")}</p>
-            <h2 translate={active ? "no" : undefined}>{active?.name ?? t("editor.title")}</h2>
+            <p className="eyebrow" translate={active && !active.isDraft ? "no" : undefined}>
+              {active?.isDraft ? t("quick.draftEyebrow") : (active?.path ?? t("editor.noDocSelected"))}
+            </p>
+            <h2 translate={active && !active.isDraft ? "no" : undefined}>
+              {active?.isDraft ? t("quick.draftTitle") : (active?.name ?? t("editor.title"))}
+              {active?.isDraft ? <span className="draft-pill" aria-hidden="true">{t("quick.draftBadge")}</span> : null}
+            </h2>
           </div>
           <span className="status status-pill" aria-live="polite">
             {status.kind === "key" ? t(status.key, status.params) : status.text}
@@ -958,10 +1055,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </button>
           </div>
           <div className="file-actions">
-            <button onClick={() => setRenameOpen(true)} disabled={!active}>
+            <button onClick={() => setRenameOpen(true)} disabled={!active || active.isDraft}>
               {t("editor.rename")}
             </button>
-            <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active}>
+            <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active || active.isDraft}>
               {t("editor.delete")}
             </button>
             <button className="primary" onClick={save} disabled={!active || saving} aria-busy={saving}>
@@ -1029,6 +1126,16 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         >
           {saving ? <SpinnerIcon /> : <SaveIcon />}
           <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
+        </button>
+      ) : null}
+      {isMobile && mobileSection === "editor" && (!active || !active.isDraft) ? (
+        <button
+          type="button"
+          className="quick-note-fab"
+          onClick={createQuickNoteDraft}
+          aria-label={t("quick.trigger")}
+        >
+          <PlusIcon />
         </button>
       ) : null}
       {pendingUndo ? (
@@ -1099,17 +1206,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           }}
         />
       ) : null}
-      {quickNoteOpen ? (
-        <QuickNoteSheet
-          isMobile={isMobile}
-          onCancel={() => setQuickNoteOpen(false)}
-          onSave={async (content) => {
-            await saveQuickNote(content);
-            setQuickNoteOpen(false);
-          }}
-          folderLabel="Quick notes"
-        />
-      ) : null}
       {commandSheetOpen ? (
         <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={() => setCommandSheetOpen(false)}>
           <section
@@ -1149,27 +1245,31 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                   <span className="action-sheet-icon" aria-hidden="true"><SaveIcon /></span>
                   <span>{t("editor.save")}</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCommandSheetOpen(false);
-                    setRenameOpen(true);
-                  }}
-                >
-                  <span className="action-sheet-icon" aria-hidden="true"><PencilIcon /></span>
-                  <span>{t("editor.rename")}</span>
-                </button>
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => {
-                    setCommandSheetOpen(false);
-                    setDeleteOpen(true);
-                  }}
-                >
-                  <span className="action-sheet-icon" aria-hidden="true"><TrashIcon /></span>
-                  <span>{t("editor.delete")}</span>
-                </button>
+                {!active.isDraft ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCommandSheetOpen(false);
+                        setRenameOpen(true);
+                      }}
+                    >
+                      <span className="action-sheet-icon" aria-hidden="true"><PencilIcon /></span>
+                      <span>{t("editor.rename")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => {
+                        setCommandSheetOpen(false);
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      <span className="action-sheet-icon" aria-hidden="true"><TrashIcon /></span>
+                      <span>{t("editor.delete")}</span>
+                    </button>
+                  </>
+                ) : null}
               </div>
             ) : null}
             {/* Workspace navigation: open Ask, jump to Indexing or Settings. */}
@@ -1451,7 +1551,7 @@ function SwipeableTab(props: {
 
   return (
     <div
-      className={`editor-tab-shell ${active ? "active" : ""} ${closing ? "closing" : ""}`}
+      className={`editor-tab-shell ${active ? "active" : ""} ${closing ? "closing" : ""} ${tab.isDraft ? "draft" : ""}`}
       style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx === 0 || closing ? "transform 160ms ease" : "none" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -1459,8 +1559,8 @@ function SwipeableTab(props: {
       onPointerCancel={() => reset()}
     >
       <button role="tab" aria-selected={active} className="editor-tab" onClick={onActivate}>
-        <span translate="no">{tab.name}</span>
-        <span className="tab-path" translate="no">{tab.path}</span>
+        <span translate={tab.isDraft ? undefined : "no"}>{tab.name}</span>
+        {tab.isDraft ? null : <span className="tab-path" translate="no">{tab.path}</span>}
       </button>
       <button
         className="tab-close"
@@ -1548,110 +1648,6 @@ function CheckMark() {
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M5 12l5 5 9-11" />
     </svg>
-  );
-}
-
-function QuickNoteSheet(props: {
-  isMobile: boolean;
-  folderLabel: string;
-  onCancel: () => void;
-  onSave: (content: string) => Promise<void>;
-}) {
-  const t = useT();
-  const [content, setContent] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const titleId = useId();
-  const descId = useId();
-
-  useEffect(() => {
-    // On desktop, autofocus immediately. On mobile, focus the textarea
-    // too so the keyboard pops up (the user opened this surface
-    // explicitly, so the keyboard is welcome).
-    textareaRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !submitting) {
-        props.onCancel();
-        return;
-      }
-      // Cmd/Ctrl + Enter saves.
-      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-        event.preventDefault();
-        if (content.trim() && !submitting) {
-          submit();
-        }
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content, submitting]);
-
-  async function submit() {
-    if (!content.trim() || submitting) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await props.onSave(content);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.actionFailed"));
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop sheet-backdrop quick-note-backdrop" role="presentation" onMouseDown={() => { if (!submitting) props.onCancel(); }}>
-      <section
-        className="quick-note-sheet panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descId}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header className="quick-note-header">
-          <div>
-            <h2 id={titleId}>{t("quick.title")}</h2>
-            <p className="muted" id={descId}>
-              {t("quick.description", { folder: props.folderLabel })}
-            </p>
-          </div>
-          <button type="button" onClick={props.onCancel} disabled={submitting} aria-label={t("quick.cancel")}>
-            <span aria-hidden="true">{"\u00d7"}</span>
-          </button>
-        </header>
-        <textarea
-          ref={textareaRef}
-          className="quick-note-textarea"
-          name="quick-note-content"
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder={t("quick.placeholder")}
-          spellCheck
-          disabled={submitting}
-          aria-label={t("quick.title")}
-        />
-        {error ? <div className="error" aria-live="polite">{error}</div> : null}
-        <div className="quick-note-actions">
-          <button type="button" onClick={props.onCancel} disabled={submitting}>
-            {t("quick.cancel")}
-          </button>
-          <button
-            type="button"
-            className="primary"
-            onClick={submit}
-            disabled={!content.trim() || submitting}
-            aria-busy={submitting}
-          >
-            <BusyLabel busy={submitting} busyText={t("quick.saveBusy")}>{t("quick.save")}</BusyLabel>
-          </button>
-        </div>
-      </section>
-    </div>
   );
 }
 

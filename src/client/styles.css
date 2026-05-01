@@ -3955,112 +3955,71 @@ button[aria-busy="true"] > .button-spinner {
   .mobile-app-bar,
   .overflow-menu,
   .action-sheet,
-  .sheet-backdrop:not(.quick-note-backdrop) {
+  .sheet-backdrop,
+  .quick-note-fab {
     display: none !important;
   }
 }
 
-/* ===== Quick note: capture surface (mobile bottom sheet, desktop dialog).
-   Reuses .modal-backdrop + .sheet-backdrop semantics. */
-.quick-note-backdrop {
-  display: grid;
-  align-items: end;
-  padding: 0;
+/* ===== Quick note: in-editor draft model.
+   The capture surface is the existing editor; new content lives in a
+   short-lived "draft" tab until the user saves. Visual cues
+   distinguish it from on-disk documents. */
+
+.draft-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.55rem;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 18%, transparent);
+  color: var(--md-primary, var(--accent-2));
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
-.quick-note-sheet {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  gap: 0.75rem;
-  width: 100%;
-  max-width: 100%;
-  max-height: 86dvh;
-  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
-  border-radius: 22px 22px 0 0;
-  background: var(--md-surface, var(--panel));
-  box-shadow: var(--md-elevation-2, var(--shadow));
-  animation: owd-sheet-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+.editor-tab-shell.draft .editor-tab > span {
+  font-style: italic;
 }
 
-.quick-note-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
+.editor-tab-shell.draft .editor-tab > span::after {
+  content: "*";
+  margin-left: 0.2rem;
+  color: var(--md-primary, var(--accent-2));
+  font-style: normal;
 }
 
-.quick-note-header h2 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 650;
-}
-
-.quick-note-header .muted {
-  margin: 0.2rem 0 0;
-  font-size: 0.8rem;
-}
-
-.quick-note-header > button {
-  display: grid;
-  width: 36px;
-  height: 36px;
+/* Bottom-left FAB on mobile: opens a fresh quick-note draft. Sits
+   opposite the bottom-right Save FAB so the two never overlap. */
+.quick-note-fab {
+  position: fixed;
+  z-index: 7;
+  left: max(0.85rem, env(safe-area-inset-left));
+  bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 0.15rem);
+  display: inline-grid;
+  width: 52px;
+  height: 52px;
   place-items: center;
   border: 0;
   border-radius: 999px;
   padding: 0;
-  background: transparent;
-  color: var(--md-muted, var(--muted));
-  font-size: 1.2rem;
-  line-height: 1;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-primary, var(--accent-2));
+  box-shadow: var(--md-elevation-2, 0 8px 24px rgba(0, 0, 0, 0.28));
+  transition: transform 160ms ease, background-color 160ms ease;
 }
 
-.quick-note-header > button:hover:not(:disabled) {
+.quick-note-fab:hover:not(:disabled),
+.quick-note-fab:focus-visible {
   background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
-  transform: none;
 }
 
-.quick-note-textarea {
-  width: 100%;
-  min-height: 40dvh;
-  resize: vertical;
-  border-radius: 14px;
-  padding: 0.85rem 1rem;
-  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 60%, transparent));
-  color: var(--md-text, var(--text));
-  font-family: var(--font-mono);
-  font-size: 16px;
-  line-height: 1.55;
-}
-
-.quick-note-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.6rem;
-}
-
-.quick-note-actions button {
-  min-height: 44px;
-}
-
-/* Desktop dialog presentation: center it like a modal instead of a
-   bottom sheet. */
-@media (min-width: 861px) {
-  .quick-note-backdrop {
-    align-items: center;
-    padding: max(2rem, env(safe-area-inset-top)) max(2rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(2rem, env(safe-area-inset-left));
-  }
-
-  .quick-note-sheet {
-    width: min(640px, 100%);
-    max-height: min(80dvh, 720px);
-    border-radius: 22px;
-    animation: owd-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .quick-note-textarea {
-    min-height: 26rem;
-  }
+.quick-note-fab svg {
+  width: 22px;
+  height: 22px;
 }
 
 /* Desktop topbar quick-note trigger: a small pill with icon + label. */

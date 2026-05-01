@@ -66,6 +66,9 @@ const dictionaries = {
 
     "quick.trigger": "Quick note",
     "quick.title": "Quick note",
+    "quick.draftTitle": "Quick note",
+    "quick.draftEyebrow": "Unsaved draft",
+    "quick.draftBadge": "Draft",
     "quick.description": "Capture an idea now; the file name is derived from the first heading or line. Saves to {folder}.",
     "quick.placeholder": "Start writing\u2026",
     "quick.save": "Save",
@@ -408,6 +411,9 @@ const dictionaries = {
 
     "quick.trigger": "\u5feb\u8bb0",
     "quick.title": "\u5feb\u8bb0",
+    "quick.draftTitle": "\u5feb\u8bb0",
+    "quick.draftEyebrow": "\u672a\u4fdd\u5b58\u8349\u7a3f",
+    "quick.draftBadge": "\u8349\u7a3f",
     "quick.description": "\u968f\u624b\u8bb0\u5f55\uff0c\u6587\u4ef6\u540d\u4ece\u9996\u4e2a\u6807\u9898\u6216\u9996\u884c\u81ea\u52a8\u8bc6\u522b\uff0c\u4fdd\u5b58\u5230 {folder}\u3002",
     "quick.placeholder": "\u5f00\u59cb\u8f93\u5165\u2026",
     "quick.save": "\u4fdd\u5b58",
