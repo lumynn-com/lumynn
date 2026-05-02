@@ -17,7 +17,7 @@ The application should keep Markdown files as the source of truth on disk, use O
   - Right column: AI Ask panel with persistent question/answer/query state and clickable source citations.
 - Global edit/preview mode switch that applies to every opened file and persists across page refreshes.
 - Document sorting preference persists across page refreshes.
-- Rename, create, edit, preview, save, and delete document actions. The New Note dialog pre-fills the path from the active document's parent folder so a new note lands next to the file you were just looking at; falls back to vault root when nothing is selected or the active tab is an unsaved draft.
+- Rename, create, edit, preview, save, and delete document actions. The document tree tracks an explicit "selected folder" (highlighted in the tree) that updates when the user taps a folder row or opens a file (in which case the file's parent becomes the implicit selected folder). The New Note dialog pre-fills the path from the selected folder so a new note lands where the user is looking; falls back to vault root when no folder has been picked.
 - Vault search modal that uses `obsidian-cli` first and falls back to filesystem search.
 - Vault search results show clickable file names only, truncated to one line when too long, and the result list scrolls inside the modal.
 - Obsidian-style Markdown preview support for wikilinks, highlights, comments, callouts, image embeds, relative image paths, and LaTeX math.

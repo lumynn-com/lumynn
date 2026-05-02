@@ -148,16 +148,22 @@ function isDraftPath(value: string): boolean {
   return value.startsWith("__draft__/");
 }
 
-// Default path for the New Note prompt. If a real document is open,
-// pre-fill the dialog with its parent folder so the user lands a new
-// note next to the file they were just looking at. Drafts have no
-// folder semantics; for them (or no selection) we drop the user at
-// the vault root.
-function defaultNewNotePath(active: { path: string; isDraft?: boolean } | null): string {
-  if (!active || active.isDraft || !active.path) return "Untitled.md";
-  const lastSlash = active.path.lastIndexOf("/");
-  if (lastSlash <= 0) return "Untitled.md";
-  return `${active.path.slice(0, lastSlash + 1)}Untitled.md`;
+// Returns the folder portion of a vault-relative file path (without
+// trailing slash). Returns "" for files at the vault root, drafts, or
+// empty input.
+function parentFolderOf(documentPath: string): string {
+  if (!documentPath || isDraftPath(documentPath)) return "";
+  const lastSlash = documentPath.lastIndexOf("/");
+  return lastSlash > 0 ? documentPath.slice(0, lastSlash) : "";
+}
+
+// Default path for the New Note prompt. We pre-fill the dialog with
+// the user's selected folder so a new note lands where they're
+// looking. Selected folder comes from (in order): an explicit folder
+// tap in the tree, the parent folder of the active document, or the
+// vault root.
+function defaultNewNotePath(selectedFolder: string): string {
+  return selectedFolder ? `${selectedFolder}/Untitled.md` : "Untitled.md";
 }
 
 function readSavedSort(): { sort: SortField; order: SortOrder } {
@@ -248,6 +254,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
   const [status, setStatus] = useState<StatusValue>(READY_STATUS);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
@@ -323,6 +330,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const openDocument = useCallback(
     (path: string) => {
       setActivePath(path);
+      setSelectedFolder(parentFolderOf(path));
       if (isMobile) {
         haptic(6);
         setMobileSection("editor");
@@ -1023,8 +1031,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           <DocumentTree
             nodes={documentTree}
             selectedPath={activePath}
+            selectedFolder={selectedFolder}
             expandedFolders={expandedFolders}
-            onToggleFolder={(folderPath) => setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }))}
+            onToggleFolder={(folderPath) => {
+              setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }));
+              setSelectedFolder(folderPath);
+            }}
             onSelect={openDocument}
             emptyLabel={t("vault.empty")}
           />
@@ -1169,7 +1181,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           description={t("prompt.create.description")}
           label={t("prompt.create.label")}
           placeholder={t("prompt.create.placeholder")}
-          initialValue={defaultNewNotePath(active)}
+          initialValue={defaultNewNotePath(selectedFolder)}
           submitLabel={t("prompt.create.submit")}
           submitLoadingLabel={t("prompt.create.submitBusy")}
           cancelLabel={t("prompt.cancel")}
@@ -1593,6 +1605,7 @@ function SwipeableTab(props: {
 function DocumentTree(props: {
   nodes: TreeNode[];
   selectedPath: string;
+  selectedFolder: string;
   expandedFolders: Record<string, boolean>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
@@ -1617,6 +1630,7 @@ function TreeNodeRow(props: {
   node: TreeNode;
   depth: number;
   selectedPath: string;
+  selectedFolder: string;
   expandedFolders: Record<string, boolean>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
@@ -1624,9 +1638,16 @@ function TreeNodeRow(props: {
   const isExpanded = props.expandedFolders[props.node.id] ?? false;
 
   if (props.node.type === "folder") {
+    const isSelected = props.selectedFolder === props.node.id;
     return (
       <div className="tree-group">
-        <button className="tree-row folder-row" aria-expanded={isExpanded} style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }} onClick={() => props.onToggleFolder(props.node.id)}>
+        <button
+          className={`tree-row folder-row ${isSelected ? "selected" : ""}`}
+          aria-expanded={isExpanded}
+          aria-current={isSelected ? "true" : undefined}
+          style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }}
+          onClick={() => props.onToggleFolder(props.node.id)}
+        >
           <span className="tree-caret" aria-hidden="true">
             {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </span>
