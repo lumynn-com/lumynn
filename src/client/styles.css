@@ -3074,22 +3074,27 @@ button[aria-busy="true"] > .button-spinner {
   }
 
   .editor-pane {
-    min-height: 70dvh;
     max-height: none;
     overflow: visible;
   }
 
+  /* Let the editor field and textarea grow to fill the editor pane.
+     The pane itself flexes against the viewport (see the editor-first
+     mobile rules further down) and exposes a flex-column layout, so
+     min-height: 0 is enough; the textarea then takes height: 100%. */
   .editor-field {
-    min-height: 50dvh;
+    flex: 1;
+    min-height: 0;
   }
 
   .editor textarea {
-    min-height: 50dvh;
-    height: 50dvh;
+    height: 100%;
+    min-height: 0;
   }
 
   .preview-surface {
-    min-height: 50dvh;
+    flex: 1;
+    min-height: 0;
   }
 
   .qa-panel {
