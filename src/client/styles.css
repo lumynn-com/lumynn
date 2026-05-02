@@ -3965,6 +3965,37 @@ button[aria-busy="true"] > .button-spinner {
    short-lived "draft" tab until the user saves. Visual cues
    distinguish it from on-disk documents. */
 
+/* Chrome-style "new tab" button at the end of the tab strip. Always
+   visible, fixed size, doesn't shrink or wrap when the tab strip
+   horizontally scrolls. */
+.tab-strip-add {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px dashed var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab-strip-add:hover,
+.tab-strip-add:focus-visible {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--md-primary, var(--accent-2)) 38%, var(--md-outline-soft, var(--border)));
+  background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent);
+  color: var(--md-primary, var(--accent-2));
+}
+
+.tab-strip-add svg {
+  width: 16px;
+  height: 16px;
+}
+
 .draft-pill {
   display: inline-flex;
   align-items: center;
@@ -3992,26 +4023,6 @@ button[aria-busy="true"] > .button-spinner {
 }
 
 /* Desktop topbar quick-note trigger: a small pill with icon + label. */
-.topbar-quick-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  width: auto;
-  margin-top: 0;
-  white-space: nowrap;
-}
-
-.topbar-quick-note svg {
-  width: 16px;
-  height: 16px;
-}
-
-@media (max-width: 1180px) {
-  .topbar-quick-note-label {
-    display: none;
-  }
-}
-
 /* ============================================================
    Editor-first mobile model (Obsidian Mobile inspired):
    - Single sticky app bar at the very top: \u2630 + file name + \u22ef

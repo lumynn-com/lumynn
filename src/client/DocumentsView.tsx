@@ -148,6 +148,18 @@ function isDraftPath(value: string): boolean {
   return value.startsWith("__draft__/");
 }
 
+// Default path for the New Note prompt. If a real document is open,
+// pre-fill the dialog with its parent folder so the user lands a new
+// note next to the file they were just looking at. Drafts have no
+// folder semantics; for them (or no selection) we drop the user at
+// the vault root.
+function defaultNewNotePath(active: { path: string; isDraft?: boolean } | null): string {
+  if (!active || active.isDraft || !active.path) return "Untitled.md";
+  const lastSlash = active.path.lastIndexOf("/");
+  if (lastSlash <= 0) return "Untitled.md";
+  return `${active.path.slice(0, lastSlash + 1)}Untitled.md`;
+}
+
 function readSavedSort(): { sort: SortField; order: SortOrder } {
   const fallback: { sort: SortField; order: SortOrder } = { sort: "updatedAt", order: "desc" };
   try {
@@ -527,6 +539,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     refreshDocuments().catch((error) => setStatusText(error.message));
   }, []);
 
+  // On first mount, if the user lands without anything open, spawn a
+  // quick-note draft so the app opens directly into a writable
+  // surface instead of a blank "Select a document" placeholder.
+  const didSeedDraftRef = useRef(false);
+  useEffect(() => {
+    if (didSeedDraftRef.current) return;
+    if (tabs.length > 0 || activePath) return;
+    didSeedDraftRef.current = true;
+    createQuickNoteDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!activePath || tabs.some((tab) => tab.path === activePath)) {
       return;
@@ -887,14 +911,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           <button
             type="button"
             className="icon-button"
-            aria-label={t("quick.trigger")}
-            onClick={createQuickNoteDraft}
-          >
-            <PlusIcon />
-          </button>
-          <button
-            type="button"
-            className="icon-button"
             aria-label={t("editor.moreActions")}
             aria-expanded={commandSheetOpen}
             aria-haspopup="menu"
@@ -1066,21 +1082,28 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </button>
           </div>
         </div>
-        {tabs.length > 0 ? (
-          <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
-            {tabs.map((tab) => (
-              <SwipeableTab
-                key={tab.path}
-                tab={tab}
-                active={activePath === tab.path}
-                isMobile={isMobile}
-                closeAriaLabel={t("editor.closeTab", { name: tab.name })}
-                onActivate={() => setActivePath(tab.path)}
-                onClose={() => closeTab(tab.path)}
-              />
-            ))}
-          </div>
-        ) : null}
+        <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
+          {tabs.map((tab) => (
+            <SwipeableTab
+              key={tab.path}
+              tab={tab}
+              active={activePath === tab.path}
+              isMobile={isMobile}
+              closeAriaLabel={t("editor.closeTab", { name: tab.name })}
+              onActivate={() => setActivePath(tab.path)}
+              onClose={() => closeTab(tab.path)}
+            />
+          ))}
+          <button
+            type="button"
+            className="tab-strip-add"
+            aria-label={t("quick.trigger")}
+            title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
+            onClick={createQuickNoteDraft}
+          >
+            <PlusIcon />
+          </button>
+        </div>
         {active && centerMode === "edit" ? (
           <label className="editor-field">
             <span className="sr-only">{t("editor.contentLabel")}</span>
@@ -1146,7 +1169,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           description={t("prompt.create.description")}
           label={t("prompt.create.label")}
           placeholder={t("prompt.create.placeholder")}
-          initialValue="Untitled.md"
+          initialValue={defaultNewNotePath(active)}
           submitLabel={t("prompt.create.submit")}
           submitLoadingLabel={t("prompt.create.submitBusy")}
           cancelLabel={t("prompt.cancel")}
