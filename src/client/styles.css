@@ -3996,6 +3996,20 @@ button[aria-busy="true"] > .button-spinner {
   height: 16px;
 }
 
+/* The brand logo is now an <img> rendered from /apple-touch-icon.png.
+   The earlier .logo rules assumed a text glyph inside a gradient
+   chip; with a real image we drop the chip background and the
+   inset highlight (the icon already provides its own gradient and
+   highlight), and keep the size + rounded corners. */
+img.logo {
+  display: block;
+  background: transparent;
+  box-shadow: none;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
 /* Selected folder in the document tree: gives "where will my new
    note land?" a visible answer. Slightly fainter than file
    selection so the active document stays the dominant focus. */

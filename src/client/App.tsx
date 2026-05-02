@@ -150,7 +150,7 @@ function Workspace(props: { onLogout: () => void }) {
       <a className="skip-link" href="#main-content">{t("skipToMain")}</a>
       <header className="workspace-topbar desktop-only">
         <button className="brand topbar-brand" type="button" onClick={() => setView("workspace")} aria-label={t("app.openWorkspace")}>
-          <span className="logo" aria-hidden="true" translate="no">OW</span>
+          <img className="logo" src="/apple-touch-icon.png" alt="" width={36} height={36} aria-hidden="true" />
           <div>
             <strong translate="no">{t("app.brand.name")}</strong>
             <span>{t("app.brand.tagline")}</span>
