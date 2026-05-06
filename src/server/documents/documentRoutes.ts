@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeDocument } from "../vault/vaultService";
+import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -20,6 +20,33 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to create document" };
+    }
+  });
+
+  // Paste-image-into-editor upload. The browser sends raw image bytes
+  // as application/octet-stream and passes the MIME type + optional
+  // original filename in query params, which is much smaller on the
+  // wire than multipart or base64.
+  app.post("/api/documents/attachments", async (request, reply) => {
+    const query = z
+      .object({
+        type: z.string().min(1).max(80),
+        name: z.string().min(1).max(200).optional()
+      })
+      .parse(request.query);
+    if (!(request.body instanceof Buffer)) {
+      reply.code(400);
+      return { error: "Expected binary body (application/octet-stream)" };
+    }
+    try {
+      return await writeAttachment({
+        bytes: request.body,
+        mimeType: query.type,
+        preferredName: query.name
+      });
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to save attachment" };
     }
   });
 

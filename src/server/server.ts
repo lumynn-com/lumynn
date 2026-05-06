@@ -54,9 +54,17 @@ export async function buildServer() {
 
   const app = Fastify({
     logger: true,
-    bodyLimit: 1024 * 1024 * 5,
+    bodyLimit: 1024 * 1024 * 30,
     ...(httpsOptions ? { https: httpsOptions } : {})
   });
+
+  // Accept raw binary uploads (e.g. paste-image-into-editor) as a
+  // Buffer rather than the default UTF-8 string parsing.
+  app.addContentTypeParser(
+    "application/octet-stream",
+    { parseAs: "buffer" },
+    (_request, body, done) => done(null, body)
+  );
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

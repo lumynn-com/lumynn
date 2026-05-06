@@ -361,6 +361,98 @@ export async function createDocument(documentPath: string, content = ""): Promis
   return writeDocument(safePath, content || `# ${path.basename(safePath, ".md")}\n`);
 }
 
+// Whitelist of image MIME types we accept for paste-into-editor uploads
+// and the corresponding canonical extension we save with.
+const ATTACHMENT_IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/avif": "avif",
+  "image/bmp": "bmp",
+  "image/heic": "heic",
+  "image/heif": "heif"
+};
+
+const ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+
+export interface WriteAttachmentResult {
+  /** Vault-relative path to the new file, e.g. `attachments/2026-05-06-142510-a1b2.png`. */
+  path: string;
+}
+
+// Persist a binary attachment (image) to <vault>/attachments/ with a
+// time-sortable, collision-resistant filename. Returns the
+// vault-relative path the caller should reference from Markdown.
+export async function writeAttachment(params: {
+  bytes: Buffer;
+  mimeType: string;
+  preferredName?: string;
+}): Promise<WriteAttachmentResult> {
+  const ext = ATTACHMENT_IMAGE_EXTENSIONS[params.mimeType.toLowerCase()];
+  if (!ext) {
+    throw new Error(`Unsupported attachment type: ${params.mimeType}`);
+  }
+  if (params.bytes.length === 0) {
+    throw new Error("Attachment is empty");
+  }
+  if (params.bytes.length > ATTACHMENT_MAX_BYTES) {
+    throw new Error(`Attachment is larger than ${Math.round(ATTACHMENT_MAX_BYTES / 1024 / 1024)} MB`);
+  }
+
+  const vaultRoot = await ensureVault();
+  const folderRel = "attachments";
+  const folderAbs = path.resolve(vaultRoot, folderRel);
+  if (!isInside(vaultRoot, folderAbs)) {
+    throw new Error("Attachment path escapes the vault");
+  }
+  await fs.mkdir(folderAbs, { recursive: true });
+
+  const baseName = sanitizeAttachmentBase(params.preferredName) ?? formatAttachmentTimestamp(new Date());
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const suffix = attempt === 0 ? randomToken(4) : `${randomToken(4)}-${attempt}`;
+    const fileName = `${baseName}-${suffix}.${ext}`;
+    const fileAbs = path.resolve(folderAbs, fileName);
+    if (!isInside(folderAbs, fileAbs)) continue;
+    try {
+      // wx = exclusive create; fails if the file already exists. This
+      // closes the time-of-check / time-of-use race that a `stat`
+      // followed by `writeFile` would have.
+      await fs.writeFile(fileAbs, params.bytes, { flag: "wx" });
+      return { path: `${folderRel}/${fileName}` };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
+  throw new Error("Could not pick a unique attachment name");
+}
+
+function sanitizeAttachmentBase(input: string | undefined): string | null {
+  if (!input) return null;
+  const withoutExt = input.replace(/\.[a-z0-9]{1,6}$/i, "");
+  const cleaned = withoutExt
+    .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 60);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+function formatAttachmentTimestamp(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function randomToken(length: number): string {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  let out = "";
+  for (let i = 0; i < length; i += 1) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
 export async function deleteDocument(documentPath: string): Promise<void> {
   const vaultRoot = await ensureVault();
   const safePath = normalizeDocumentPath(documentPath);

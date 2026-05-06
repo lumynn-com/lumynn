@@ -408,6 +408,88 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // Disable iOS pinch-zoom only inside the editor textarea so users can
   // still pinch-zoom previews, the document tree, and other content.
   const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Paste-image-into-editor: when the user pastes an image (clipboard
+  // bytes from a screenshot or a file copy) we upload it to the
+  // server's attachments folder and insert an Obsidian-style
+  // ![[attachments/...]] reference at the textarea cursor. While the
+  // upload is in flight we insert a sentinel placeholder so the user
+  // sees feedback; the placeholder is replaced once the server returns.
+  const pendingAttachmentId = useRef(0);
+
+  function insertAtCursor(textarea: HTMLTextAreaElement, snippet: string): void {
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? start;
+    const before = textarea.value.slice(0, start);
+    const after = textarea.value.slice(end);
+    const next = `${before}${snippet}${after}`;
+    setActiveDraft(next);
+    // Move the caret to just after the inserted snippet on next tick.
+    requestAnimationFrame(() => {
+      const caret = (before + snippet).length;
+      textarea.focus();
+      textarea.setSelectionRange(caret, caret);
+    });
+  }
+
+  async function uploadPastedImage(file: File): Promise<void> {
+    const id = ++pendingAttachmentId.current;
+    const placeholder = `![[uploading-${id}]]`;
+    const textarea = editorTextareaRef.current;
+    if (textarea) {
+      insertAtCursor(textarea, placeholder);
+    } else {
+      // Fallback: append to draft if the ref is detached.
+      setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, draft: `${tab.draft}${placeholder}` } : tab)));
+    }
+    setStatusKey("status.uploading");
+    try {
+      const buffer = await file.arrayBuffer();
+      const params = new URLSearchParams({ type: file.type });
+      if (file.name) params.set("name", file.name);
+      const result = await api<{ path: string }>(`/api/documents/attachments?${params.toString()}`, {
+        method: "POST",
+        headers: { "content-type": "application/octet-stream" },
+        body: buffer
+      });
+      const replacement = `![[${result.path}]]`;
+      // Replace the placeholder in whatever the active tab's draft is
+      // *now* (the user may have continued typing during the upload).
+      setTabs((current) => current.map((tab) => {
+        if (tab.path !== activePath) return tab;
+        if (!tab.draft.includes(placeholder)) return tab;
+        return { ...tab, draft: tab.draft.replace(placeholder, replacement) };
+      }));
+      setStatusKey("status.attachmentSaved");
+    } catch (error) {
+      // Turn the placeholder into a comment so it doesn't render in
+      // preview and the user sees what went wrong inline.
+      const message = error instanceof Error ? error.message : "Upload failed";
+      const errorMarker = `<!-- attachment upload failed: ${message.replace(/-->/g, "")} -->`;
+      setTabs((current) => current.map((tab) => {
+        if (tab.path !== activePath) return tab;
+        if (!tab.draft.includes(placeholder)) return tab;
+        return { ...tab, draft: tab.draft.replace(placeholder, errorMarker) };
+      }));
+      setStatusText(`${t("status.uploadFailed")}: ${message}`);
+    }
+  }
+
+  function onEditorPaste(event: React.ClipboardEvent<HTMLTextAreaElement>): void {
+    if (!event.clipboardData || event.clipboardData.files.length === 0) return;
+    const images: File[] = [];
+    for (const file of Array.from(event.clipboardData.files)) {
+      if (file.type.startsWith("image/")) images.push(file);
+    }
+    if (images.length === 0) return;
+    event.preventDefault();
+    images.forEach((image) => {
+      uploadPastedImage(image);
+    });
+  }
+
+  // Pinch-zoom suppression only inside the editor textarea so users
+  // can still pinch-zoom previews, the document tree, etc.
   useEffect(() => {
     const node = editorTextareaRef.current;
     if (!node) return;
@@ -1124,6 +1206,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               name="markdown-content"
               value={active.draft}
               onChange={(event) => setActiveDraft(event.target.value)}
+              onPaste={onEditorPaste}
               spellCheck={false}
             />
           </label>

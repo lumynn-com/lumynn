@@ -125,6 +125,9 @@ const dictionaries = {
     "status.restoreFailedPrefix": "Restore failed",
     "status.restoredPrefix": "Restored",
     "status.reopenedPrefix": "Reopened",
+    "status.uploading": "Uploading\u2026",
+    "status.uploadFailed": "Upload failed",
+    "status.attachmentSaved": "Image saved to attachments",
 
     // Undo toast
     "undo.closedPrefix": "Closed",
@@ -468,6 +471,9 @@ const dictionaries = {
     "status.restoreFailedPrefix": "\u6062\u590d\u5931\u8d25",
     "status.restoredPrefix": "\u5df2\u6062\u590d",
     "status.reopenedPrefix": "\u5df2\u91cd\u65b0\u6253\u5f00",
+    "status.uploading": "\u4e0a\u4f20\u4e2d\u2026",
+    "status.uploadFailed": "\u4e0a\u4f20\u5931\u8d25",
+    "status.attachmentSaved": "\u56fe\u7247\u5df2\u4fdd\u5b58\u5230 attachments",
 
     "undo.closedPrefix": "\u5df2\u5173\u95ed",
     "undo.deletedPrefix": "\u5df2\u5220\u9664",
