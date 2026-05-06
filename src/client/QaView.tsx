@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
 import { BusyLabel } from "./icons";
@@ -142,6 +142,7 @@ async function runAsk(question: string): Promise<void> {
 export function QaView(props: { compact?: boolean; onOpenSource?: (path: string) => void }) {
   const t = useT();
   const [state, setState] = useState(getRuntimeState);
+  const answerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     return subscribeQaState(setState);
@@ -151,19 +152,42 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
     await runAsk(state.question);
   }
 
-  function openAnswerReference(event: MouseEvent<HTMLElement>) {
-    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='#source-']");
-    if (!link) {
-      return;
-    }
+  function dispatchCitationFromTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof Element) || !props.onOpenSource) return false;
+    const link = target.closest<HTMLAnchorElement>("a[href^='#source-']");
+    if (!link) return false;
     const sourceIndex = Number.parseInt(link.getAttribute("href")?.replace("#source-", "") ?? "", 10) - 1;
     const citation = state.citations[sourceIndex];
-    if (!citation || !props.onOpenSource) {
-      return;
-    }
-    event.preventDefault();
+    if (!citation) return false;
     props.onOpenSource(citation.path);
+    return true;
   }
+
+  function openAnswerReference(event: MouseEvent<HTMLElement>) {
+    if (dispatchCitationFromTarget(event.target)) {
+      event.preventDefault();
+    }
+  }
+
+  // Belt-and-braces: attach a native click listener on the rendered
+  // answer in addition to the React onClick. Some mobile Chromium
+  // builds drop synthetic clicks that travel through
+  // dangerouslySetInnerHTML content with anchor children, which
+  // breaks the citation links inside the AI answer on phones. The
+  // native listener runs in the capture phase and does the same
+  // open + preventDefault.
+  useEffect(() => {
+    const node = answerRef.current;
+    if (!node) return;
+    function handleClick(event: Event) {
+      if (dispatchCitationFromTarget(event.target)) {
+        event.preventDefault();
+      }
+    }
+    node.addEventListener("click", handleClick, { capture: true });
+    return () => node.removeEventListener("click", handleClick, { capture: true } as EventListenerOptions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.answerHtml, state.citations]);
 
   return (
     <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label={t("qa.eyebrow")}>
@@ -214,7 +238,16 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
           </div>
           {state.retrievalWarning ? <div className="error">{t("qa.retrievalWarning", { message: state.retrievalWarning })}</div> : null}
           {state.providerError ? <div className="error">{t("qa.providerWarning", { message: state.providerError })}</div> : null}
-          {state.answerHtml ? <article className="qa-answer" onClick={openAnswerReference} dangerouslySetInnerHTML={{ __html: state.answerHtml }} /> : <p>{state.answer}</p>}
+          {state.answerHtml ? (
+            <article
+              ref={answerRef}
+              className="qa-answer"
+              onClick={openAnswerReference}
+              dangerouslySetInnerHTML={{ __html: state.answerHtml }}
+            />
+          ) : (
+            <p>{state.answer}</p>
+          )}
         </section>
       ) : null}
       <section className="citation-grid">
