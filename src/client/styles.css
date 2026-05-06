@@ -4112,13 +4112,22 @@ img.logo {
     white-space: nowrap;
   }
 
-  .mobile-app-bar-title .muted {
+  .mobile-app-bar-title .muted,
+  .mobile-app-bar-title .status-subline {
     font-size: 0.7rem;
     line-height: 1.2;
     color: var(--md-muted, var(--muted));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .mobile-app-bar-title .status-subline.pending {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  .mobile-app-bar-title .status-subline:not(.pending) {
+    color: var(--md-success, color-mix(in srgb, var(--md-primary, var(--accent-2)) 76%, white));
   }
 
   /* Workspace grid simplifies: editor occupies the whole viewport,

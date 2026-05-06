@@ -625,6 +625,23 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setStatus({ kind: "text", text });
   }
 
+  // Render-friendly status string used for the toast/mobile chip.
+  const statusLabel =
+    status.kind === "key"
+      ? status === READY_STATUS ? "" : t(status.key, status.params)
+      : status.text;
+  // A status ends with the ellipsis when it represents an in-flight
+  // operation (Saving\u2026, Uploading\u2026 etc.). Those should stay
+  // visible until the operation completes; transient statuses like
+  // "Saved" or "Image saved to attachments" auto-fade after 2.5 s.
+  const statusIsPending = statusLabel.endsWith("\u2026");
+
+  useEffect(() => {
+    if (!statusLabel || statusIsPending) return;
+    const timer = window.setTimeout(() => setStatus(READY_STATUS), 2500);
+    return () => window.clearTimeout(timer);
+  }, [statusLabel, statusIsPending]);
+
   useEffect(() => {
     refreshDocuments().catch((error) => setStatusText(error.message));
   }, []);
@@ -659,26 +676,33 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
 
+  // Re-render the preview whenever the draft text or active document
+  // changes. We depend on the primitive draft string + path rather than
+  // the active object itself so React's identity comparison is stable
+  // and tied to the actual content the preview renders from.
   useEffect(() => {
     if (!active) {
       setPreview("");
       return;
     }
 
+    const draft = active.draft;
+    const isDraft = active.isDraft;
+    const path = active.path;
     const timer = window.setTimeout(() => {
       api<{ html: string }>("/api/documents/preview", {
         method: "POST",
         body: JSON.stringify({
           // Don't send a synthetic draft path to the server.
-          path: active.isDraft ? undefined : active.path,
-          content: active.draft
+          path: isDraft ? undefined : path,
+          content: draft
         })
       })
         .then((result) => setPreview(result.html))
         .catch(() => setPreview(""));
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [active]);
+  }, [active?.draft, active?.path, active?.isDraft]);
 
   function setGlobalCenterMode(nextMode: "edit" | "preview") {
     setCenterMode(nextMode);
@@ -995,8 +1019,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <strong>
               {active?.isDraft ? t("quick.draftTitle") : (active?.name ?? t("editor.title"))}
             </strong>
-            {active && !active.isDraft ? <span className="muted" translate="no">{active.path}</span> : null}
-            {active?.isDraft ? <span className="muted">{t("quick.draftEyebrow")}</span> : null}
+            {statusLabel ? (
+              <span className={`status-subline ${statusIsPending ? "pending" : ""}`} aria-live="polite">{statusLabel}</span>
+            ) : active && !active.isDraft ? (
+              <span className="muted" translate="no">{active.path}</span>
+            ) : active?.isDraft ? (
+              <span className="muted">{t("quick.draftEyebrow")}</span>
+            ) : null}
           </div>
           <button
             type="button"
