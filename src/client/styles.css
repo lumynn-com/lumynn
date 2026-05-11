@@ -4350,14 +4350,15 @@ img.logo {
     margin: 1.5em 0;
   }
 
-  /* Hide any FABs / toasts / overlays that might still be in the
-     React tree at print time. */
+  /* Hide any FABs / toasts / overlays / a11y skip link that might
+     still be in the React tree at print time. */
   .editor-fab,
   .undo-toast,
   .modal-backdrop,
   .sheet-backdrop,
   .mobile-overlay-backdrop,
-  .back-to-top {
+  .back-to-top,
+  .skip-link {
     display: none !important;
   }
 
