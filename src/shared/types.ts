@@ -7,10 +7,20 @@ export interface DocumentTreeEntry {
   path: string;
   /** Basename of the entry. */
   name: string;
-  /** Whether this entry is a folder (has `children`) or a file (leaf). */
+  /** Whether this entry is a folder (has children) or a file (leaf). */
   type: "folder" | "file";
-  /** Sorted children. Files inside the folder come at any depth. */
+  /** Sorted children. May be omitted on folders when the server
+   *  returned a depth-limited listing; `hasChildren` indicates
+   *  whether the folder is known to be non-empty without forcing
+   *  the children to be fetched. */
   children?: DocumentTreeEntry[];
+  /** Set by the server on folders when `children` was elided for
+   *  depth reasons but the folder is known to contain at least one
+   *  Markdown file or non-empty subfolder. */
+  hasChildren?: boolean;
+  /** For file entries when the server was asked to sort by mtime:
+   *  the file's last-modified time as an ISO string. */
+  updatedAt?: string;
 }
 
 export interface DocumentSummary {

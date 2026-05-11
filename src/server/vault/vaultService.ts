@@ -114,63 +114,145 @@ function resolveInVault(vaultRoot: string, documentPath: string): string {
   return fullPath;
 }
 
-// Lightweight in-memory cache for the directory walk. The tree
-// endpoint is hit on every workspace mount; on a slow/network-
-// mounted vault the walk is the dominant cost, so caching it for a
-// few seconds turns rapid reloads (e.g. PWA restore, refresh after
-// network blip) into instant renders. Cache is keyed by the
-// resolved vault root so switching vaults invalidates it
-// automatically.
+// Lightweight in-memory cache for directory listings. Per-folder
+// because the tree is now lazy: each folder expansion makes its own
+// /api/documents/tree?path=... call. Cache key includes path,
+// depth, and sort spec so different views don't collide.
 const TREE_CACHE_TTL_MS = 5_000;
 const treeCache = new Map<string, { value: DocumentTreeEntry; expiresAt: number }>();
 
-export async function listDocumentTree(): Promise<DocumentTreeEntry> {
+export type TreeSortField = "name" | "updatedAt";
+
+export interface ListDocumentTreeOptions {
+  /** Vault-relative folder path, "" for vault root. */
+  folder?: string;
+  /** How many levels of children to include. 1 = direct children
+   *  only (default; lazy-loading friendly). Number.POSITIVE_INFINITY
+   *  returns the entire subtree. */
+  depth?: number;
+  sort?: TreeSortField;
+  order?: SortOrder;
+}
+
+export async function listDocumentTree(options: ListDocumentTreeOptions = {}): Promise<DocumentTreeEntry> {
   const vaultRoot = await ensureVault();
   await fs.mkdir(vaultRoot, { recursive: true });
+  const folder = options.folder ?? "";
+  const depth = options.depth ?? 1;
+  const sort: TreeSortField = options.sort ?? "name";
+  const order: SortOrder = options.order ?? "asc";
+  const safeFolder = folder === "" ? "" : normalizeFolderPath(folder);
+
+  const cacheKey = `${vaultRoot}|${safeFolder}|d=${depth}|s=${sort}|o=${order}`;
   const now = Date.now();
-  const cached = treeCache.get(vaultRoot);
+  const cached = treeCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
     return cached.value;
   }
-  const root: DocumentTreeEntry = await buildTreeNode(vaultRoot, vaultRoot, "");
-  treeCache.set(vaultRoot, { value: root, expiresAt: now + TREE_CACHE_TTL_MS });
-  return root;
+
+  const folderAbs = safeFolder ? path.resolve(vaultRoot, safeFolder) : vaultRoot;
+  if (!isInside(vaultRoot, folderAbs)) {
+    throw new Error("Folder path escapes the vault");
+  }
+
+  const node = await buildTreeNode(vaultRoot, folderAbs, safeFolder, depth, sort, order);
+  treeCache.set(cacheKey, { value: node, expiresAt: now + TREE_CACHE_TTL_MS });
+  return node;
+}
+
+function normalizeFolderPath(input: string): string {
+  const normalized = input.replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
+  if (!normalized || normalized.includes("\0") || normalized.split("/").some((part) => part === "..")) {
+    throw new Error("Invalid folder path");
+  }
+  return normalized;
 }
 
 function invalidateTreeCache(): void {
   treeCache.clear();
 }
 
-async function buildTreeNode(vaultRoot: string, dir: string, relativePath: string): Promise<DocumentTreeEntry> {
+async function folderHasContent(dir: string): Promise<boolean> {
+  // Cheap check: is there any markdown file or any subfolder that
+  // (recursively) has one? We need this so depth-limited folders
+  // still know to show an expand caret. Walks until it finds one
+  // .md file, then returns true; stops descending into hidden
+  // folders.
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+  for (const entry of entries) {
+    if (entry.name === ".obsidian" || entry.name.startsWith(".")) continue;
+    if (entry.isFile() && entry.name.endsWith(".md")) return true;
+  }
+  for (const entry of entries) {
+    if (entry.name === ".obsidian" || entry.name.startsWith(".")) continue;
+    if (entry.isDirectory()) {
+      if (await folderHasContent(path.join(dir, entry.name))) return true;
+    }
+  }
+  return false;
+}
+
+async function buildTreeNode(
+  vaultRoot: string,
+  dir: string,
+  relativePath: string,
+  depth: number,
+  sort: TreeSortField,
+  order: SortOrder
+): Promise<DocumentTreeEntry> {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const childPromises = entries
     .filter((entry) => entry.name !== ".obsidian" && !entry.name.startsWith("."))
     .map(async (entry) => {
       const fullPath = path.join(dir, entry.name);
-      const childRel = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      const childRel = (relativePath ? `${relativePath}/${entry.name}` : entry.name).replaceAll("\\", "/");
       if (entry.isDirectory()) {
-        const folder = await buildTreeNode(vaultRoot, fullPath, childRel);
-        // Drop empty folders so the tree doesn't show useless rows
-        // (Obsidian's own UI hides empty folders by default).
-        return folder.children && folder.children.length > 0 ? folder : null;
+        if (depth > 1) {
+          const folder = await buildTreeNode(vaultRoot, fullPath, childRel, depth - 1, sort, order);
+          // Drop empty folders so the tree doesn't show useless rows.
+          return folder.children && folder.children.length > 0 ? folder : null;
+        }
+        // Depth-limited: skip recursion. Probe whether the folder
+        // has any content so the client can show an expand caret
+        // without forcing a deeper walk now.
+        const hasChildren = await folderHasContent(fullPath);
+        if (!hasChildren) return null;
+        return {
+          path: childRel,
+          name: entry.name,
+          type: "folder" as const,
+          hasChildren: true
+        } satisfies DocumentTreeEntry;
       }
       if (entry.isFile() && entry.name.endsWith(".md")) {
-        return {
-          path: childRel.replaceAll("\\", "/"),
+        const file: DocumentTreeEntry = {
+          path: childRel,
           name: entry.name,
-          type: "file" as const
-        } satisfies DocumentTreeEntry;
+          type: "file"
+        };
+        if (sort === "updatedAt") {
+          const stat = await fs.stat(fullPath).catch(() => null);
+          if (stat) file.updatedAt = stat.mtime.toISOString();
+        }
+        return file;
       }
       return null;
     });
   const settled = await Promise.all(childPromises);
   const children = settled.filter((child): child is DocumentTreeEntry => child !== null);
-  // Folders first (alphabetical), then files (alphabetical) - matches
-  // the existing tree view's secondary sort.
+
+  const factor = order === "asc" ? 1 : -1;
   children.sort((a, b) => {
     if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
-    return a.name.localeCompare(b.name);
+    // Folders always alphabetical; only files honor the sort field.
+    if (a.type === "folder") return a.name.localeCompare(b.name);
+    if (sort === "updatedAt" && a.updatedAt && b.updatedAt) {
+      const cmp = a.updatedAt.localeCompare(b.updatedAt);
+      return cmp * factor;
+    }
+    return a.name.localeCompare(b.name) * factor;
   });
+
   return {
     path: relativePath ? relativePath.replaceAll("\\", "/") : "",
     name: relativePath ? path.basename(relativePath) : "",

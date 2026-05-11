@@ -9,11 +9,27 @@ const sortSchema = z.object({
 
 export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
   // Lightweight folder/file structure for the document tree.
-  // Walks the disk once and returns just basenames + paths so the
-  // sidebar can render instantly on large vaults. Metadata-aware
-  // listing (mtime, title, hash) stays on /api/documents.
-  app.get("/api/documents/tree", async () => {
-    return listDocumentTree();
+  // Default is a lazy single-level listing: returns just the
+  // requested folder's direct children with `hasChildren` set on
+  // sub-folders that contain Markdown. The client expands deeper
+  // levels by making additional calls with ?path=<sub-folder>.
+  // Pass depth=0 (or any larger number) to override and get a
+  // multi-level subtree in one shot.
+  app.get("/api/documents/tree", async (request) => {
+    const query = z
+      .object({
+        path: z.string().min(1).max(1024).optional(),
+        depth: z.coerce.number().int().min(1).max(20).optional(),
+        sort: z.enum(["name", "updatedAt"]).optional(),
+        order: z.enum(["asc", "desc"]).optional()
+      })
+      .parse(request.query);
+    return listDocumentTree({
+      folder: query.path,
+      depth: query.depth ?? 1,
+      sort: query.sort,
+      order: query.order
+    });
   });
 
   app.get("/api/documents", async (request) => {

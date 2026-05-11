@@ -1112,6 +1112,34 @@ label {
   contain-intrinsic-size: 0 36px;
 }
 
+.tree-spinner {
+  display: inline-grid;
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: var(--md-muted, var(--muted));
+}
+
+.tree-spinner svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tree-row-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 28px;
+  color: var(--md-muted, var(--muted));
+  pointer-events: none;
+}
+
+.tree-row-placeholder svg {
+  width: 14px;
+  height: 14px;
+}
+
 .tree-label,
 .tree-file-text strong,
 .tree-file-name,

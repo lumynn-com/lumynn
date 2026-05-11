@@ -187,47 +187,24 @@ function readSavedEditorMode(): "edit" | "preview" {
   return localStorage.getItem(editorModeStorageKey) === "preview" ? "preview" : "edit";
 }
 
-// Convert the server's structural folder/file tree into the
-// TreeNode shape consumed by <DocumentTree />. Used to render the
-// sidebar before the heavier metadata-aware listing arrives, so the
-// user sees the tree instantly on large vaults.
-function buildTreeFromStructure(structure: DocumentTreeEntry): TreeNode[] {
-  function convert(entry: DocumentTreeEntry, order: { value: number }): TreeNode {
-    if (entry.type === "folder") {
-      return {
-        id: entry.path,
-        name: entry.name,
-        type: "folder",
-        children: (entry.children ?? []).map((child) => convert(child, order)),
-        order: 0
-      };
-    }
-    return {
-      id: entry.path,
-      name: entry.name,
-      type: "document",
-      // Synthetic minimal document used when we haven't loaded the
-      // metadata list yet. Only `.path` and `.name` are read by the
-      // tree row; the rest stays empty until the metadata fetch
-      // resolves and the tree is rebuilt from `documents`.
-      document: {
-        path: entry.path,
-        name: entry.name,
-        title: entry.name.replace(/\.md$/i, ""),
-        createdAt: "",
-        updatedAt: "",
-        hash: "",
-        tags: [],
-        aliases: [],
-        headings: []
-      },
-      children: [],
-      order: order.value++
-    };
-  }
-  const counter = { value: 0 };
-  return (structure.children ?? []).map((entry) => convert(entry, counter));
+// Synthesize a minimal DocumentSummary for a file entry whose
+// metadata listing hasn't loaded yet. Only path + name are read
+// by the tree row; the rest stays empty until the metadata fetch
+// catches up.
+function synthSummary(entry: DocumentTreeEntry): DocumentSummary {
+  return {
+    path: entry.path,
+    name: entry.name,
+    title: entry.name.replace(/\.md$/i, ""),
+    createdAt: entry.updatedAt ?? "",
+    updatedAt: entry.updatedAt ?? "",
+    hash: "",
+    tags: [],
+    aliases: [],
+    headings: []
+  };
 }
+
 
 function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
   const root: TreeNode = { id: "", name: "", type: "folder", children: [], order: 0 };
@@ -289,7 +266,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
-  const [treeStructure, setTreeStructure] = useState<DocumentTreeEntry | null>(null);
+  // Lazy-loaded folder children keyed by vault-relative folder path
+  // ("" for the vault root). A folder being absent from the map
+  // means we haven't loaded its children yet; an empty array means
+  // we have, and the folder is empty.
+  const [folderChildren, setFolderChildren] = useState<Map<string, DocumentTreeEntry[]>>(new Map());
+  // Folders whose children are currently being fetched. Used to show
+  // an inline spinner under the expand row.
+  const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [preview, setPreview] = useState("");
@@ -368,16 +352,44 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // that change rarely flip.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, centerMode, locale]);
-  // Prefer the metadata-driven tree once the heavier listing has
-  // arrived (so the user's sort order takes effect). Until then, use
-  // the lightweight structural tree from /api/documents/tree so the
-  // sidebar appears within milliseconds even on a multi-thousand-
-  // file vault.
+  // The tree always renders from the lazy folder map. We rebuild
+  // it whenever children of any folder change. The /api/documents
+  // metadata listing (`documents`) is no longer the source of the
+  // visible structure; it's only used for the file count and
+  // anywhere a real DocumentSummary is needed (e.g. open document).
+  const documentsByPath = useMemo(() => {
+    const map = new Map<string, DocumentSummary>();
+    documents.forEach((doc) => map.set(doc.path, doc));
+    return map;
+  }, [documents]);
+
   const documentTree = useMemo(() => {
-    if (documents.length > 0) return buildDocumentTree(documents);
-    if (treeStructure) return buildTreeFromStructure(treeStructure);
-    return [];
-  }, [documents, treeStructure]);
+    function nodesForFolder(folderPath: string): TreeNode[] {
+      const entries = folderChildren.get(folderPath);
+      if (!entries) return [];
+      return entries.map((entry, order) => {
+        if (entry.type === "folder") {
+          return {
+            id: entry.path,
+            name: entry.name,
+            type: "folder",
+            children: nodesForFolder(entry.path),
+            order: 0
+          } satisfies TreeNode;
+        }
+        const realSummary = documentsByPath.get(entry.path);
+        return {
+          id: entry.path,
+          name: entry.name,
+          type: "document",
+          document: realSummary ?? synthSummary(entry),
+          children: [],
+          order
+        } satisfies TreeNode;
+      });
+    }
+    return nodesForFolder("");
+  }, [folderChildren, documentsByPath]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
   const openDocument = useCallback(
@@ -666,19 +678,50 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
+  // Fetch one folder's direct children and merge them into the
+  // lazy-loaded folder map. No-op if already loaded or in flight.
+  async function loadFolderChildren(folderPath: string, force = false): Promise<void> {
+    if (!force && folderChildren.has(folderPath)) return;
+    if (loadingFolders.has(folderPath)) return;
+    setLoadingFolders((current) => {
+      const next = new Set(current);
+      next.add(folderPath);
+      return next;
+    });
+    try {
+      const params = new URLSearchParams();
+      if (folderPath) params.set("path", folderPath);
+      const treeSort: "name" | "updatedAt" = sort === "updatedAt" ? "updatedAt" : "name";
+      params.set("sort", treeSort);
+      params.set("order", order);
+      const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
+      setFolderChildren((current) => {
+        const next = new Map(current);
+        next.set(folderPath, data.children ?? []);
+        return next;
+      });
+    } catch {
+      // Leave the folder unmarked so the user can retry by collapsing
+      // and expanding again.
+    } finally {
+      setLoadingFolders((current) => {
+        if (!current.has(folderPath)) return current;
+        const next = new Set(current);
+        next.delete(folderPath);
+        return next;
+      });
+    }
+  }
+
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
-    // Two parallel requests:
-    //   * /api/documents/tree returns just the folder/file structure
-    //     and is fast (sub-second) on large vaults. We render the
-    //     tree from it immediately so the user doesn't stare at an
-    //     empty sidebar.
-    //   * /api/documents returns the sorted metadata-aware listing
-    //     used for sort order, file count, and any feature that
-    //     needs createdAt/updatedAt/title. Resolves later but the
-    //     tree is already visible.
-    api<DocumentTreeEntry>("/api/documents/tree")
-      .then(setTreeStructure)
-      .catch(() => undefined);
+    // The tree is loaded lazily, one folder at a time. The root is
+    // fetched immediately so the sidebar appears within
+    // milliseconds even on a multi-thousand-file vault.
+    setFolderChildren(new Map());
+    void loadFolderChildren("", true);
+    // /api/documents is still fetched in parallel for the file
+    // count and any feature that needs real metadata. It does not
+    // gate the tree appearing.
     const docs = await api<DocumentSummary[]>(`/api/documents?sort=${nextSort}&order=${nextOrder}`);
     setDocuments(docs);
   }
@@ -1240,9 +1283,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             selectedFolder={selectedFolder}
             expandedFolders={expandedFolders}
             onToggleFolder={(folderPath) => {
-              setExpandedFolders((current) => ({ ...current, [folderPath]: !(current[folderPath] ?? false) }));
+              setExpandedFolders((current) => {
+                const wasExpanded = current[folderPath] ?? false;
+                if (!wasExpanded) {
+                  // Lazy-fetch the folder's direct children on first
+                  // expand. The fetch is a no-op when already loaded.
+                  void loadFolderChildren(folderPath);
+                }
+                return { ...current, [folderPath]: !wasExpanded };
+              });
               setSelectedFolder(folderPath);
             }}
+            loadingFolders={loadingFolders}
             onSelect={openDocument}
             emptyLabel={t("vault.empty")}
           />
@@ -1836,6 +1888,7 @@ function DocumentTree(props: {
   selectedPath: string;
   selectedFolder: string;
   expandedFolders: Record<string, boolean>;
+  loadingFolders?: Set<string>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
   emptyLabel: string;
@@ -1861,6 +1914,7 @@ function TreeNodeRow(props: {
   selectedPath: string;
   selectedFolder: string;
   expandedFolders: Record<string, boolean>;
+  loadingFolders?: Set<string>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
 }) {
@@ -1868,6 +1922,8 @@ function TreeNodeRow(props: {
 
   if (props.node.type === "folder") {
     const isSelected = props.selectedFolder === props.node.id;
+    const isLoading = props.loadingFolders?.has(props.node.id) ?? false;
+    const showLoadingPlaceholder = isExpanded && isLoading && props.node.children.length === 0;
     return (
       <div className="tree-group">
         <button
@@ -1881,11 +1937,20 @@ function TreeNodeRow(props: {
             {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </span>
           <span className="tree-label">{props.node.name}</span>
-          <span className="tree-count">{props.node.children.length}</span>
+          {isLoading ? (
+            <span className="tree-spinner" aria-hidden="true"><SpinnerIcon /></span>
+          ) : props.node.children.length > 0 ? (
+            <span className="tree-count">{props.node.children.length}</span>
+          ) : null}
         </button>
         {isExpanded
           ? props.node.children.map((child) => <TreeNodeRow key={child.id} {...props} node={child} depth={props.depth + 1} />)
           : null}
+        {showLoadingPlaceholder ? (
+          <div className="tree-row tree-row-placeholder" style={{ paddingLeft: `${0.65 + (props.depth + 1) * 0.85}rem` }}>
+            <SpinnerIcon />
+          </div>
+        ) : null}
       </div>
     );
   }
