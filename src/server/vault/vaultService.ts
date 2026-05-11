@@ -789,8 +789,32 @@ function transformObsidianSyntaxSegment(input: string, basePath?: string): strin
     });
 }
 
+// Strip a YAML frontmatter block (--- ... ---) from the very top of
+// a Markdown document so it doesn't render as plain text inside the
+// preview. We only match a block that starts on the first line and
+// closes with a line that is exactly "---"; anything else (e.g. a
+// horizontal rule mid-document) is left alone.
+function stripFrontmatter(content: string): string {
+  // Tolerate a UTF-8 BOM and any leading whitespace/newlines.
+  const leadingMatch = content.match(/^\uFEFF?\s*/);
+  const offset = leadingMatch ? leadingMatch[0].length : 0;
+  if (!content.startsWith("---", offset)) return content;
+  // The opening fence must be a line on its own: "---" optionally
+  // followed by spaces, then a newline.
+  const openMatch = content.slice(offset).match(/^---[ \t]*\r?\n/);
+  if (!openMatch) return content;
+  const startOfBody = offset + openMatch[0].length;
+  // Find the closing fence (a line that is exactly --- or ...).
+  const rest = content.slice(startOfBody);
+  const closeMatch = rest.match(/\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/);
+  if (!closeMatch || closeMatch.index === undefined) return content;
+  const endOfFence = startOfBody + closeMatch.index + closeMatch[0].length;
+  return content.slice(endOfFence).replace(/^\s*\r?\n/, "");
+}
+
 function prepareObsidianMarkdown(content: string, basePath?: string): string {
-  const segments = content.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]+`)/g);
+  const body = stripFrontmatter(content);
+  const segments = body.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]+`)/g);
   return segments
     .map((segment) => (/^(```|~~~|`)/.test(segment) ? segment : transformObsidianSyntaxSegment(segment, basePath)))
     .join("");

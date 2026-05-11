@@ -68,3 +68,35 @@ test("renderPreview preserves soft line breaks", async () => {
 
   assert.match(html, /first line<br \/>second line<br \/>third line/);
 });
+
+test("renderPreview hides the YAML frontmatter block at the top of a document", async () => {
+  const html = await renderPreview(
+    [
+      "---",
+      "title: Welcome",
+      "tags: [demo, docs]",
+      "aliases:",
+      "  - intro",
+      "---",
+      "",
+      "# Welcome",
+      "",
+      "This is the body."
+    ].join("\n")
+  );
+
+  assert.match(html, /<h1>Welcome<\/h1>/);
+  assert.match(html, /This is the body\./);
+  assert.doesNotMatch(html, /title: Welcome/);
+  assert.doesNotMatch(html, /tags:/);
+  assert.doesNotMatch(html, /aliases:/);
+});
+
+test("renderPreview keeps mid-document --- separators intact", async () => {
+  const html = await renderPreview("# Hello\n\nFirst paragraph.\n\n---\n\nSecond paragraph.");
+
+  // Mid-document --- becomes a horizontal rule, not a stripped block.
+  assert.match(html, /<hr\s*\/?>/);
+  assert.match(html, /First paragraph\./);
+  assert.match(html, /Second paragraph\./);
+});
