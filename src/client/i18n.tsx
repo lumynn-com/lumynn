@@ -107,6 +107,7 @@ const dictionaries = {
     "editor.swipeClose": "Close",
     "editor.toggleMode": "Toggle edit / preview",
     "editor.moreActions": "More actions",
+    "editor.print": "Print\u2026",
 
     // Status messages
     "status.ready": "Ready",
@@ -128,6 +129,7 @@ const dictionaries = {
     "status.uploading": "Uploading\u2026",
     "status.uploadFailed": "Upload failed",
     "status.attachmentSaved": "Image saved to attachments",
+    "status.printNothing": "Nothing to print yet. Add some content first.",
 
     // Undo toast
     "undo.closedPrefix": "Closed",
@@ -454,6 +456,7 @@ const dictionaries = {
     "editor.swipeClose": "\u5173\u95ed",
     "editor.toggleMode": "\u5207\u6362\u7f16\u8f91 / \u9884\u89c8",
     "editor.moreActions": "\u66f4\u591a\u64cd\u4f5c",
+    "editor.print": "\u6253\u5370\u2026",
 
     "status.ready": "\u5c31\u7eea",
     "status.saving": "\u4fdd\u5b58\u4e2d\u2026",
@@ -474,6 +477,7 @@ const dictionaries = {
     "status.uploading": "\u4e0a\u4f20\u4e2d\u2026",
     "status.uploadFailed": "\u4e0a\u4f20\u5931\u8d25",
     "status.attachmentSaved": "\u56fe\u7247\u5df2\u4fdd\u5b58\u5230 attachments",
+    "status.printNothing": "\u8fd8\u6ca1\u6709\u53ef\u6253\u5370\u7684\u5185\u5bb9\uff0c\u5148\u5199\u70b9\u4ec0\u4e48\u5427\u3002",
 
     "undo.closedPrefix": "\u5df2\u5173\u95ed",
     "undo.deletedPrefix": "\u5df2\u5220\u9664",

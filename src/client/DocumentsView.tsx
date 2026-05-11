@@ -17,6 +17,7 @@ import {
   MoreIcon,
   PencilIcon,
   PlusIcon,
+  PrintIcon,
   SaveIcon,
   SearchIcon,
   SettingsIcon,
@@ -729,6 +730,36 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
+  // Print the rendered preview of the active document. Uses the
+  // browser's native print dialog (so the user can choose AirPrint,
+  // a real printer, or Save-as-PDF) and a print-only stylesheet that
+  // hides app chrome and shows just the .print-surface article.
+  // Drafts work too because the preview pipeline runs against the
+  // draft buffer regardless of save state.
+  function printActive(): void {
+    if (!active) return;
+    if (!preview) {
+      setStatusKey("status.printNothing");
+      return;
+    }
+    const previousTitle = document.title;
+    const docName = active.name?.replace(/\.md$/i, "") || (active.isDraft ? t("quick.draftTitle") : t("editor.title"));
+    document.title = `${t("app.brand.name")} - ${docName}`;
+    function restore() {
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restore);
+    }
+    window.addEventListener("afterprint", restore);
+    // Defer slightly so the title change makes it into the print
+    // dialog (some browsers snapshot title at print() call time).
+    window.setTimeout(() => {
+      window.print();
+      // Safari iOS doesn't always fire afterprint, so restore
+      // proactively after a generous timeout too.
+      window.setTimeout(restore, 6000);
+    }, 30);
+  }
+
   async function save() {
     if (!active || saving) {
       return;
@@ -1194,6 +1225,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </button>
           </div>
           <div className="file-actions">
+            <button onClick={printActive} disabled={!active}>
+              {t("editor.print")}
+            </button>
             <button onClick={() => setRenameOpen(true)} disabled={!active || active.isDraft}>
               {t("editor.rename")}
             </button>
@@ -1250,6 +1284,15 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <p className="eyebrow">{t("editor.blankEyebrow")}</p>
             <h2>{t("editor.blankTitle")}</h2>
             <p className="muted">{t("editor.blankBody")}</p>
+          </div>
+        ) : null}
+        {/* Hidden print surface: holds the latest rendered preview for
+            window.print() so the user can print directly from edit
+            mode without flipping to preview first. Hidden in normal
+            screen rendering and revealed by the @media print rules. */}
+        {active && preview ? (
+          <div className="print-surface" aria-hidden="true">
+            <article dangerouslySetInnerHTML={{ __html: preview }} />
           </div>
         ) : null}
       </section>
@@ -1381,6 +1424,16 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 >
                   <span className="action-sheet-icon" aria-hidden="true"><SaveIcon /></span>
                   <span>{t("editor.save")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    printActive();
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><PrintIcon /></span>
+                  <span>{t("editor.print")}</span>
                 </button>
                 {!active.isDraft ? (
                   <>

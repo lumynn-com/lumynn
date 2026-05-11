@@ -174,6 +174,16 @@ export function GlobeIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function PrintIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M6 9V3h12v6" />
+      <rect x="3" y="9" width="18" height="9" rx="2" />
+      <rect x="6" y="14" width="12" height="7" />
+    </svg>
+  );
+}
+
 export function LogoutIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>
