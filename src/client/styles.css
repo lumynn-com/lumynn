@@ -1098,12 +1098,18 @@ label {
 
 .doc-tree {
   padding-right: 0.25rem;
-  content-visibility: auto;
 }
 
 .tree-row {
   min-width: 0;
   min-height: 42px;
+  /* Skip layout and paint for rows that are not in the viewport.
+     With thousands of files in the tree this is the difference
+     between rendering all rows up-front (laggy) and rendering
+     just what the user can see. The intrinsic-size hint keeps
+     the scroll height stable. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 36px;
 }
 
 .tree-label,

@@ -10,7 +10,24 @@ const sortSchema = z.object({
 export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/documents", async (request) => {
     const query = sortSchema.parse(request.query);
-    return listDocuments(query.sort ?? "name", query.order ?? "asc");
+    const docs = await listDocuments(query.sort ?? "name", query.order ?? "asc");
+    // The tree view only renders path / name / title / dates /
+    // hash. Stripping the per-doc tags / aliases / headings arrays
+    // before serialization keeps the wire payload small for vaults
+    // with thousands of files (where those arrays balloon to many
+    // KB per request) without breaking internal callers that go
+    // through listDocuments() directly for search and RAG.
+    return docs.map((doc) => ({
+      path: doc.path,
+      name: doc.name,
+      title: doc.title,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      hash: doc.hash,
+      tags: [],
+      aliases: [],
+      headings: []
+    }));
   });
 
   app.post("/api/documents", async (request, reply) => {
