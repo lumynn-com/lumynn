@@ -1,6 +1,18 @@
 export type SortField = "name" | "createdAt" | "updatedAt" | "path" | "title";
 export type SortOrder = "asc" | "desc";
 
+export interface DocumentTreeEntry {
+  /** Vault-relative path. Files end with `.md`; folders carry the
+   *  folder's vault-relative path without trailing slash. */
+  path: string;
+  /** Basename of the entry. */
+  name: string;
+  /** Whether this entry is a folder (has `children`) or a file (leaf). */
+  type: "folder" | "file";
+  /** Sorted children. Files inside the folder come at any depth. */
+  children?: DocumentTreeEntry[];
+}
+
 export interface DocumentSummary {
   path: string;
   name: string;

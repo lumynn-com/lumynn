@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { backlinksFor, createDocument, deleteDocument, listDocuments, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
+import { backlinksFor, createDocument, deleteDocument, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -8,6 +8,14 @@ const sortSchema = z.object({
 });
 
 export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
+  // Lightweight folder/file structure for the document tree.
+  // Walks the disk once and returns just basenames + paths so the
+  // sidebar can render instantly on large vaults. Metadata-aware
+  // listing (mtime, title, hash) stays on /api/documents.
+  app.get("/api/documents/tree", async () => {
+    return listDocumentTree();
+  });
+
   app.get("/api/documents", async (request) => {
     const query = sortSchema.parse(request.query);
     const docs = await listDocuments(query.sort ?? "name", query.order ?? "asc");

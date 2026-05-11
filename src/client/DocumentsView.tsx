@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder } from "../shared/types";
+import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
 import {
   AskIcon,
@@ -187,6 +187,48 @@ function readSavedEditorMode(): "edit" | "preview" {
   return localStorage.getItem(editorModeStorageKey) === "preview" ? "preview" : "edit";
 }
 
+// Convert the server's structural folder/file tree into the
+// TreeNode shape consumed by <DocumentTree />. Used to render the
+// sidebar before the heavier metadata-aware listing arrives, so the
+// user sees the tree instantly on large vaults.
+function buildTreeFromStructure(structure: DocumentTreeEntry): TreeNode[] {
+  function convert(entry: DocumentTreeEntry, order: { value: number }): TreeNode {
+    if (entry.type === "folder") {
+      return {
+        id: entry.path,
+        name: entry.name,
+        type: "folder",
+        children: (entry.children ?? []).map((child) => convert(child, order)),
+        order: 0
+      };
+    }
+    return {
+      id: entry.path,
+      name: entry.name,
+      type: "document",
+      // Synthetic minimal document used when we haven't loaded the
+      // metadata list yet. Only `.path` and `.name` are read by the
+      // tree row; the rest stays empty until the metadata fetch
+      // resolves and the tree is rebuilt from `documents`.
+      document: {
+        path: entry.path,
+        name: entry.name,
+        title: entry.name.replace(/\.md$/i, ""),
+        createdAt: "",
+        updatedAt: "",
+        hash: "",
+        tags: [],
+        aliases: [],
+        headings: []
+      },
+      children: [],
+      order: order.value++
+    };
+  }
+  const counter = { value: 0 };
+  return (structure.children ?? []).map((entry) => convert(entry, counter));
+}
+
 function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
   const root: TreeNode = { id: "", name: "", type: "folder", children: [], order: 0 };
 
@@ -247,6 +289,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [treeStructure, setTreeStructure] = useState<DocumentTreeEntry | null>(null);
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [preview, setPreview] = useState("");
@@ -325,7 +368,16 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // that change rarely flip.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, centerMode, locale]);
-  const documentTree = useMemo(() => buildDocumentTree(documents), [documents]);
+  // Prefer the metadata-driven tree once the heavier listing has
+  // arrived (so the user's sort order takes effect). Until then, use
+  // the lightweight structural tree from /api/documents/tree so the
+  // sidebar appears within milliseconds even on a multi-thousand-
+  // file vault.
+  const documentTree = useMemo(() => {
+    if (documents.length > 0) return buildDocumentTree(documents);
+    if (treeStructure) return buildTreeFromStructure(treeStructure);
+    return [];
+  }, [documents, treeStructure]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
 
   const openDocument = useCallback(
@@ -615,6 +667,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }
 
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
+    // Two parallel requests:
+    //   * /api/documents/tree returns just the folder/file structure
+    //     and is fast (sub-second) on large vaults. We render the
+    //     tree from it immediately so the user doesn't stare at an
+    //     empty sidebar.
+    //   * /api/documents returns the sorted metadata-aware listing
+    //     used for sort order, file count, and any feature that
+    //     needs createdAt/updatedAt/title. Resolves later but the
+    //     tree is already visible.
+    api<DocumentTreeEntry>("/api/documents/tree")
+      .then(setTreeStructure)
+      .catch(() => undefined);
     const docs = await api<DocumentSummary[]>(`/api/documents?sort=${nextSort}&order=${nextOrder}`);
     setDocuments(docs);
   }

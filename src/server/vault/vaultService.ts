@@ -8,7 +8,7 @@ import { config } from "../config";
 import { sha256 } from "../crypto";
 import { backlinksWithObsidianCli, searchWithObsidianCli } from "../obsidian/obsidianCli";
 import { store } from "../store";
-import type { DocumentContent, DocumentSearchResult, DocumentSummary, SortField, SortOrder, VaultValidation } from "../../shared/types";
+import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
 
 const supportedMediaTypes: Record<string, string> = {
@@ -112,6 +112,71 @@ function resolveInVault(vaultRoot: string, documentPath: string): string {
     throw new Error("Document path escapes the vault");
   }
   return fullPath;
+}
+
+// Lightweight in-memory cache for the directory walk. The tree
+// endpoint is hit on every workspace mount; on a slow/network-
+// mounted vault the walk is the dominant cost, so caching it for a
+// few seconds turns rapid reloads (e.g. PWA restore, refresh after
+// network blip) into instant renders. Cache is keyed by the
+// resolved vault root so switching vaults invalidates it
+// automatically.
+const TREE_CACHE_TTL_MS = 5_000;
+const treeCache = new Map<string, { value: DocumentTreeEntry; expiresAt: number }>();
+
+export async function listDocumentTree(): Promise<DocumentTreeEntry> {
+  const vaultRoot = await ensureVault();
+  await fs.mkdir(vaultRoot, { recursive: true });
+  const now = Date.now();
+  const cached = treeCache.get(vaultRoot);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+  const root: DocumentTreeEntry = await buildTreeNode(vaultRoot, vaultRoot, "");
+  treeCache.set(vaultRoot, { value: root, expiresAt: now + TREE_CACHE_TTL_MS });
+  return root;
+}
+
+function invalidateTreeCache(): void {
+  treeCache.clear();
+}
+
+async function buildTreeNode(vaultRoot: string, dir: string, relativePath: string): Promise<DocumentTreeEntry> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const childPromises = entries
+    .filter((entry) => entry.name !== ".obsidian" && !entry.name.startsWith("."))
+    .map(async (entry) => {
+      const fullPath = path.join(dir, entry.name);
+      const childRel = relativePath ? `${relativePath}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        const folder = await buildTreeNode(vaultRoot, fullPath, childRel);
+        // Drop empty folders so the tree doesn't show useless rows
+        // (Obsidian's own UI hides empty folders by default).
+        return folder.children && folder.children.length > 0 ? folder : null;
+      }
+      if (entry.isFile() && entry.name.endsWith(".md")) {
+        return {
+          path: childRel.replaceAll("\\", "/"),
+          name: entry.name,
+          type: "file" as const
+        } satisfies DocumentTreeEntry;
+      }
+      return null;
+    });
+  const settled = await Promise.all(childPromises);
+  const children = settled.filter((child): child is DocumentTreeEntry => child !== null);
+  // Folders first (alphabetical), then files (alphabetical) - matches
+  // the existing tree view's secondary sort.
+  children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return {
+    path: relativePath ? relativePath.replaceAll("\\", "/") : "",
+    name: relativePath ? path.basename(relativePath) : "",
+    type: "folder",
+    children
+  };
 }
 
 async function walkMarkdown(root: string, dir = root): Promise<string[]> {
@@ -389,6 +454,10 @@ export async function writeDocument(documentPath: string, content: string, expec
   await fs.writeFile(tmpPath, content, "utf8");
   await fs.rename(tmpPath, fullPath);
   await store.save();
+  // The new file may add a new folder to the tree (subfolders created
+  // by fs.mkdir above). Invalidate so the next /api/documents/tree
+  // reflects it.
+  if (existing === null) invalidateTreeCache();
   return readDocument(safePath);
 }
 
@@ -504,6 +573,7 @@ export async function deleteDocument(documentPath: string): Promise<void> {
   delete data.createdAtByPath[safePath];
   delete data.metadataByPath[safePath];
   await store.save();
+  invalidateTreeCache();
 }
 
 export async function renameDocument(documentPath: string, nextPath: string): Promise<DocumentContent> {
@@ -538,7 +608,7 @@ export async function renameDocument(documentPath: string, nextPath: string): Pr
     delete data.metadataByPath[safePath];
   }
   await store.save();
-
+  invalidateTreeCache();
   return readDocument(safeNextPath);
 }
 
