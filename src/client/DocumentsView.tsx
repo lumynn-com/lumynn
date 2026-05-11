@@ -678,47 +678,166 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
-  // Fetch one folder's direct children and merge them into the
-  // lazy-loaded folder map. No-op if already loaded or in flight.
-  async function loadFolderChildren(folderPath: string, force = false): Promise<void> {
-    if (!force && folderChildren.has(folderPath)) return;
-    if (loadingFolders.has(folderPath)) return;
-    setLoadingFolders((current) => {
-      const next = new Set(current);
-      next.add(folderPath);
-      return next;
-    });
-    try {
-      const params = new URLSearchParams();
-      if (folderPath) params.set("path", folderPath);
-      const treeSort: "name" | "updatedAt" = sort === "updatedAt" ? "updatedAt" : "name";
-      params.set("sort", treeSort);
-      params.set("order", order);
-      const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
-      setFolderChildren((current) => {
-        const next = new Map(current);
-        next.set(folderPath, data.children ?? []);
-        return next;
-      });
-    } catch {
-      // Leave the folder unmarked so the user can retry by collapsing
-      // and expanding again.
-    } finally {
+  // Ref-backed deduplication for folder fetches. React state
+  // (folderChildren / loadingFolders) drives the UI, but rapidly
+  // fired prefetch calls all read the same render-time state and
+  // would dispatch duplicate fetches. The ref reflects the
+  // most-up-to-date view of "already loaded or in flight" without
+  // waiting for a re-render. inFlight stores the actual Promise
+  // so a foreground call landing during a background prefetch can
+  // attach to it and show the spinner until it resolves.
+  const folderFetchTracker = useRef({
+    loaded: new Set<string>(),
+    inFlight: new Map<string, Promise<DocumentTreeEntry[] | null>>(),
+    generation: 0
+  });
+
+  async function loadFolderChildren(
+    folderPath: string,
+    options: { force?: boolean; silent?: boolean } = {}
+  ): Promise<DocumentTreeEntry[] | null> {
+    const tracker = folderFetchTracker.current;
+    if (!options.force && tracker.loaded.has(folderPath)) {
+      return folderChildren.get(folderPath) ?? null;
+    }
+    const existing = tracker.inFlight.get(folderPath);
+    if (existing) {
+      // If a background prefetch is already loading this folder
+      // and the user just expanded it, show the spinner until the
+      // existing promise resolves rather than firing a duplicate.
+      if (!options.silent) {
+        setLoadingFolders((current) => {
+          if (current.has(folderPath)) return current;
+          const next = new Set(current);
+          next.add(folderPath);
+          return next;
+        });
+        existing.finally(() => {
+          setLoadingFolders((current) => {
+            if (!current.has(folderPath)) return current;
+            const next = new Set(current);
+            next.delete(folderPath);
+            return next;
+          });
+        });
+      }
+      return existing;
+    }
+
+    const generation = tracker.generation;
+    // Background prefetch passes silent=true so it doesn't paint a
+    // spinner on every folder in the tree while it warms the cache.
+    if (!options.silent) {
       setLoadingFolders((current) => {
-        if (!current.has(folderPath)) return current;
+        if (current.has(folderPath)) return current;
         const next = new Set(current);
-        next.delete(folderPath);
+        next.add(folderPath);
         return next;
       });
     }
+    const promise = (async (): Promise<DocumentTreeEntry[] | null> => {
+      try {
+        const params = new URLSearchParams();
+        if (folderPath) params.set("path", folderPath);
+        const treeSort: "name" | "updatedAt" = sort === "updatedAt" ? "updatedAt" : "name";
+        params.set("sort", treeSort);
+        params.set("order", order);
+        const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
+        if (folderFetchTracker.current.generation !== generation) return null;
+        const children = data.children ?? [];
+        tracker.loaded.add(folderPath);
+        setFolderChildren((current) => {
+          const next = new Map(current);
+          next.set(folderPath, children);
+          return next;
+        });
+        return children;
+      } catch {
+        return null;
+      } finally {
+        tracker.inFlight.delete(folderPath);
+        if (!options.silent) {
+          setLoadingFolders((current) => {
+            if (!current.has(folderPath)) return current;
+            const next = new Set(current);
+            next.delete(folderPath);
+            return next;
+          });
+        }
+      }
+    })();
+    tracker.inFlight.set(folderPath, promise);
+    return promise;
+  }
+
+  // Recursive background prefetch with a small concurrency cap so
+  // the foreground UI stays responsive. Yields between batches via
+  // requestIdleCallback (falls back to setTimeout) so user
+  // interactions get processed first. Cancelled when the
+  // generation counter is bumped (refreshDocuments invalidates).
+  async function prefetchFolderTree(rootChildren: DocumentTreeEntry[]): Promise<void> {
+    const tracker = folderFetchTracker.current;
+    const generation = tracker.generation;
+    const queue: string[] = rootChildren
+      .filter((entry) => entry.type === "folder" && (entry.hasChildren ?? true))
+      .map((entry) => entry.path);
+    const concurrency = 2;
+
+    async function processOne(): Promise<void> {
+      if (tracker.generation !== generation) return;
+      const next = queue.shift();
+      if (!next) return;
+      if (tracker.loaded.has(next) || tracker.inFlight.has(next)) {
+        return processOne();
+      }
+      const fetched = await loadFolderChildren(next, { silent: true });
+      if (tracker.generation !== generation) return;
+      // Push this folder's sub-folders so the prefetch goes deep
+      // but breadth-first.
+      if (fetched) {
+        for (const child of fetched) {
+          if (child.type === "folder" && (child.hasChildren ?? true)) {
+            queue.push(child.path);
+          }
+        }
+      }
+      // Yield to the event loop before scheduling the next fetch
+      // so any in-flight user gesture (tap to expand a specific
+      // folder, scroll) is processed first.
+      await new Promise<void>((resolve) => {
+        const ric = (window as typeof window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+        if (typeof ric === "function") ric(() => resolve(), { timeout: 250 });
+        else window.setTimeout(resolve, 30);
+      });
+      if (tracker.generation !== generation) return;
+      return processOne();
+    }
+
+    const workers: Promise<void>[] = [];
+    for (let i = 0; i < concurrency; i++) workers.push(processOne());
+    await Promise.all(workers);
   }
 
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
-    // The tree is loaded lazily, one folder at a time. The root is
-    // fetched immediately so the sidebar appears within
-    // milliseconds even on a multi-thousand-file vault.
+    // Bumping the generation cancels any in-flight prefetch from a
+    // previous refresh: stale results are dropped on the floor and
+    // prefetch loops exit at their next yield point.
+    folderFetchTracker.current.generation += 1;
+    folderFetchTracker.current.loaded.clear();
+    folderFetchTracker.current.inFlight = new Map();
+
     setFolderChildren(new Map());
-    void loadFolderChildren("", true);
+    // Fetch the root immediately so the sidebar appears within
+    // milliseconds even on a multi-thousand-file vault.
+    const rootChildren = await loadFolderChildren("", { force: true });
+    // After the root renders, kick off a background prefetch of
+    // every other folder. The user can keep interacting; the
+    // prefetch yields to idle time. Once it finishes, expanding
+    // any folder is instant because the children are already in
+    // the cache.
+    if (rootChildren && rootChildren.length > 0) {
+      void prefetchFolderTree(rootChildren);
+    }
     // /api/documents is still fetched in parallel for the file
     // count and any feature that needs real metadata. It does not
     // gate the tree appearing.
