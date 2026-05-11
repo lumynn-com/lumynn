@@ -2056,11 +2056,7 @@ function TreeNodeRow(props: {
             {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </span>
           <span className="tree-label">{props.node.name}</span>
-          {isLoading ? (
-            <span className="tree-spinner" aria-hidden="true"><SpinnerIcon /></span>
-          ) : props.node.children.length > 0 ? (
-            <span className="tree-count">{props.node.children.length}</span>
-          ) : null}
+          {isLoading ? <span className="tree-spinner" aria-hidden="true"><SpinnerIcon /></span> : null}
         </button>
         {isExpanded
           ? props.node.children.map((child) => <TreeNodeRow key={child.id} {...props} node={child} depth={props.depth + 1} />)
