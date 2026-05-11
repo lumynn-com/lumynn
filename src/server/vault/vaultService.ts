@@ -148,14 +148,37 @@ async function walkFiles(root: string, dir = root): Promise<string[]> {
 
 async function summarize(vaultRoot: string, documentPath: string): Promise<DocumentSummary> {
   const fullPath = resolveInVault(vaultRoot, documentPath);
-  const content = await fs.readFile(fullPath, "utf8");
+  // Read mtime first so we can short-circuit on the cached metadata
+  // without paying the cost of fs.readFile + parseMarkdown + sha256
+  // for documents that haven't changed since we last summarized them.
   const stat = await fs.stat(fullPath);
   const name = path.basename(documentPath);
-  const parsed = parseMarkdown(content, name);
   const data = await store.load();
+  const updatedAt = stat.mtime.toISOString();
+  const cached = data.metadataByPath[documentPath];
+  if (cached && cached.updatedAt === updatedAt) {
+    const createdAt = data.createdAtByPath[documentPath] ?? cached.createdAt ?? stat.birthtime.toISOString();
+    if (!data.createdAtByPath[documentPath]) {
+      data.createdAtByPath[documentPath] = createdAt;
+    }
+    return {
+      path: documentPath,
+      name,
+      title: cached.title,
+      createdAt,
+      updatedAt,
+      hash: cached.hash,
+      tags: cached.tags,
+      aliases: cached.aliases,
+      headings: cached.headings
+    };
+  }
+
+  // Cache miss or stale: fall through to the full read + parse + hash.
+  const content = await fs.readFile(fullPath, "utf8");
+  const parsed = parseMarkdown(content, name);
   const createdAt = data.createdAtByPath[documentPath] ?? stat.birthtime.toISOString();
   data.createdAtByPath[documentPath] = createdAt;
-  const updatedAt = stat.mtime.toISOString();
   const hash = sha256(content);
   data.metadataByPath[documentPath] = {
     path: documentPath,
@@ -188,8 +211,27 @@ export async function listDocuments(sort: SortField = "name", order: SortOrder =
   const vaultRoot = await ensureVault();
   await fs.mkdir(vaultRoot, { recursive: true });
   const paths = await walkMarkdown(vaultRoot);
+
+  // Snapshot the cache size before we summarize; if no fresh
+  // metadata was added (i.e. every document was cache-hit) we can
+  // skip the JSON store rewrite, saving an unconditional disk write
+  // on every list request.
+  const before = await store.load();
+  const cachedBefore = Object.keys(before.metadataByPath).length;
+  const cacheStampsBefore = new Map(
+    Object.entries(before.metadataByPath).map(([key, value]) => [key, value.cachedAt])
+  );
+
   const summaries = await Promise.all(paths.map((docPath) => summarize(vaultRoot, docPath)));
-  await store.save();
+
+  const after = await store.load();
+  const cachedAfter = Object.keys(after.metadataByPath).length;
+  const changed =
+    cachedAfter !== cachedBefore ||
+    Array.from(cacheStampsBefore.entries()).some(([key, stamp]) => after.metadataByPath[key]?.cachedAt !== stamp);
+  if (changed) {
+    await store.save();
+  }
 
   const factor = order === "asc" ? 1 : -1;
   return summaries.sort((a, b) => {
