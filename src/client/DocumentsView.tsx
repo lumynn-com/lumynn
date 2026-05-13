@@ -98,10 +98,15 @@ type OpenTab = DocumentContent & {
   // path on the OpenTab is a temporary client-side id (see
   // makeDraftPath); on save we derive the real name and swap the tab.
   isDraft?: boolean;
+  // Per-tab edit/preview mode. Existing files open in "preview"
+  // by default so the reader sees the rendered note immediately;
+  // drafts and freshly created notes start in "edit" because a
+  // blank preview is useless. Switching modes only affects the
+  // active tab.
+  mode: "edit" | "preview";
 };
 
 const sortStorageKey = "owd_document_sort";
-const editorModeStorageKey = "owd_editor_mode";
 
 // File-segment sanitizer: keep letters/digits/space/hyphen/underscore/CJK,
 // collapse whitespace, trim, and cap length so the resulting file name is
@@ -181,10 +186,6 @@ function readSavedSort(): { sort: SortField; order: SortOrder } {
   } catch {
     return fallback;
   }
-}
-
-function readSavedEditorMode(): "edit" | "preview" {
-  return localStorage.getItem(editorModeStorageKey) === "preview" ? "preview" : "edit";
 }
 
 // Synthesize a minimal DocumentSummary for a file entry whose
@@ -277,7 +278,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [preview, setPreview] = useState("");
-  const [centerMode, setCenterMode] = useState<"edit" | "preview">(readSavedEditorMode);
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
   const [status, setStatus] = useState<StatusValue>(READY_STATUS);
@@ -346,12 +346,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       window.removeEventListener("owd:quick-note", open);
       window.removeEventListener("keydown", onKey);
     };
-    // createQuickNoteDraft uses closures over isMobile/centerMode/etc.,
+    // createQuickNoteDraft uses closures over isMobile/locale/etc.,
     // we want the latest version each time but we don't want to rebind
     // listeners on every render either; rebind only when dependencies
     // that change rarely flip.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile, centerMode, locale]);
+  }, [isMobile, locale]);
   // The tree always renders from the lazy folder map. We rebuild
   // it whenever children of any folder change. The /api/documents
   // metadata listing (`documents`) is no longer the source of the
@@ -391,6 +391,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     return nodesForFolder("");
   }, [folderChildren, documentsByPath]);
   const active = tabs.find((tab) => tab.path === activePath) ?? null;
+  // Edit/preview state lives on each tab. When no tab is open we
+  // still need a default so the toolbar renders sensibly; preview
+  // matches the new "open notes in preview" behavior.
+  const centerMode: "edit" | "preview" = active?.mode ?? "preview";
 
   const openDocument = useCallback(
     (path: string) => {
@@ -898,7 +902,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
     api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
       .then((doc) => {
-        setTabs((current) => [...current, { ...doc, draft: doc.content }]);
+        // Opening an existing file lands in preview mode so the
+        // reader immediately sees the rendered note. Each tab
+        // tracks its own mode after this.
+        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview" }]);
       })
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
@@ -931,9 +938,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     return () => window.clearTimeout(timer);
   }, [active?.draft, active?.path, active?.isDraft]);
 
-  function setGlobalCenterMode(nextMode: "edit" | "preview") {
-    setCenterMode(nextMode);
-    localStorage.setItem(editorModeStorageKey, nextMode);
+  // Mode is per-tab: switching Edit/Preview only affects the
+  // currently active tab. Other open tabs keep whatever mode the
+  // user left them in. No localStorage persistence: tab modes are
+  // session state, not a user preference.
+  function setActiveMode(nextMode: "edit" | "preview") {
+    if (!activePath) return;
+    setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, mode: nextMode } : tab)));
   }
 
   function setActiveDraft(nextDraft: string) {
@@ -1005,7 +1016,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   async function save() {
     await persistActiveDocument({ silent: false, refreshList: true });
     if (centerMode === "edit") {
-      setGlobalCenterMode("preview");
+      setActiveMode("preview");
     }
   }
 
@@ -1039,7 +1050,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           method: "PUT",
           body: JSON.stringify({ path: active.path, content: active.draft, expectedHash: active.hash })
         });
-        setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content } : tab)));
+        // Preserve the tab's current mode across the save: the
+        // post-save preview switch is applied separately by the
+        // caller, so a silent autosave never changes mode.
+        setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content, mode: tab.mode } : tab)));
         if (options.refreshList) await refreshDocuments();
         if (!options.silent) setStatusKey("status.saved");
       }
@@ -1071,7 +1085,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           method: "POST",
           body: JSON.stringify({ path: candidatePath, content: draftTab.draft })
         });
-        setTabs((current) => current.map((tab) => (tab.path === draftTab.path ? { ...created, draft: created.content } : tab)));
+        // The draft just became a real file via a manual save, so
+        // land the committed tab in preview mode (matches the
+        // post-save preview switch for existing files). The next
+        // edit will be one tap away on the FAB.
+        setTabs((current) => current.map((tab) => (tab.path === draftTab.path ? { ...created, draft: created.content, mode: "preview" } : tab)));
         setActivePath(created.path);
         await refreshDocuments();
         setStatusKey("status.saved");
@@ -1104,6 +1122,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const draftPath = makeDraftPath();
     const draftName = t("quick.title");
     const now = new Date().toISOString();
+    // Draft tabs always start in edit mode: a blank preview is
+    // useless and the whole point of a quick note is to start
+    // typing immediately.
     const draftTab: OpenTab = {
       path: draftPath,
       name: draftName,
@@ -1118,15 +1139,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       headings: [],
       frontmatter: {},
       links: [],
-      isDraft: true
+      isDraft: true,
+      mode: "edit"
     };
     setTabs((current) => [...current, draftTab]);
     setActivePath(draftPath);
     if (isMobile) {
       setMobileSection("editor");
-    }
-    if (centerMode !== "edit") {
-      setGlobalCenterMode("edit");
     }
     haptic(6);
     // Focus the editor textarea after the draft mounts.
@@ -1144,7 +1163,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         body: JSON.stringify({ path: name })
       });
       await refreshDocuments();
-      setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content }]);
+      // A freshly created note opens in edit mode: it's empty,
+      // the user is about to write into it. Existing files open
+      // in preview (see the active-path effect).
+      setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content, mode: "edit" }]);
       openDocument(created.path);
       setStatusKey("status.created");
     } catch (error) {
@@ -1168,7 +1190,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         body: JSON.stringify({ path: active.path, nextPath })
       });
       setTabs((current) =>
-        current.map((tab) => (tab.path === active.path ? { ...renamed, draft: tab.draft } : tab))
+        current.map((tab) => (tab.path === active.path ? { ...renamed, draft: tab.draft, mode: tab.mode } : tab))
       );
       setActivePath(renamed.path);
       await refreshDocuments();
@@ -1246,7 +1268,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       await refreshDocuments();
       setTabs((current) => [
         ...current.filter((tab) => tab.path !== restored.path),
-        { ...restored, draft: restored.content }
+        { ...restored, draft: restored.content, mode: "preview" }
       ]);
       openDocument(restored.path);
       setStatusText(`${t("status.restoredPrefix")} ${restored.name}`);
@@ -1491,10 +1513,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         </div>
         <div className="editor-toolbar desktop-only" aria-label={t("editor.actionsLabel")}>
           <div className="mode-switch" role="group" aria-label={t("editor.modeLabel")}>
-            <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setGlobalCenterMode("edit")}>
+            <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setActiveMode("edit")}>
               {t("editor.modeEdit")}
             </button>
-            <button className={centerMode === "preview" ? "active" : ""} aria-pressed={centerMode === "preview"} onClick={() => setGlobalCenterMode("preview")}>
+            <button className={centerMode === "preview" ? "active" : ""} aria-pressed={centerMode === "preview"} onClick={() => setActiveMode("preview")}>
               {t("editor.modePreview")}
             </button>
           </div>
@@ -1584,7 +1606,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           <button
             type="button"
             className="editor-fab editor-fab-edit"
-            onClick={() => setGlobalCenterMode("edit")}
+            onClick={() => setActiveMode("edit")}
             aria-label={t("editor.fab.ariaEdit")}
           >
             <PencilIcon />
@@ -1692,7 +1714,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                   type="button"
                   onClick={() => {
                     setCommandSheetOpen(false);
-                    setGlobalCenterMode(centerMode === "edit" ? "preview" : "edit");
+                    setActiveMode(centerMode === "edit" ? "preview" : "edit");
                   }}
                 >
                   <span className="action-sheet-icon" aria-hidden="true">
