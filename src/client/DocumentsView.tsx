@@ -986,12 +986,51 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }, 30);
   }
 
+  // 5-second autosave loop. Stash the latest autosave callback in
+  // a ref so the interval doesn't capture stale state across
+  // renders, and run a single window.setInterval for the lifetime
+  // of the component.
+  const autoSaveRef = useRef<() => Promise<void>>(async () => undefined);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      void autoSaveRef.current();
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Manual save: triggered by the user (toolbar button or Save FAB).
+  // Switches to preview mode on success so the user can immediately
+  // see the rendered result. Drafts go through the rename-on-save
+  // flow that asks for a file name when needed.
   async function save() {
-    if (!active || saving) {
-      return;
+    await persistActiveDocument({ silent: false, refreshList: true });
+    if (centerMode === "edit") {
+      setGlobalCenterMode("preview");
     }
+  }
+
+  // Quiet save used by the 5-second autosave loop. Same on-the-wire
+  // PUT but with no mode switch, no haptic, no full document list
+  // refresh (sort order updates can wait for the next manual save
+  // or refresh). Drafts are skipped: they'd need a generated name
+  // and forcing a file into existence on every keystroke pause is
+  // intrusive.
+  async function autoSaveActive(): Promise<void> {
+    if (!active || active.isDraft) return;
+    if (saving) return;
+    if (active.draft === active.content) return;
+    if (active.draft.trim().length === 0) return;
+    await persistActiveDocument({ silent: true, refreshList: false });
+  }
+
+  // Keep the ref pointing at the latest closure so the interval
+  // sees the current `active` / `saving` / `centerMode` state.
+  autoSaveRef.current = autoSaveActive;
+
+  async function persistActiveDocument(options: { silent: boolean; refreshList: boolean }): Promise<void> {
+    if (!active || saving) return;
     setSaving(true);
-    setStatusKey("status.saving");
+    if (!options.silent) setStatusKey("status.saving");
     try {
       if (active.isDraft) {
         await commitDraft(active);
@@ -1001,8 +1040,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           body: JSON.stringify({ path: active.path, content: active.draft, expectedHash: active.hash })
         });
         setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content } : tab)));
-        await refreshDocuments();
-        setStatusKey("status.saved");
+        if (options.refreshList) await refreshDocuments();
+        if (!options.silent) setStatusKey("status.saved");
       }
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -1541,17 +1580,29 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         <QaView compact onOpenSource={openDocument} />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
-        <button
-          type="button"
-          className="editor-fab"
-          onClick={save}
-          disabled={!dirty || saving}
-          aria-busy={saving}
-          aria-label={dirty ? t("editor.fab.ariaSave") : t("editor.fab.ariaSaved")}
-        >
-          {saving ? <SpinnerIcon /> : <SaveIcon />}
-          <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
-        </button>
+        centerMode === "preview" ? (
+          <button
+            type="button"
+            className="editor-fab editor-fab-edit"
+            onClick={() => setGlobalCenterMode("edit")}
+            aria-label={t("editor.fab.ariaEdit")}
+          >
+            <PencilIcon />
+            <span className="editor-fab-label">{t("editor.fab.edit")}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="editor-fab"
+            onClick={save}
+            disabled={!dirty || saving}
+            aria-busy={saving}
+            aria-label={dirty ? t("editor.fab.ariaSave") : t("editor.fab.ariaSaved")}
+          >
+            {saving ? <SpinnerIcon /> : <SaveIcon />}
+            <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
+          </button>
+        )
       ) : null}
       {pendingUndo ? (
         <div className="undo-toast" role="status" aria-live="polite">

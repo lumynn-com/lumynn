@@ -5,7 +5,18 @@ import { newToken, sha256 } from "../crypto";
 import { store } from "../store";
 
 const cookieName = "owd_session";
-const sessionTtlMs = 1000 * 60 * 60 * 12;
+// Long-lived "remember me" sessions: cookies live for 90 days and
+// the server-side record is bumped forward every time the session
+// is used, so an active user effectively never has to log in
+// again. A fully dormant session still expires (security
+// hygiene), but anyone who opened the app within the last 90
+// days stays signed in.
+const sessionTtlMs = 1000 * 60 * 60 * 24 * 90;
+// When more than half of the TTL has elapsed since `createdAt`,
+// silently extend the session instead of letting it tick down
+// toward expiry. Half is conservative: we don't rewrite the
+// store on every request, only when meaningfully aged.
+const sessionRefreshAfterMs = sessionTtlMs / 2;
 
 export async function setInitialPasswordIfMissing(password: string): Promise<void> {
   const data = await store.load();
@@ -54,7 +65,7 @@ export async function updateCredentials(username: string, password: string): Pro
   await store.save();
 }
 
-export async function getSessionUser(request: FastifyRequest): Promise<string | null> {
+export async function getSessionUser(request: FastifyRequest, reply?: FastifyReply): Promise<string | null> {
   const token = request.cookies[cookieName];
   if (!token) {
     return null;
@@ -64,7 +75,25 @@ export async function getSessionUser(request: FastifyRequest): Promise<string | 
   const hash = sha256(token);
   const now = Date.now();
   const session = data.sessions.find((item) => item.idHash === hash && Date.parse(item.expiresAt) > now);
-  return session?.username ?? null;
+  if (!session) {
+    return null;
+  }
+
+  // Sliding refresh: if the session was created more than half a
+  // TTL ago, push out its expiry so an actively used session
+  // never lapses. Only rewrite the store and the cookie when we
+  // actually need to.
+  const age = now - Date.parse(session.createdAt);
+  if (reply && age > sessionRefreshAfterMs) {
+    session.createdAt = new Date(now).toISOString();
+    session.expiresAt = new Date(now + sessionTtlMs).toISOString();
+    // Drop any other expired sessions while we're here.
+    data.sessions = data.sessions.filter((item) => Date.parse(item.expiresAt) > now);
+    await store.save();
+    setSessionCookie(reply, token);
+  }
+
+  return session.username;
 }
 
 export async function logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -93,7 +122,7 @@ export function setSessionCookie(reply: FastifyReply, token: string): void {
 }
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const user = await getSessionUser(request);
+  const user = await getSessionUser(request, reply);
   if (!user) {
     reply.code(401).send({ error: "Authentication required" });
   }

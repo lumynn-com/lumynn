@@ -9,9 +9,11 @@ const loginSchema = z.object({
 });
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/api/auth/me", async (request) => {
+  app.get("/api/auth/me", async (request, reply) => {
     const data = await store.load();
-    const user = await getSessionUser(request);
+    // Pass `reply` so the auth-check itself can slide the session
+    // forward when the user simply opens the app after a long time.
+    const user = await getSessionUser(request, reply);
     return {
       authenticated: Boolean(user),
       username: user,

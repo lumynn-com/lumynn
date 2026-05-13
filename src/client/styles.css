@@ -2995,6 +2995,15 @@ button[aria-busy="true"] > .button-spinner {
   transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease;
 }
 
+/* In preview mode the FAB swaps into an "Edit" toggle. Same shape
+   but visually secondary so the user understands it isn't the
+   primary commit-the-doc action. */
+.editor-fab.editor-fab-edit {
+  background: var(--md-surface, var(--panel));
+  color: var(--md-text, var(--text));
+  border: 1px solid var(--md-outline-soft, var(--border));
+}
+
 .editor-fab[disabled] {
   opacity: 0.62;
   cursor: default;
@@ -3004,6 +3013,11 @@ button[aria-busy="true"] > .button-spinner {
 .editor-fab:not([disabled]):focus-visible {
   transform: translateY(-1px);
   background: color-mix(in srgb, var(--md-primary, #9ccaff) 85%, white);
+}
+
+.editor-fab.editor-fab-edit:not([disabled]):hover,
+.editor-fab.editor-fab-edit:not([disabled]):focus-visible {
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
 }
 
 .editor-fab-label {
