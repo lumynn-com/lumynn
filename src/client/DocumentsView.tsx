@@ -1602,6 +1602,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         <QaView compact onOpenSource={openDocument} />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
+        // Mobile FAB is a single contextual button. Its role
+        // depends on the current mode + dirty state:
+        //   - preview         -> Edit  (flip to edit mode)
+        //   - edit + clean    -> Preview (flip to preview mode)
+        //   - edit + dirty    -> Save  (save, then auto-flip to preview)
+        // We never show a disabled "Saved" state: the button is
+        // always the most useful next action.
         centerMode === "preview" ? (
           <button
             type="button"
@@ -1612,17 +1619,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <PencilIcon />
             <span className="editor-fab-label">{t("editor.fab.edit")}</span>
           </button>
+        ) : !dirty ? (
+          <button
+            type="button"
+            className="editor-fab editor-fab-edit"
+            onClick={() => setActiveMode("preview")}
+            aria-label={t("editor.fab.ariaPreview")}
+          >
+            <EyeIcon />
+            <span className="editor-fab-label">{t("editor.fab.preview")}</span>
+          </button>
         ) : (
           <button
             type="button"
             className="editor-fab"
             onClick={save}
-            disabled={!dirty || saving}
+            disabled={saving}
             aria-busy={saving}
-            aria-label={dirty ? t("editor.fab.ariaSave") : t("editor.fab.ariaSaved")}
+            aria-label={t("editor.fab.ariaSave")}
           >
             {saving ? <SpinnerIcon /> : <SaveIcon />}
-            <span className="editor-fab-label">{saving ? t("editor.fab.saving") : dirty ? t("editor.fab.save") : t("editor.fab.saved")}</span>
+            <span className="editor-fab-label">{saving ? t("editor.fab.saving") : t("editor.fab.save")}</span>
           </button>
         )
       ) : null}
