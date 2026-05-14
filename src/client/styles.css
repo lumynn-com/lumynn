@@ -13,7 +13,11 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  /* Use the dynamic viewport unit so iOS' shrinking URL bar
+     doesn't cause the page to be slightly taller than the
+     visible area (which would force a permanent vertical
+     scrollbar). 100dvh tracks the *visible* viewport height. */
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top left, rgba(111, 66, 193, 0.28), transparent 32rem),
     radial-gradient(circle at bottom right, rgba(47, 129, 247, 0.18), transparent 30rem),
@@ -77,7 +81,7 @@ label {
 
 .login-shell {
   display: grid;
-  min-height: 100vh;
+  min-height: 100dvh;
   place-items: center;
   padding: 2rem;
 }
@@ -135,7 +139,10 @@ h2 {
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
-  min-height: 100vh;
+  /* No min-height: the shell fills body naturally, and any
+     extra min-height here would *add* to whatever sticky topbar
+     sits above it, leaving a few pixels of permanent overflow
+     and a useless scrollbar at the right edge. */
 }
 
 .sidebar {
@@ -314,7 +321,11 @@ nav .active {
 .preview {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 2rem);
+  /* Same fix as .workspace-grid: never pin to viewport height
+     because we sit below a sticky topbar. The flex layout of
+     the parent supplies the height; internal scrolling is
+     handled by .preview / .editor textarea individually. */
+  min-height: 0;
 }
 
 .editor textarea {
@@ -971,7 +982,7 @@ select {
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100dvh;
   padding: 1.1rem;
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(22px);
@@ -1048,14 +1059,23 @@ nav .active > span:first-child {
 .workspace-grid {
   grid-template-columns: minmax(260px, 330px) minmax(380px, 1fr) minmax(340px, 0.9fr);
   gap: 1.1rem;
-  min-height: 100vh;
+  /* The grid sits below a sticky topbar inside the obsidian shell.
+     If we said min-height: 100vh here we'd push the page
+     scrollHeight to topbar + 100vh and produce a permanent
+     scrollbar with only a few px of useful range. Instead we
+     just let it fill whatever space is left below the topbar. */
+  min-height: 0;
   padding: 1.1rem;
 }
 
 .document-list,
 .editor,
 .preview {
-  min-height: calc(100vh - 2.2rem);
+  /* Same reasoning as .workspace-grid: don't pin to viewport
+     height; let the grid row track size them. The internal
+     scrolling for tall content is handled inside each pane
+     (.tree-scroll, editor textarea, .preview). */
+  min-height: 0;
 }
 
 .panel-header {
@@ -1583,7 +1603,7 @@ progress::-webkit-progress-bar {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .workspace-topbar {
