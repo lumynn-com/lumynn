@@ -1,13 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { RagIndexJob } from "../../shared/types";
 import { sha256 } from "../crypto";
-import { store } from "../store";
+import { store, type UserRecord } from "../store";
 import { listDocumentFileStats, readDocument, type DocumentFileStat } from "../vault/vaultService";
 import { chunkMarkdownByHeading, formatChunkForEmbedding } from "./chunker";
 import { embedTexts } from "./embeddingProvider";
 import { getNamespaceChunks, getNamespaceFileIndex, replaceNamespace, type FileIndexRecord, type VectorChunk, type VectorNamespace } from "./vectorStore";
 
-const jobs = new Map<string, RagIndexJob>();
+// Index jobs are tagged with the username they belong to so each
+// user only ever sees their own jobs. We also enforce one
+// running/queued job per user (different users can index in
+// parallel; the same user cannot stack jobs).
+type OwnedJob = RagIndexJob & { username: string };
+const jobs = new Map<string, OwnedJob>();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,7 +31,7 @@ function formatChunkForContext(title: string, text: string): string {
   return `NOTE TITLE: [[${title}]]\n\nNOTE BLOCK CONTENT:\n\n${stripFrontmatter(text).trimStart()}`;
 }
 
-function updateJob(job: RagIndexJob, patch: Partial<RagIndexJob>) {
+function updateJob(job: OwnedJob, patch: Partial<RagIndexJob>) {
   Object.assign(job, patch);
   jobs.set(job.id, job);
 }
@@ -38,50 +43,73 @@ function isUnchangedFile(record: FileIndexRecord | undefined, doc: DocumentFileS
   return record.size === doc.size && Math.abs(record.mtimeMs - doc.mtimeMs) < 1;
 }
 
-export function getIndexJob(id: string): RagIndexJob | undefined {
-  return jobs.get(id);
+// Routes pass the calling username so we can answer "this user's
+// latest job" / "this user's job by id" without leaking other
+// users' progress. A null `username` (admin oversight) isn't
+// supported on purpose: the spec said no admin backdoor.
+export function getIndexJob(username: string, id: string): RagIndexJob | undefined {
+  const job = jobs.get(id);
+  if (!job || job.username !== username) return undefined;
+  // Hide the internal `username` field from the wire shape.
+  return stripOwner(job);
 }
 
-export function latestIndexJob(): RagIndexJob | undefined {
-  return Array.from(jobs.values()).sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+export function latestIndexJob(username: string): RagIndexJob | undefined {
+  const candidate = Array.from(jobs.values())
+    .filter((job) => job.username === username)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+  return candidate ? stripOwner(candidate) : undefined;
 }
 
-function canControlJob(job: RagIndexJob): boolean {
+function activeJobForUser(username: string): OwnedJob | undefined {
+  return Array.from(jobs.values()).find((job) => job.username === username && (job.status === "queued" || job.status === "running"));
+}
+
+function stripOwner(job: OwnedJob): RagIndexJob {
+  const { username: _username, ...rest } = job;
+  return rest;
+}
+
+function canControlJob(job: OwnedJob): boolean {
   return job.status === "queued" || job.status === "running";
 }
 
-export function requestIndexJobCancel(id: string): RagIndexJob | undefined {
+export function requestIndexJobCancel(username: string, id: string): RagIndexJob | undefined {
   const job = jobs.get(id);
-  if (!job || !canControlJob(job)) {
-    return job;
+  if (!job || job.username !== username || !canControlJob(job)) {
+    return job ? stripOwner(job) : undefined;
   }
   updateJob(job, {
     cancelRequested: true,
     message: "Stop requested. The job will stop after the current operation."
   });
-  return job;
+  return stripOwner(job);
 }
 
-export function requestIndexJobSkipCurrentFile(id: string): RagIndexJob | undefined {
+export function requestIndexJobSkipCurrentFile(username: string, id: string): RagIndexJob | undefined {
   const job = jobs.get(id);
-  if (!job || !canControlJob(job)) {
-    return job;
+  if (!job || job.username !== username || !canControlJob(job)) {
+    return job ? stripOwner(job) : undefined;
   }
   updateJob(job, {
     skipRequested: true,
     message: job.currentFile ? `Skip requested for ${job.currentFile}` : "Skip requested for the next file."
   });
-  return job;
+  return stripOwner(job);
 }
 
-export async function startIndexJob(options: { mode: "test" | "full" | "incremental"; sampleSize?: number }): Promise<RagIndexJob> {
-  const data = await store.load();
-  if (data.settings.rag.embedding.provider === "disabled") {
+export async function startIndexJob(user: UserRecord, options: { mode: "test" | "full" | "incremental"; sampleSize?: number }): Promise<RagIndexJob> {
+  if (user.rag.embedding.provider === "disabled") {
     throw new Error("Embedding provider must be configured before indexing");
+  }
+  const existing = activeJobForUser(user.username);
+  if (existing) {
+    throw new Error("Another indexing job is already running for your account. Stop it first.");
   }
 
   const namespace: VectorNamespace = options.mode === "test" ? "test" : "production";
-  const job: RagIndexJob = {
+  const job: OwnedJob = {
+    username: user.username,
     id: randomUUID(),
     mode: options.mode,
     namespace,
@@ -98,9 +126,10 @@ export async function startIndexJob(options: { mode: "test" | "full" | "incremen
   };
   jobs.set(job.id, job);
 
-  void runIndexJob(job, options.sampleSize).catch((error) => {
+  void runIndexJob(user, job, options.sampleSize).catch((error) => {
     console.error("RAG index job failed", {
       id: job.id,
+      username: job.username,
       mode: job.mode,
       namespace: job.namespace,
       currentFile: job.currentFile,
@@ -116,13 +145,19 @@ export async function startIndexJob(options: { mode: "test" | "full" | "incremen
     });
   });
 
-  return job;
+  return stripOwner(job);
 }
 
-async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void> {
+async function runIndexJob(user: UserRecord, job: OwnedJob, sampleSize?: number): Promise<void> {
   updateJob(job, { status: "running", message: "Reading documents" });
 
-  const settings = (await store.load()).settings.rag;
+  // Re-read the user's settings each time the job runs so any
+  // mid-run edit (like changing the rate limit) is picked up.
+  // We re-fetch the user from the store so we always work
+  // against the latest snapshot.
+  const data = await store.load();
+  const liveUser = data.users.find((u) => u.username === user.username) ?? user;
+  const settings = liveUser.rag;
   const embeddingBatchSize = Math.max(1, Math.min(128, settings.indexing?.embeddingBatchSize ?? 16));
   const embeddingRequestsPerMinute = Math.max(0, settings.indexing?.embeddingRequestsPerMinute ?? 0);
   const minEmbeddingRequestGapMs = embeddingRequestsPerMinute > 0 ? Math.ceil(60000 / embeddingRequestsPerMinute) : 0;
@@ -139,10 +174,10 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
     lastEmbeddingRequestStartedAt = Date.now();
     return embedTexts(settings.embedding, input, { inputType: "passage" });
   };
-  const docs = await listDocumentFileStats("updatedAt", "desc");
+  const docs = await listDocumentFileStats(liveUser, "updatedAt", "desc");
   let selectedDocs = job.mode === "test" ? docs.slice(0, sampleSize ?? 20) : docs;
   const currentPaths = new Set(selectedDocs.map((doc) => doc.path));
-  const existingFileIndex = job.mode === "incremental" ? await getNamespaceFileIndex("production") : [];
+  const existingFileIndex = job.mode === "incremental" ? await getNamespaceFileIndex(liveUser.username, "production") : [];
   const existingFileByPath = new Map(existingFileIndex.map((record) => [record.path, record]));
   let deletedIndexedFiles = 0;
 
@@ -171,7 +206,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
   }
 
   const changedPaths = new Set(selectedDocs.map((doc) => doc.path));
-  const existingVectors = job.mode === "incremental" ? await getNamespaceChunks("production") : [];
+  const existingVectors = job.mode === "incremental" ? await getNamespaceChunks(liveUser.username, "production") : [];
   const existingByPath = new Map<string, VectorChunk[]>();
   for (const vector of existingVectors) {
     const current = existingByPath.get(vector.path) ?? [];
@@ -195,7 +230,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
     }
     const previousMessage = job.message;
     updateJob(job, { message: `Checkpointing index (${job.processedFiles}/${job.totalFiles} files)` });
-    await replaceNamespace(job.namespace, vectors, Array.from(fileIndexByPath.values()));
+    await replaceNamespace(liveUser.username, job.namespace, vectors, Array.from(fileIndexByPath.values()));
     checkpointedFiles = job.processedFiles;
     updateJob(job, { message: previousMessage });
   };
@@ -243,7 +278,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
       continue;
     }
 
-    const full = await readDocument(doc.path);
+    const full = await readDocument(liveUser, doc.path);
     if (job.mode === "incremental" && reusable?.length && reusable.every((vector) => vector.hash === full.hash)) {
       fileIndexByPath.set(full.path, {
         path: full.path,
@@ -414,7 +449,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
   }
 
   updateJob(job, { message: "Persisting vector index" });
-  await replaceNamespace(job.namespace, vectors, Array.from(fileIndexByPath.values()));
+  await replaceNamespace(liveUser.username, job.namespace, vectors, Array.from(fileIndexByPath.values()));
 
   updateJob(job, {
     status: "completed",
@@ -427,7 +462,7 @@ async function runIndexJob(job: RagIndexJob, sampleSize?: number): Promise<void>
   });
 }
 
-function cancelJob(job: RagIndexJob): void {
+function cancelJob(job: OwnedJob): void {
   updateJob(job, {
     status: "cancelled",
     cancelRequested: false,

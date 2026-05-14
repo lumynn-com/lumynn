@@ -7,6 +7,9 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import { registerAuthRoutes } from "./auth/authRoutes";
 import { requireAuth } from "./auth/authService";
+// Side-effect import: registers the FastifyRequest.user type
+// augmentation so handlers can read `request.user`.
+import "./auth/fastifyTypes";
 import { config } from "./config";
 import { assertProductionSecrets } from "./crypto";
 import { registerDocumentRoutes } from "./documents/documentRoutes";
@@ -14,6 +17,7 @@ import { checkObsidianCli } from "./obsidian/obsidianCli";
 import { registerRagRoutes } from "./rag/ragRoutes";
 import { registerSettingsRoutes } from "./settings/settingsRoutes";
 import { store } from "./store";
+import { registerUserRoutes } from "./users/userRoutes";
 
 async function ensureSampleVault(): Promise<void> {
   await fs.mkdir(config.defaultVaultPath, { recursive: true });
@@ -43,7 +47,7 @@ export async function buildServer() {
   assertProductionSecrets();
   await ensureSampleVault();
   const data = await store.load();
-  const https = data.settings.https;
+  const https = data.globalSettings.https;
   const httpsOptions =
     https?.enabled && https.certificate?.trim() && https.privateKey?.trim()
       ? {
@@ -96,6 +100,7 @@ export async function buildServer() {
   });
 
   await registerAuthRoutes(app);
+  await registerUserRoutes(app);
   await registerSettingsRoutes(app);
   await registerDocumentRoutes(app);
   await registerRagRoutes(app);

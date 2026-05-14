@@ -4,20 +4,31 @@ import { DocumentsView } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
 import { BusyLabel, IndexingIcon, SettingsIcon, WorkspaceIcon } from "./icons";
 import { useLocale } from "./i18n";
+import type { UserRole } from "../shared/types";
 
 type View = "workspace" | "indexing" | "settings";
 
+interface AuthState {
+  authenticated: boolean;
+  username: string | null;
+  role: UserRole | null;
+  needsSetup: boolean;
+}
+
 export function App() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [needsSetup, setNeedsSetup] = useState(false);
+  const [auth, setAuth] = useState<AuthState>({ authenticated: false, username: null, role: null, needsSetup: false });
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
   useEffect(() => {
-    api<{ authenticated: boolean; needsSetup: boolean }>("/api/auth/me")
+    api<AuthState>("/api/auth/me")
       .then((state) => {
-        setAuthenticated(state.authenticated);
-        setNeedsSetup(state.needsSetup);
+        setAuth({
+          authenticated: Boolean(state.authenticated),
+          username: state.username ?? null,
+          role: state.role ?? null,
+          needsSetup: Boolean(state.needsSetup)
+        });
       })
       .catch(() => undefined);
   }, []);
@@ -30,8 +41,15 @@ export function App() {
         method: "POST",
         body: JSON.stringify({ username, password })
       });
-      setAuthenticated(true);
-      setNeedsSetup(false);
+      // Re-fetch /me so we pick up the freshly-resolved role and
+      // username instead of guessing from the form input.
+      const state = await api<AuthState>("/api/auth/me");
+      setAuth({
+        authenticated: Boolean(state.authenticated),
+        username: state.username ?? null,
+        role: state.role ?? null,
+        needsSetup: false
+      });
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -39,10 +57,10 @@ export function App() {
     }
   }
 
-  if (!authenticated) {
+  if (!auth.authenticated) {
     return (
       <LoginPage
-        needsSetup={needsSetup}
+        needsSetup={auth.needsSetup}
         error={loginError}
         loading={loginLoading}
         onLogin={handleLogin}
@@ -50,7 +68,13 @@ export function App() {
     );
   }
 
-  return <Workspace onLogout={() => setAuthenticated(false)} />;
+  return (
+    <Workspace
+      username={auth.username ?? ""}
+      role={auth.role ?? "user"}
+      onLogout={() => setAuth({ authenticated: false, username: null, role: null, needsSetup: false })}
+    />
+  );
 }
 
 function LoginPage(props: {
@@ -116,7 +140,7 @@ function LoginPage(props: {
   );
 }
 
-function Workspace(props: { onLogout: () => void }) {
+function Workspace(props: { username: string; role: UserRole; onLogout: () => void }) {
   const { t, locale, setLocale } = useLocale();
   const [view, setView] = useState<View>("workspace");
   const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
@@ -183,6 +207,10 @@ function Workspace(props: { onLogout: () => void }) {
           </button>
         </nav>
         <div className="topbar-actions">
+          <div className="topbar-user" aria-label={t("topbar.signedInAs", { name: props.username })}>
+            <span className="topbar-user-name" translate="no">{props.username}</span>
+            {props.role === "admin" ? <span className="topbar-user-badge">{t("topbar.adminBadge")}</span> : null}
+          </div>
           <div className="lang-switch" role="group" aria-label={t("topbar.language")}>
             <button
               type="button"
@@ -223,12 +251,12 @@ function Workspace(props: { onLogout: () => void }) {
         </div>
         {indexingMounted ? (
           <div hidden={view !== "indexing"} style={{ display: view === "indexing" ? undefined : "none" }}>
-            <SettingsView mode="indexing" onBackToWorkspace={() => setView("workspace")} />
+            <SettingsView mode="indexing" role={props.role} onBackToWorkspace={() => setView("workspace")} />
           </div>
         ) : null}
         {settingsMounted ? (
           <div hidden={view !== "settings"} style={{ display: view === "settings" ? undefined : "none" }}>
-            <SettingsView mode="settings" onBackToWorkspace={() => setView("workspace")} />
+            <SettingsView mode="settings" role={props.role} onBackToWorkspace={() => setView("workspace")} />
           </div>
         ) : null}
       </div>

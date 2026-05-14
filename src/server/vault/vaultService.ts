@@ -7,7 +7,7 @@ import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
 import { backlinksWithObsidianCli, searchWithObsidianCli } from "../obsidian/obsidianCli";
-import { store } from "../store";
+import { store, type UserRecord } from "../store";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
 
@@ -94,15 +94,21 @@ export async function validateVaultPath(vaultPath: string): Promise<VaultValidat
   };
 }
 
-async function ensureVault(): Promise<string> {
-  const data = await store.load();
-  const validation = await validateVaultPath(data.settings.vault.path);
-  data.settings.vault.validation = validation;
+// Per-user: validate the user's configured vault path and return
+// its absolute form. Persists the latest validation result on the
+// user record so the Settings UI can show the current status. A
+// missing/blank/invalid path throws; routes catch and 400 it.
+async function ensureVault(user: UserRecord): Promise<string> {
+  if (!user.vault.path?.trim()) {
+    throw new Error("Vault path is not configured. Open Settings → Vault to set it.");
+  }
+  const validation = await validateVaultPath(user.vault.path);
+  user.vault.validation = validation;
   await store.save();
   if (!validation.ok) {
     throw new Error(validation.message);
   }
-  return path.resolve(data.settings.vault.path);
+  return path.resolve(user.vault.path);
 }
 
 function resolveInVault(vaultRoot: string, documentPath: string): string {
@@ -134,8 +140,8 @@ export interface ListDocumentTreeOptions {
   order?: SortOrder;
 }
 
-export async function listDocumentTree(options: ListDocumentTreeOptions = {}): Promise<DocumentTreeEntry> {
-  const vaultRoot = await ensureVault();
+export async function listDocumentTree(user: UserRecord, options: ListDocumentTreeOptions = {}): Promise<DocumentTreeEntry> {
+  const vaultRoot = await ensureVault(user);
   await fs.mkdir(vaultRoot, { recursive: true });
   const folder = options.folder ?? "";
   const depth = options.depth ?? 1;
@@ -143,6 +149,9 @@ export async function listDocumentTree(options: ListDocumentTreeOptions = {}): P
   const order: SortOrder = options.order ?? "asc";
   const safeFolder = folder === "" ? "" : normalizeFolderPath(folder);
 
+  // Cache key is keyed off the absolute vault root so two users
+  // with different vault paths can never see each other's cached
+  // tree, even by accident.
   const cacheKey = `${vaultRoot}|${safeFolder}|d=${depth}|s=${sort}|o=${order}`;
   const now = Date.now();
   const cached = treeCache.get(cacheKey);
@@ -168,8 +177,16 @@ function normalizeFolderPath(input: string): string {
   return normalized;
 }
 
-function invalidateTreeCache(): void {
-  treeCache.clear();
+// Drop cached folder listings rooted at the given vault. Called
+// after any write that could have changed structure (create,
+// delete, rename). Only clears entries for *this* user's vault
+// so other users keep their warm cache.
+function invalidateTreeCache(vaultRoot: string): void {
+  for (const key of treeCache.keys()) {
+    if (key.startsWith(`${vaultRoot}|`)) {
+      treeCache.delete(key);
+    }
+  }
 }
 
 async function folderHasContent(dir: string): Promise<boolean> {
@@ -293,20 +310,19 @@ async function walkFiles(root: string, dir = root): Promise<string[]> {
   return nested.flat();
 }
 
-async function summarize(vaultRoot: string, documentPath: string): Promise<DocumentSummary> {
+async function summarize(user: UserRecord, vaultRoot: string, documentPath: string): Promise<DocumentSummary> {
   const fullPath = resolveInVault(vaultRoot, documentPath);
   // Read mtime first so we can short-circuit on the cached metadata
   // without paying the cost of fs.readFile + parseMarkdown + sha256
   // for documents that haven't changed since we last summarized them.
   const stat = await fs.stat(fullPath);
   const name = path.basename(documentPath);
-  const data = await store.load();
   const updatedAt = stat.mtime.toISOString();
-  const cached = data.metadataByPath[documentPath];
+  const cached = user.metadataByPath[documentPath];
   if (cached && cached.updatedAt === updatedAt) {
-    const createdAt = data.createdAtByPath[documentPath] ?? cached.createdAt ?? stat.birthtime.toISOString();
-    if (!data.createdAtByPath[documentPath]) {
-      data.createdAtByPath[documentPath] = createdAt;
+    const createdAt = user.createdAtByPath[documentPath] ?? cached.createdAt ?? stat.birthtime.toISOString();
+    if (!user.createdAtByPath[documentPath]) {
+      user.createdAtByPath[documentPath] = createdAt;
     }
     return {
       path: documentPath,
@@ -324,10 +340,10 @@ async function summarize(vaultRoot: string, documentPath: string): Promise<Docum
   // Cache miss or stale: fall through to the full read + parse + hash.
   const content = await fs.readFile(fullPath, "utf8");
   const parsed = parseMarkdown(content, name);
-  const createdAt = data.createdAtByPath[documentPath] ?? stat.birthtime.toISOString();
-  data.createdAtByPath[documentPath] = createdAt;
+  const createdAt = user.createdAtByPath[documentPath] ?? stat.birthtime.toISOString();
+  user.createdAtByPath[documentPath] = createdAt;
   const hash = sha256(content);
-  data.metadataByPath[documentPath] = {
+  user.metadataByPath[documentPath] = {
     path: documentPath,
     title: parsed.title,
     frontmatter: parsed.frontmatter,
@@ -354,8 +370,8 @@ async function summarize(vaultRoot: string, documentPath: string): Promise<Docum
   };
 }
 
-export async function listDocuments(sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentSummary[]> {
-  const vaultRoot = await ensureVault();
+export async function listDocuments(user: UserRecord, sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentSummary[]> {
+  const vaultRoot = await ensureVault(user);
   await fs.mkdir(vaultRoot, { recursive: true });
   const paths = await walkMarkdown(vaultRoot);
 
@@ -363,19 +379,17 @@ export async function listDocuments(sort: SortField = "name", order: SortOrder =
   // metadata was added (i.e. every document was cache-hit) we can
   // skip the JSON store rewrite, saving an unconditional disk write
   // on every list request.
-  const before = await store.load();
-  const cachedBefore = Object.keys(before.metadataByPath).length;
+  const cachedBefore = Object.keys(user.metadataByPath).length;
   const cacheStampsBefore = new Map(
-    Object.entries(before.metadataByPath).map(([key, value]) => [key, value.cachedAt])
+    Object.entries(user.metadataByPath).map(([key, value]) => [key, value.cachedAt])
   );
 
-  const summaries = await Promise.all(paths.map((docPath) => summarize(vaultRoot, docPath)));
+  const summaries = await Promise.all(paths.map((docPath) => summarize(user, vaultRoot, docPath)));
 
-  const after = await store.load();
-  const cachedAfter = Object.keys(after.metadataByPath).length;
+  const cachedAfter = Object.keys(user.metadataByPath).length;
   const changed =
     cachedAfter !== cachedBefore ||
-    Array.from(cacheStampsBefore.entries()).some(([key, stamp]) => after.metadataByPath[key]?.cachedAt !== stamp);
+    Array.from(cacheStampsBefore.entries()).some(([key, stamp]) => user.metadataByPath[key]?.cachedAt !== stamp);
   if (changed) {
     await store.save();
   }
@@ -389,8 +403,8 @@ export async function listDocuments(sort: SortField = "name", order: SortOrder =
   });
 }
 
-export async function listDocumentFileStats(sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentFileStat[]> {
-  const vaultRoot = await ensureVault();
+export async function listDocumentFileStats(user: UserRecord, sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentFileStat[]> {
+  const vaultRoot = await ensureVault(user);
   await fs.mkdir(vaultRoot, { recursive: true });
   const paths = await walkMarkdown(vaultRoot);
   const stats = await Promise.all(
@@ -415,12 +429,12 @@ export async function listDocumentFileStats(sort: SortField = "name", order: Sor
   });
 }
 
-export async function readDocument(documentPath: string): Promise<DocumentContent> {
-  const vaultRoot = await ensureVault();
+export async function readDocument(user: UserRecord, documentPath: string): Promise<DocumentContent> {
+  const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = resolveInVault(vaultRoot, safePath);
   const content = await fs.readFile(fullPath, "utf8");
-  const summary = await summarize(vaultRoot, safePath);
+  const summary = await summarize(user, vaultRoot, safePath);
   const parsed = parseMarkdown(content, summary.name);
   await store.save();
   return {
@@ -468,14 +482,14 @@ function makeSnippet(content: string, query: string, fallback: string): string {
   return `${start > 0 ? "..." : ""}${normalized.slice(start, offset + query.length + 120)}${offset + query.length + 120 < normalized.length ? "..." : ""}`;
 }
 
-export async function searchDocuments(query: string): Promise<DocumentSearchResult[]> {
+export async function searchDocuments(user: UserRecord, query: string): Promise<DocumentSearchResult[]> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) {
     return [];
   }
 
-  const vaultRoot = await ensureVault();
-  const documents = await listDocuments("updatedAt", "desc");
+  const vaultRoot = await ensureVault(user);
+  const documents = await listDocuments(user, "updatedAt", "desc");
   const byPath = new Map(documents.map((doc) => [doc.path, doc]));
   const results = new Map<string, DocumentSearchResult>();
   const cliLines = await searchWithObsidianCli(vaultRoot, trimmedQuery);
@@ -517,8 +531,8 @@ export async function searchDocuments(query: string): Promise<DocumentSearchResu
   return Array.from(results.values()).slice(0, 100);
 }
 
-export async function writeDocument(documentPath: string, content: string, expectedHash?: string): Promise<DocumentContent> {
-  const vaultRoot = await ensureVault();
+export async function writeDocument(user: UserRecord, documentPath: string, content: string, expectedHash?: string): Promise<DocumentContent> {
+  const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = resolveInVault(vaultRoot, safePath);
   await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -530,8 +544,7 @@ export async function writeDocument(documentPath: string, content: string, expec
     throw error;
   }
 
-  const data = await store.load();
-  data.createdAtByPath[safePath] ??= new Date().toISOString();
+  user.createdAtByPath[safePath] ??= new Date().toISOString();
   const tmpPath = `${fullPath}.${process.pid}.tmp`;
   await fs.writeFile(tmpPath, content, "utf8");
   await fs.rename(tmpPath, fullPath);
@@ -539,19 +552,19 @@ export async function writeDocument(documentPath: string, content: string, expec
   // The new file may add a new folder to the tree (subfolders created
   // by fs.mkdir above). Invalidate so the next /api/documents/tree
   // reflects it.
-  if (existing === null) invalidateTreeCache();
-  return readDocument(safePath);
+  if (existing === null) invalidateTreeCache(vaultRoot);
+  return readDocument(user, safePath);
 }
 
-export async function createDocument(documentPath: string, content = ""): Promise<DocumentContent> {
-  const vaultRoot = await ensureVault();
+export async function createDocument(user: UserRecord, documentPath: string, content = ""): Promise<DocumentContent> {
+  const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = resolveInVault(vaultRoot, safePath);
   const exists = await fs.stat(fullPath).then(() => true).catch(() => false);
   if (exists) {
     throw new Error("Document already exists");
   }
-  return writeDocument(safePath, content || `# ${path.basename(safePath, ".md")}\n`);
+  return writeDocument(user, safePath, content || `# ${path.basename(safePath, ".md")}\n`);
 }
 
 // Whitelist of image MIME types we accept for paste-into-editor uploads
@@ -577,7 +590,7 @@ export interface WriteAttachmentResult {
 // Persist a binary attachment (image) to <vault>/attachments/ with a
 // time-sortable, collision-resistant filename. Returns the
 // vault-relative path the caller should reference from Markdown.
-export async function writeAttachment(params: {
+export async function writeAttachment(user: UserRecord, params: {
   bytes: Buffer;
   mimeType: string;
   preferredName?: string;
@@ -593,7 +606,7 @@ export async function writeAttachment(params: {
     throw new Error(`Attachment is larger than ${Math.round(ATTACHMENT_MAX_BYTES / 1024 / 1024)} MB`);
   }
 
-  const vaultRoot = await ensureVault();
+  const vaultRoot = await ensureVault(user);
   const folderRel = "attachments";
   const folderAbs = path.resolve(vaultRoot, folderRel);
   if (!isInside(vaultRoot, folderAbs)) {
@@ -646,24 +659,23 @@ function randomToken(length: number): string {
   return out;
 }
 
-export async function deleteDocument(documentPath: string): Promise<void> {
-  const vaultRoot = await ensureVault();
+export async function deleteDocument(user: UserRecord, documentPath: string): Promise<void> {
+  const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = resolveInVault(vaultRoot, safePath);
   await fs.unlink(fullPath);
-  const data = await store.load();
-  delete data.createdAtByPath[safePath];
-  delete data.metadataByPath[safePath];
+  delete user.createdAtByPath[safePath];
+  delete user.metadataByPath[safePath];
   await store.save();
-  invalidateTreeCache();
+  invalidateTreeCache(vaultRoot);
 }
 
-export async function renameDocument(documentPath: string, nextPath: string): Promise<DocumentContent> {
-  const vaultRoot = await ensureVault();
+export async function renameDocument(user: UserRecord, documentPath: string, nextPath: string): Promise<DocumentContent> {
+  const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const safeNextPath = normalizeDocumentPath(nextPath);
   if (safePath === safeNextPath) {
-    return readDocument(safePath);
+    return readDocument(user, safePath);
   }
 
   const fullPath = resolveInVault(vaultRoot, safePath);
@@ -676,22 +688,21 @@ export async function renameDocument(documentPath: string, nextPath: string): Pr
   await fs.mkdir(path.dirname(nextFullPath), { recursive: true });
   await fs.rename(fullPath, nextFullPath);
 
-  const data = await store.load();
-  if (data.createdAtByPath[safePath]) {
-    data.createdAtByPath[safeNextPath] = data.createdAtByPath[safePath];
-    delete data.createdAtByPath[safePath];
+  if (user.createdAtByPath[safePath]) {
+    user.createdAtByPath[safeNextPath] = user.createdAtByPath[safePath];
+    delete user.createdAtByPath[safePath];
   }
-  if (data.metadataByPath[safePath]) {
-    data.metadataByPath[safeNextPath] = {
-      ...data.metadataByPath[safePath],
+  if (user.metadataByPath[safePath]) {
+    user.metadataByPath[safeNextPath] = {
+      ...user.metadataByPath[safePath],
       path: safeNextPath,
       cachedAt: new Date().toISOString()
     };
-    delete data.metadataByPath[safePath];
+    delete user.metadataByPath[safePath];
   }
   await store.save();
-  invalidateTreeCache();
-  return readDocument(safeNextPath);
+  invalidateTreeCache(vaultRoot);
+  return readDocument(user, safeNextPath);
 }
 
 function mediaUrl(assetPath: string, basePath?: string): string {
@@ -820,8 +831,8 @@ function prepareObsidianMarkdown(content: string, basePath?: string): string {
     .join("");
 }
 
-export async function readVaultMedia(assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
-  const vaultRoot = await ensureVault();
+export async function readVaultMedia(user: UserRecord, assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
+  const vaultRoot = await ensureVault(user);
   const safeAssetPath = normalizeVaultAssetPath(assetPath);
   const extension = path.extname(safeAssetPath).toLowerCase();
   const contentType = supportedMediaTypes[extension];
@@ -876,21 +887,21 @@ export async function renderPreview(content: string, basePath?: string): Promise
   });
 }
 
-export async function backlinksFor(documentPath: string): Promise<Array<{ source: string; title: string }>> {
-  const vaultRoot = await ensureVault();
+export async function backlinksFor(user: UserRecord, documentPath: string): Promise<Array<{ source: string; title: string }>> {
+  const vaultRoot = await ensureVault(user);
   const cliBacklinks = await backlinksWithObsidianCli(vaultRoot, normalizeDocumentPath(documentPath));
   if (cliBacklinks.length > 0) {
     return cliBacklinks.map((link) => ({ source: link.source, title: link.title ?? path.basename(link.source, ".md") }));
   }
 
   const targetBase = path.basename(normalizeDocumentPath(documentPath), ".md");
-  const docs = await listDocuments("path", "asc");
+  const docs = await listDocuments(user, "path", "asc");
   const matches: Array<{ source: string; title: string }> = [];
   for (const doc of docs) {
     if (doc.path === documentPath) {
       continue;
     }
-    const full = await readDocument(doc.path);
+    const full = await readDocument(user, doc.path);
     if (full.links.some((link) => link === targetBase || link.endsWith(`/${targetBase}`))) {
       matches.push({ source: doc.path, title: doc.title });
     }

@@ -1,11 +1,20 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { store } from "../store";
+import type { UserRecord } from "../store";
 import { listDocuments, readDocument, renderPreview } from "../vault/vaultService";
 import { chunkMarkdownByHeading } from "./chunker";
 import { embedTexts, endpointUrl } from "./embeddingProvider";
 import { getIndexJob, latestIndexJob, requestIndexJobCancel, requestIndexJobSkipCurrentFile, startIndexJob } from "./indexJobs";
 import { getNamespaceChunks, getNamespaceStats, searchVectors, type VectorNamespace } from "./vectorStore";
+
+function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | null {
+  const user = request.user;
+  if (!user) {
+    reply.code(401).send({ error: "Authentication required" });
+    return null;
+  }
+  return user;
+}
 
 interface Chunk {
   path: string;
@@ -257,20 +266,19 @@ function isUnsupportedThinkingError(payload: any): boolean {
   return typeof message === "string" && /unknown field ["']?thinking|thinking.*unsupported|invalid.*thinking/i.test(message);
 }
 
-async function retrieveFallback(question: string, limit?: number): Promise<Chunk[]> {
-  const data = await store.load();
-  const docs = await listDocuments("updatedAt", "desc");
+async function retrieveFallback(user: UserRecord, question: string, limit?: number): Promise<Chunk[]> {
+  const docs = await listDocuments(user, "updatedAt", "desc");
   const chunks: Chunk[] = [];
   const selectedDocs = docs
     .map((doc) => ({ doc, score: metadataBoost(question, doc) + keywordScore(question, { path: doc.path, title: doc.title, text: doc.headings.join("\n") }) }))
     .sort((a, b) => b.score - a.score || a.doc.path.localeCompare(b.doc.path))
-    .slice(0, Math.max(maxLiveKeywordDocs, limit ?? data.settings.rag.retrieval.topK))
+    .slice(0, Math.max(maxLiveKeywordDocs, limit ?? user.rag.retrieval.topK))
     .map((entry) => entry.doc);
 
   for (const doc of selectedDocs) {
-    const full = await readDocument(doc.path);
+    const full = await readDocument(user, doc.path);
     const docBoost = metadataBoost(question, full);
-    for (const chunk of chunkMarkdownByHeading(full.content, data.settings.rag.retrieval.chunkSize, data.settings.rag.retrieval.chunkOverlap)) {
+    for (const chunk of chunkMarkdownByHeading(full.content, user.rag.retrieval.chunkSize, user.rag.retrieval.chunkOverlap)) {
       const title = chunk.heading ? `${full.title} > ${chunk.heading}` : full.title;
       const text = formatContextChunk(full.title, full.path, chunk.heading, chunk.text);
       const score = docBoost + keywordScore(question, { path: full.path, title, text: chunk.text });
@@ -280,12 +288,12 @@ async function retrieveFallback(question: string, limit?: number): Promise<Chunk
 
   return chunks
     .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
-    .filter((chunk, index) => chunk.score > 0 || index < data.settings.rag.retrieval.topK)
-    .slice(0, limit ?? data.settings.rag.retrieval.topK);
+    .filter((chunk, index) => chunk.score > 0 || index < user.rag.retrieval.topK)
+    .slice(0, limit ?? user.rag.retrieval.topK);
 }
 
-async function retrieveIndexedKeyword(namespace: VectorNamespace, question: string, topK: number): Promise<Chunk[]> {
-  const chunks = await getNamespaceChunks(namespace);
+async function retrieveIndexedKeyword(user: UserRecord, namespace: VectorNamespace, question: string, topK: number): Promise<Chunk[]> {
+  const chunks = await getNamespaceChunks(user.username, namespace);
   return chunks
     .map((chunk) => ({
       path: chunk.path,
@@ -300,21 +308,20 @@ async function retrieveIndexedKeyword(namespace: VectorNamespace, question: stri
     .slice(0, topK);
 }
 
-async function retrieve(question: string): Promise<RetrievalResult> {
-  const data = await store.load();
-  const productionStats = await getNamespaceStats("production");
-  const testStats = await getNamespaceStats("test");
+async function retrieve(user: UserRecord, question: string): Promise<RetrievalResult> {
+  const productionStats = await getNamespaceStats(user.username, "production");
+  const testStats = await getNamespaceStats(user.username, "test");
   const namespace: VectorNamespace | null =
     productionStats.chunkCount > 0 ? "production" : testStats.chunkCount > 0 ? "test" : null;
-  const topK = data.settings.rag.retrieval.topK;
+  const topK = user.rag.retrieval.topK;
   const candidateK = Math.max(minCandidateK, topK * candidateMultiplier);
 
   if (namespace) {
-    if (data.settings.rag.embedding.provider !== "disabled") {
+    if (user.rag.embedding.provider !== "disabled") {
       try {
-        const result = await embedTexts(data.settings.rag.embedding, [question], { inputType: "query" });
-        const vectorMatches = await searchVectors(namespace, result.embeddings[0], candidateK);
-        const keywordMatches = await retrieveIndexedKeyword(namespace, question, candidateK);
+        const result = await embedTexts(user.rag.embedding, [question], { inputType: "query" });
+        const vectorMatches = await searchVectors(user.username, namespace, result.embeddings[0], candidateK);
+        const keywordMatches = await retrieveIndexedKeyword(user, namespace, question, candidateK);
         const merged = new Map<string, Chunk>();
 
         mergeChunks(
@@ -336,7 +343,7 @@ async function retrieve(question: string): Promise<RetrievalResult> {
         };
       } catch (error) {
         const warning = error instanceof Error ? error.message : "Embedding query failed";
-        const indexedKeyword = await retrieveIndexedKeyword(namespace, question, candidateK);
+        const indexedKeyword = await retrieveIndexedKeyword(user, namespace, question, candidateK);
         const merged = new Map<string, Chunk>();
         mergeChunks(merged, indexedKeyword.filter((match) => match.score > 0), 1.1);
         const chunks = selectDiverseTopK(Array.from(merged.values()), question, topK);
@@ -344,7 +351,7 @@ async function retrieve(question: string): Promise<RetrievalResult> {
           return {
             namespace: "vault-keyword",
             warning,
-            chunks: await retrieveFallback(question, topK)
+            chunks: await retrieveFallback(user, question, topK)
           };
         }
         return {
@@ -355,14 +362,14 @@ async function retrieve(question: string): Promise<RetrievalResult> {
       }
     }
 
-    const indexedKeyword = await retrieveIndexedKeyword(namespace, question, candidateK);
+    const indexedKeyword = await retrieveIndexedKeyword(user, namespace, question, candidateK);
     const merged = new Map<string, Chunk>();
     mergeChunks(merged, indexedKeyword.filter((match) => match.score > 0), 1.1);
     const chunks = selectDiverseTopK(Array.from(merged.values()), question, topK);
     if ((chunks[0]?.score ?? 0) <= 0) {
       return {
         namespace: "vault-keyword",
-        chunks: await retrieveFallback(question, topK)
+        chunks: await retrieveFallback(user, question, topK)
       };
     }
 
@@ -374,7 +381,7 @@ async function retrieve(question: string): Promise<RetrievalResult> {
 
   return {
     namespace: "keyword",
-    chunks: await retrieveFallback(question, topK)
+    chunks: await retrieveFallback(user, question, topK)
   };
 }
 
@@ -416,9 +423,8 @@ function linkCitationReferences(answer: string, citationCount: number): string {
   });
 }
 
-async function answerWithProviderAttempt(question: string, chunks: Chunk[], options: QaAttemptOptions): Promise<string | null> {
-  const data = await store.load();
-  const settings = data.settings.rag.qa;
+async function answerWithProviderAttempt(user: UserRecord, question: string, chunks: Chunk[], options: QaAttemptOptions): Promise<string | null> {
+  const settings = user.rag.qa;
   const { userPrompt, systemPrompt } = buildQaPrompt(question, chunks, options);
   const apiMode = settings.apiMode ?? "chat-completions";
   const isResponsesMode = apiMode === "responses" || settings.endpointPath === "/responses";
@@ -489,9 +495,8 @@ async function answerWithProviderAttempt(question: string, chunks: Chunk[], opti
   return text;
 }
 
-async function answerWithProvider(question: string, chunks: Chunk[]): Promise<string | null> {
-  const data = await store.load();
-  const settings = data.settings.rag.qa;
+async function answerWithProvider(user: UserRecord, question: string, chunks: Chunk[]): Promise<string | null> {
+  const settings = user.rag.qa;
   if (settings.provider === "disabled") {
     return null;
   }
@@ -505,7 +510,7 @@ async function answerWithProvider(question: string, chunks: Chunk[]): Promise<st
 
   for (const [index, attempt] of attempts.entries()) {
     try {
-      return await answerWithProviderAttempt(question, chunks, attempt);
+      return await answerWithProviderAttempt(user, question, chunks, attempt);
     } catch (error) {
       lastError = error;
       const message = describeError(error);
@@ -522,38 +527,50 @@ async function answerWithProvider(question: string, chunks: Chunk[]): Promise<st
 
 export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/settings/rag/test-index", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ sampleSize: z.number().int().min(1).max(100).default(20) }).parse(request.body ?? {});
     try {
-      return await startIndexJob({ mode: "test", sampleSize: body.sampleSize });
+      return await startIndexJob(user, { mode: "test", sampleSize: body.sampleSize });
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to start test index" };
     }
   });
 
-  app.post("/api/rag/reindex", async (_request, reply) => {
+  app.post("/api/rag/reindex", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     try {
-      return await startIndexJob({ mode: "full" });
+      return await startIndexJob(user, { mode: "full" });
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to start full index" };
     }
   });
 
-  app.post("/api/rag/reindex/incremental", async (_request, reply) => {
+  app.post("/api/rag/reindex/incremental", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     try {
-      return await startIndexJob({ mode: "incremental" });
+      return await startIndexJob(user, { mode: "incremental" });
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to start incremental index" };
     }
   });
 
-  app.get("/api/rag/index-jobs/latest", async () => latestIndexJob() ?? null);
+  app.get("/api/rag/index-jobs/latest", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    return latestIndexJob(user.username) ?? null;
+  });
 
   app.get("/api/rag/index-jobs/:id", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
-    const job = getIndexJob(params.id);
+    const job = getIndexJob(user.username, params.id);
     if (!job) {
       reply.code(404);
       return { error: "Index job not found" };
@@ -562,8 +579,10 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/api/rag/index-jobs/:id/cancel", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
-    const job = requestIndexJobCancel(params.id);
+    const job = requestIndexJobCancel(user.username, params.id);
     if (!job) {
       reply.code(404);
       return { error: "Index job not found" };
@@ -572,8 +591,10 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/api/rag/index-jobs/:id/skip-current-file", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
-    const job = requestIndexJobSkipCurrentFile(params.id);
+    const job = requestIndexJobSkipCurrentFile(user.username, params.id);
     if (!job) {
       reply.code(404);
       return { error: "Index job not found" };
@@ -581,21 +602,27 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
     return job;
   });
 
-  app.get("/api/rag/index-stats", async () => ({
-    production: await getNamespaceStats("production"),
-    test: await getNamespaceStats("test")
-  }));
+  app.get("/api/rag/index-stats", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    return {
+      production: await getNamespaceStats(user.username, "production"),
+      test: await getNamespaceStats(user.username, "test")
+    };
+  });
 
   app.post("/api/rag/query", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ question: z.string().min(1) }).parse(request.body);
     let retrieval: RetrievalResult;
     try {
-      retrieval = await retrieve(body.question);
+      retrieval = await retrieve(user, body.question);
     } catch (error) {
       app.log.warn(error, "Vector retrieval failed; falling back to keyword retrieval");
       retrieval = {
         namespace: "keyword",
-        chunks: await retrieveFallback(body.question)
+        chunks: await retrieveFallback(user, body.question)
       };
     }
 
@@ -607,7 +634,7 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
     }));
 
     try {
-      const providerAnswer = await answerWithProvider(body.question, retrieval.chunks);
+      const providerAnswer = await answerWithProvider(user, body.question, retrieval.chunks);
       const answer =
         providerAnswer ??
         `Q&A provider is disabled. Showing the most relevant ${retrieval.namespace} Markdown snippets for: "${body.question}".`;

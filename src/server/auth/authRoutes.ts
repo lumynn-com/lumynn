@@ -1,6 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { getSessionUser, login, logout, setInitialPasswordIfMissing, setSessionCookie } from "./authService";
+import {
+  getCurrentUser,
+  login,
+  logout,
+  setInitialAdminIfMissing,
+  setSessionCookie
+} from "./authService";
 import { store } from "../store";
 
 const loginSchema = z.object({
@@ -13,11 +19,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const data = await store.load();
     // Pass `reply` so the auth-check itself can slide the session
     // forward when the user simply opens the app after a long time.
-    const user = await getSessionUser(request, reply);
+    const user = await getCurrentUser(request, reply);
     return {
       authenticated: Boolean(user),
-      username: user,
-      needsSetup: !data.settings.auth.hasPassword
+      username: user?.username ?? null,
+      role: user?.role ?? null,
+      // First-run: there are no users yet. The login form repurposes
+      // itself into "create the first admin" mode.
+      needsSetup: data.users.length === 0
     };
   });
 
@@ -25,8 +34,10 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const body = loginSchema.parse(request.body);
     const data = await store.load();
 
-    if (!data.settings.auth.hasPassword) {
-      await setInitialPasswordIfMissing(body.password);
+    if (data.users.length === 0) {
+      // Bootstrap path: no users yet, treat the first POST as
+      // "create the initial admin with these credentials".
+      await setInitialAdminIfMissing(body.username, body.password);
       const token = await login(body.username, body.password);
       if (token) {
         setSessionCookie(reply, token);

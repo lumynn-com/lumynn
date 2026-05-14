@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import crypto from "node:crypto";
 import { config } from "../config";
+import { adminUsers, store } from "../store";
 
 export type VectorNamespace = "test" | "production";
 
@@ -59,8 +61,21 @@ const indexDir = path.join(config.dataDir, "vector-index");
 
 let migrationPromise: Promise<void> | null = null;
 
-function namespacePath(namespace: VectorNamespace, extension: "jsonl" | "f32" | "manifest.json" | "files.json"): string {
-  return path.join(indexDir, `${namespace}.${extension}`);
+// Hash the username so the on-disk directory is path-safe and a
+// fixed length, regardless of what the user's name looks like
+// (including non-ASCII or otherwise unfortunate characters).
+function userKey(username: string): string {
+  return crypto.createHash("sha256").update(username).digest("hex").slice(0, 16);
+}
+
+// Per-user vector index dir. Exposed so userRoutes can `rm -rf`
+// it when an admin deletes a user.
+export function vectorIndexDirForUser(username: string): string {
+  return path.join(indexDir, userKey(username));
+}
+
+function namespacePath(username: string, namespace: VectorNamespace, extension: "jsonl" | "f32" | "manifest.json" | "files.json"): string {
+  return path.join(vectorIndexDirForUser(username), `${namespace}.${extension}`);
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
@@ -121,9 +136,9 @@ async function loadLegacyIndex(): Promise<VectorIndexFile | null> {
   }
 }
 
-async function readManifest(namespace: VectorNamespace): Promise<NamespaceManifest | null> {
+async function readManifest(username: string, namespace: VectorNamespace): Promise<NamespaceManifest | null> {
   try {
-    return JSON.parse(await fs.readFile(namespacePath(namespace, "manifest.json"), "utf8")) as NamespaceManifest;
+    return JSON.parse(await fs.readFile(namespacePath(username, namespace, "manifest.json"), "utf8")) as NamespaceManifest;
   } catch {
     return null;
   }
@@ -150,13 +165,13 @@ function deriveFileIndexFromChunks(chunks: VectorChunk[], updatedAt: string): Fi
   return Array.from(byPath.values()).sort((a, b) => a.path.localeCompare(b.path));
 }
 
-async function writeCompactNamespace(namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[], updatedAt = new Date().toISOString()): Promise<void> {
-  await fs.mkdir(indexDir, { recursive: true });
+async function writeCompactNamespace(username: string, namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[], updatedAt = new Date().toISOString()): Promise<void> {
+  await fs.mkdir(vectorIndexDirForUser(username), { recursive: true });
 
-  const metadataPath = namespacePath(namespace, "jsonl");
-  const embeddingsPath = namespacePath(namespace, "f32");
-  const manifestPath = namespacePath(namespace, "manifest.json");
-  const filesPath = namespacePath(namespace, "files.json");
+  const metadataPath = namespacePath(username, namespace, "jsonl");
+  const embeddingsPath = namespacePath(username, namespace, "f32");
+  const manifestPath = namespacePath(username, namespace, "manifest.json");
+  const filesPath = namespacePath(username, namespace, "files.json");
   const tmpSuffix = `${process.pid}.${Date.now()}.tmp`;
   const metadataTmpPath = `${metadataPath}.${tmpSuffix}`;
   const embeddingsTmpPath = `${embeddingsPath}.${tmpSuffix}`;
@@ -213,14 +228,14 @@ async function writeCompactNamespace(namespace: VectorNamespace, chunks: VectorC
   await fs.rename(filesTmpPath, filesPath);
 }
 
-async function loadCompactNamespace(namespace: VectorNamespace): Promise<VectorChunk[] | null> {
-  if (!(await pathExists(namespacePath(namespace, "manifest.json"))) && !(await pathExists(namespacePath(namespace, "jsonl")))) {
+async function loadCompactNamespace(username: string, namespace: VectorNamespace): Promise<VectorChunk[] | null> {
+  if (!(await pathExists(namespacePath(username, namespace, "manifest.json"))) && !(await pathExists(namespacePath(username, namespace, "jsonl")))) {
     return null;
   }
 
   const [metadataText, embeddingsBuffer] = await Promise.all([
-    fs.readFile(namespacePath(namespace, "jsonl"), "utf8").catch(() => ""),
-    fs.readFile(namespacePath(namespace, "f32")).catch(() => Buffer.alloc(0))
+    fs.readFile(namespacePath(username, namespace, "jsonl"), "utf8").catch(() => ""),
+    fs.readFile(namespacePath(username, namespace, "f32")).catch(() => Buffer.alloc(0))
   ]);
   const chunks: VectorChunk[] = [];
   let byteOffset = 0;
@@ -252,25 +267,69 @@ async function loadCompactNamespace(namespace: VectorNamespace): Promise<VectorC
   return chunks;
 }
 
+// Migrate any pre-multi-user data into the *first admin user's*
+// hashed directory:
+//   - the very old `vector-index.json` blob (if it still exists)
+//   - the per-namespace files that used to live directly under
+//     `data/vector-index/` (no user-keyed subdir)
+// Idempotent: silently no-ops once the target dir exists.
 async function ensureLegacyMigrated(): Promise<void> {
   if (migrationPromise) {
     return migrationPromise;
   }
 
   migrationPromise = (async () => {
-    const legacy = await loadLegacyIndex();
-    if (!legacy) {
+    const data = await store.load();
+    const admins = adminUsers(data);
+    const adminTarget = admins[0];
+    if (!adminTarget) {
+      // No admin yet, nothing to migrate to.
       return;
     }
 
-    for (const [namespace, entry] of Object.entries(legacy.namespaces)) {
-      if (namespace !== "test" && namespace !== "production") {
-        continue;
+    // (a) very-old single JSON blob.
+    const legacy = await loadLegacyIndex();
+    if (legacy) {
+      for (const [namespace, entry] of Object.entries(legacy.namespaces)) {
+        if (namespace !== "test" && namespace !== "production") {
+          continue;
+        }
+        await writeCompactNamespace(adminTarget.username, namespace, entry.chunks ?? [], undefined, entry.updatedAt ?? new Date().toISOString());
       }
-      await writeCompactNamespace(namespace, entry.chunks ?? [], undefined, entry.updatedAt ?? new Date().toISOString());
+      await fs.unlink(legacyIndexPath).catch(() => undefined);
     }
 
-    await fs.unlink(legacyIndexPath).catch(() => undefined);
+    // (b) per-namespace files at the top-level of indexDir
+    // (pre-multi-user layout). Only move them if there's no
+    // user-keyed subdir for the admin yet, so we don't clobber
+    // a freshly indexed dataset.
+    const targetDir = vectorIndexDirForUser(adminTarget.username);
+    const targetExists = await pathExists(targetDir);
+    if (targetExists) {
+      return;
+    }
+    const entries = await fs.readdir(indexDir, { withFileTypes: true }).catch(() => []);
+    const flatFiles = entries.filter((entry) => entry.isFile() && /^(test|production)\.(jsonl|f32|manifest\.json|files\.json)$/.test(entry.name));
+    if (flatFiles.length > 0) {
+      try {
+        await fs.mkdir(targetDir, { recursive: true });
+        for (const file of flatFiles) {
+          const from = path.join(indexDir, file.name);
+          const to = path.join(targetDir, file.name);
+          await fs.rename(from, to);
+        }
+      } catch (error) {
+        // Don't crash the whole boot just because we can't move
+        // legacy files (often a leftover from running under a
+        // different user). Log loudly so the operator can fix
+        // permissions; the per-user code paths will still work
+        // for newly indexed data.
+        console.warn(
+          `Could not migrate legacy vector-index files for user "${adminTarget.username}": ` +
+            (error instanceof Error ? error.message : String(error))
+        );
+      }
+    }
   })().finally(() => {
     migrationPromise = null;
   });
@@ -278,22 +337,22 @@ async function ensureLegacyMigrated(): Promise<void> {
   return migrationPromise;
 }
 
-export async function replaceNamespace(namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[]): Promise<void> {
+export async function replaceNamespace(username: string, namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[]): Promise<void> {
   await ensureLegacyMigrated();
-  await writeCompactNamespace(namespace, chunks, fileIndex);
+  await writeCompactNamespace(username, namespace, chunks, fileIndex);
 }
 
-export async function getNamespaceChunks(namespace: VectorNamespace): Promise<VectorChunk[]> {
+export async function getNamespaceChunks(username: string, namespace: VectorNamespace): Promise<VectorChunk[]> {
   await ensureLegacyMigrated();
-  return (await loadCompactNamespace(namespace)) ?? [];
+  return (await loadCompactNamespace(username, namespace)) ?? [];
 }
 
-export async function getNamespaceStats(namespace: VectorNamespace): Promise<{ updatedAt?: string; fileCount: number; chunkCount: number; hasIndex: boolean }> {
+export async function getNamespaceStats(username: string, namespace: VectorNamespace): Promise<{ updatedAt?: string; fileCount: number; chunkCount: number; hasIndex: boolean }> {
   await ensureLegacyMigrated();
-  const manifest = await readManifest(namespace);
-  const fileIndex = await getNamespaceFileIndex(namespace);
+  const manifest = await readManifest(username, namespace);
+  const fileIndex = await getNamespaceFileIndex(username, namespace);
   if (manifest) {
-    const chunks = fileIndex.length > 0 ? null : await loadCompactNamespace(namespace);
+    const chunks = fileIndex.length > 0 ? null : await loadCompactNamespace(username, namespace);
     return {
       updatedAt: manifest.updatedAt,
       fileCount: fileIndex.length || new Set((chunks ?? []).map((chunk) => chunk.path)).size,
@@ -302,7 +361,7 @@ export async function getNamespaceStats(namespace: VectorNamespace): Promise<{ u
     };
   }
 
-  const chunks = await loadCompactNamespace(namespace);
+  const chunks = await loadCompactNamespace(username, namespace);
   return {
     fileCount: new Set((chunks ?? []).map((chunk) => chunk.path)).size,
     chunkCount: chunks?.length ?? 0,
@@ -310,10 +369,10 @@ export async function getNamespaceStats(namespace: VectorNamespace): Promise<{ u
   };
 }
 
-export async function getNamespaceFileIndex(namespace: VectorNamespace): Promise<FileIndexRecord[]> {
+export async function getNamespaceFileIndex(username: string, namespace: VectorNamespace): Promise<FileIndexRecord[]> {
   await ensureLegacyMigrated();
   try {
-    const snapshot = JSON.parse(await fs.readFile(namespacePath(namespace, "files.json"), "utf8")) as FileIndexSnapshot;
+    const snapshot = JSON.parse(await fs.readFile(namespacePath(username, namespace, "files.json"), "utf8")) as FileIndexSnapshot;
     return Array.isArray(snapshot.files) ? snapshot.files : [];
   } catch {
     return [];
@@ -339,8 +398,8 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(aNorm) * Math.sqrt(bNorm));
 }
 
-export async function searchVectors(namespace: VectorNamespace, queryEmbedding: number[], topK: number) {
-  const chunks = await getNamespaceChunks(namespace);
+export async function searchVectors(username: string, namespace: VectorNamespace, queryEmbedding: number[], topK: number) {
+  const chunks = await getNamespaceChunks(username, namespace);
   return chunks
     .map((chunk) => ({ ...chunk, score: cosineSimilarity(queryEmbedding, chunk.embedding) }))
     .sort((a, b) => b.score - a.score)

@@ -1,11 +1,11 @@
 import path from "node:path";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { ProviderSettings } from "../../shared/types";
+import type { AppSettings, ProviderSettings } from "../../shared/types";
 import { config } from "../config";
 import { redactSecret } from "../crypto";
-import { updateCredentials } from "../auth/authService";
-import { store } from "../store";
+import { requireAdmin } from "../auth/authService";
+import { store, type UserRecord } from "../store";
 import { validateVaultPath } from "../vault/vaultService";
 import { endpointUrl } from "../rag/embeddingProvider";
 
@@ -43,23 +43,57 @@ const httpsSchema = z.object({
   privateKey: z.string().optional()
 });
 
-function redactedSettings(data: Awaited<ReturnType<typeof store.load>>) {
+function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | null {
+  const user = request.user;
+  if (!user) {
+    reply.code(401).send({ error: "Authentication required" });
+    return null;
+  }
+  return user;
+}
+
+// Build the wire-shape AppSettings for a single user. Per-user
+// fields (vault, rag, account) come from the user record;
+// HTTPS comes from globalSettings but is only fully exposed to
+// admins. For non-admins we still surface a redacted HTTPS view
+// (just `enabled`) so the client can render a sensible message
+// instead of a missing-field crash.
+async function buildUserSettings(user: UserRecord): Promise<AppSettings & { runtime: unknown }> {
+  const data = await store.load();
+  const isAdmin = user.role === "admin";
   return {
-    ...data.settings,
+    account: {
+      username: user.username,
+      role: user.role,
+      hasPassword: Boolean(user.passwordHash)
+    },
+    auth: {
+      // Backwards-compat alias the existing client still reads.
+      username: user.username,
+      hasPassword: Boolean(user.passwordHash)
+    },
     https: {
-      enabled: data.settings.https?.enabled ?? false,
-      hasCertificate: Boolean(data.settings.https?.certificate?.trim()),
-      hasPrivateKey: Boolean(data.settings.https?.privateKey?.trim())
+      enabled: data.globalSettings.https.enabled,
+      // Only admins see the cert/key indicators; for everyone else
+      // we just surface enabled so the UI knows whether to show
+      // the "HTTPS is on" badge.
+      hasCertificate: isAdmin ? data.globalSettings.https.hasCertificate : undefined,
+      hasPrivateKey: isAdmin ? data.globalSettings.https.hasPrivateKey : undefined
+    },
+    vault: {
+      path: user.vault.path,
+      allowPlainMarkdownFolder: user.vault.allowPlainMarkdownFolder,
+      validation: user.vault.validation
     },
     rag: {
-      ...data.settings.rag,
+      ...user.rag,
       embedding: {
-        ...data.settings.rag.embedding,
-        apiKey: redactSecret(data.settings.rag.embedding.apiKey)
+        ...user.rag.embedding,
+        apiKey: redactSecret(user.rag.embedding.apiKey)
       },
       qa: {
-        ...data.settings.rag.qa,
-        apiKey: redactSecret(data.settings.rag.qa.apiKey)
+        ...user.rag.qa,
+        apiKey: redactSecret(user.rag.qa.apiKey)
       }
     },
     runtime: {
@@ -211,44 +245,58 @@ async function testOpenAiCompatibleQa(settings: {
 }
 
 export async function registerSettingsRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/api/settings", async () => redactedSettings(await store.load()));
-
-  app.put("/api/settings/auth", async (request) => {
-    const body = z.object({ username: z.string().min(1), password: z.string().min(8) }).parse(request.body);
-    await updateCredentials(body.username, body.password);
-    return { ok: true };
+  // The unified settings payload: vault + rag + account are
+  // scoped to the calling user; https is server-wide and only
+  // fully populated for admins.
+  app.get("/api/settings", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    return buildUserSettings(user);
   });
 
-  app.post("/api/settings/vault/validate", async (request) => {
+  // Validate a candidate vault path (no write). Per-user; the
+  // calling user is the one whose ALLOWED_VAULT_ROOTS matter.
+  app.post("/api/settings/vault/validate", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1) }).parse(request.body);
     return validateVaultPath(path.resolve(body.path));
   });
 
+  // Update the calling user's vault settings.
   app.put("/api/settings/vault", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1), allowPlainMarkdownFolder: z.boolean().default(true) }).parse(request.body);
     const validation = await validateVaultPath(path.resolve(body.path));
     if (!validation.ok) {
       reply.code(400);
       return validation;
     }
-    const data = await store.load();
-    data.settings.vault = { path: path.resolve(body.path), allowPlainMarkdownFolder: body.allowPlainMarkdownFolder, validation };
+    user.vault = {
+      path: path.resolve(body.path),
+      allowPlainMarkdownFolder: body.allowPlainMarkdownFolder,
+      validation
+    };
     await store.save();
-    return redactedSettings(data);
+    return buildUserSettings(user);
   });
 
-  app.put("/api/settings/https", async (request, reply) => {
+  // HTTPS is server-wide; admin-only.
+  app.put("/api/settings/https", { preHandler: requireAdmin }, async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = httpsSchema.parse(request.body);
     const data = await store.load();
-    const certificate = resolveSubmittedPem(body.certificate, data.settings.https?.certificate);
-    const privateKey = resolveSubmittedPem(body.privateKey, data.settings.https?.privateKey);
+    const certificate = resolveSubmittedPem(body.certificate, data.globalSettings.https.certificate);
+    const privateKey = resolveSubmittedPem(body.privateKey, data.globalSettings.https.privateKey);
     try {
       validateHttpsPem(body.enabled, certificate, privateKey);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Invalid HTTPS certificate settings" };
     }
-    data.settings.https = {
+    data.globalSettings.https = {
       enabled: body.enabled,
       certificate,
       privateKey,
@@ -256,72 +304,78 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       hasPrivateKey: Boolean(privateKey.trim())
     };
     await store.save();
-    return redactedSettings(data);
+    return buildUserSettings(user);
   });
 
-  app.put("/api/settings/rag", async (request) => {
+  // Update the calling user's RAG provider config.
+  app.put("/api/settings/rag", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = ragSchema.parse(request.body);
-    const data = await store.load();
-    data.settings.rag = {
-      embedding: { ...body.embedding, apiKey: resolveSubmittedSecret(body.embedding.apiKey, data.settings.rag.embedding.apiKey) },
-      qa: { ...body.qa, apiKey: resolveSubmittedSecret(body.qa.apiKey, data.settings.rag.qa.apiKey) },
+    user.rag = {
+      embedding: { ...body.embedding, apiKey: resolveSubmittedSecret(body.embedding.apiKey, user.rag.embedding.apiKey) },
+      qa: { ...body.qa, apiKey: resolveSubmittedSecret(body.qa.apiKey, user.rag.qa.apiKey) },
       retrieval: body.retrieval,
       indexing: body.indexing
     };
     await store.save();
-    return redactedSettings(data);
+    return buildUserSettings(user);
   });
 
-  app.post("/api/settings/rag/test-embedding", async (_request, reply) => {
-    const data = await store.load();
-    if (data.settings.rag.embedding.provider === "disabled") {
+  app.post("/api/settings/rag/test-embedding", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    if (user.rag.embedding.provider === "disabled") {
       reply.code(400);
       return { error: "Embedding provider is disabled" };
     }
     try {
-      return await testOpenAiCompatibleEmbedding(data.settings.rag.embedding);
+      return await testOpenAiCompatibleEmbedding(user.rag.embedding);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Embedding provider test failed" };
     }
   });
 
-  app.post("/api/settings/rag/test-qa", async (_request, reply) => {
-    const data = await store.load();
-    if (data.settings.rag.qa.provider === "disabled") {
+  app.post("/api/settings/rag/test-qa", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    if (user.rag.qa.provider === "disabled") {
       reply.code(400);
       return { error: "Q&A provider is disabled" };
     }
     try {
-      return await testOpenAiCompatibleQa(data.settings.rag.qa);
+      return await testOpenAiCompatibleQa(user.rag.qa);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Q&A provider test failed" };
     }
   });
 
-  app.get("/api/settings/rag/export", async () => {
-    const data = await store.load();
+  app.get("/api/settings/rag/export", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     return {
       schemaVersion: 1,
       rag: {
-        ...data.settings.rag,
-        embedding: { ...data.settings.rag.embedding, apiKey: undefined },
-        qa: { ...data.settings.rag.qa, apiKey: undefined }
+        ...user.rag,
+        embedding: { ...user.rag.embedding, apiKey: undefined },
+        qa: { ...user.rag.qa, apiKey: undefined }
       }
     };
   });
 
-  app.post("/api/settings/rag/import", async (request) => {
+  app.post("/api/settings/rag/import", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ schemaVersion: z.literal(1), rag: ragSchema }).parse(request.body);
-    const data = await store.load();
-    data.settings.rag = {
-      embedding: { ...body.rag.embedding, apiKey: resolveSubmittedSecret(body.rag.embedding.apiKey, data.settings.rag.embedding.apiKey) },
-      qa: { ...body.rag.qa, apiKey: resolveSubmittedSecret(body.rag.qa.apiKey, data.settings.rag.qa.apiKey) },
+    user.rag = {
+      embedding: { ...body.rag.embedding, apiKey: resolveSubmittedSecret(body.rag.embedding.apiKey, user.rag.embedding.apiKey) },
+      qa: { ...body.rag.qa, apiKey: resolveSubmittedSecret(body.rag.qa.apiKey, user.rag.qa.apiKey) },
       retrieval: body.rag.retrieval,
       indexing: body.rag.indexing
     };
     await store.save();
-    return redactedSettings(data);
+    return buildUserSettings(user);
   });
 }

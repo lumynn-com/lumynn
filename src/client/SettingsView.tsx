@@ -1,34 +1,48 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats } from "../shared/types";
+import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats, UserRole, UserSummary } from "../shared/types";
 import { api } from "./api";
 import { BusyLabel } from "./icons";
 import { useT } from "./i18n";
 import type { TKey } from "./i18n";
 
-type SettingsSection = "account" | "vault" | "https" | "providers" | "operations" | "import-export";
+type SettingsSection = "account" | "users" | "vault" | "https" | "providers" | "operations" | "import-export";
 type SettingsMode = "settings" | "indexing";
 
-const settingsSections: Array<{ id: SettingsSection; labelKey: TKey }> = [
+// Sections displayed in the left rail. The "users" + "https"
+// sections are admin-only and filtered out for regular users.
+const allSettingsSections: Array<{ id: SettingsSection; labelKey: TKey; adminOnly?: boolean }> = [
   { id: "vault", labelKey: "settings.section.vault" },
   { id: "providers", labelKey: "settings.section.providers" },
   { id: "import-export", labelKey: "settings.section.importExport" },
-  { id: "https", labelKey: "settings.section.https" },
+  { id: "https", labelKey: "settings.section.https", adminOnly: true },
+  { id: "users", labelKey: "settings.section.users", adminOnly: true },
   { id: "account", labelKey: "settings.section.account" }
 ];
 
-export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: () => void }) {
+export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBackToWorkspace?: () => void }) {
   const t = useT();
   const mode = props.mode ?? "settings";
+  const role: UserRole = props.role ?? "user";
+  const isAdmin = role === "admin";
+  const settingsSections = useMemo(() => allSettingsSections.filter((item) => !item.adminOnly || isAdmin), [isAdmin]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [message, setMessage] = useState("");
   const [section, setSection] = useState<SettingsSection>(mode === "indexing" ? "operations" : "vault");
-  const [accountPassword, setAccountPassword] = useState("");
+  // Per-user password change requires the current password to
+  // be verified server-side, then the new one applied.
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [httpsCertificate, setHttpsCertificate] = useState("");
   const [httpsPrivateKey, setHttpsPrivateKey] = useState("");
   const [importText, setImportText] = useState("");
   const [indexJob, setIndexJob] = useState<RagIndexJob | null>(null);
   const [indexStats, setIndexStats] = useState<RagIndexStats | null>(null);
   const [busyKeys, setBusyKeys] = useState<ReadonlySet<string>>(() => new Set());
+  // Admin "Users" panel state.
+  const [users, setUsers] = useState<UserSummary[] | null>(null);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const isBusy = useCallback((key: string) => busyKeys.has(key), [busyKeys]);
   const runBusy = useCallback(async <T,>(key: string, fn: () => Promise<T>): Promise<T | undefined> => {
@@ -96,6 +110,25 @@ export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: (
     };
   }, [mode]);
 
+  // Lazy-fetch the users list the first time the admin opens
+  // the Users section.
+  useEffect(() => {
+    if (!isAdmin || section !== "users" || users !== null) return;
+    api<UserSummary[]>("/api/users")
+      .then(setUsers)
+      .catch((error) => setMessage(error instanceof Error ? error.message : t("settings.users.loadError")));
+  }, [isAdmin, section, users, t]);
+
+  // Belt-and-braces: if a non-admin is showing an admin-only
+  // section (e.g. because they were demoted while open), bounce
+  // them to a section they can actually see.
+  useEffect(() => {
+    if (isAdmin) return;
+    if (section === "users" || section === "https") {
+      setSection(mode === "indexing" ? "operations" : "vault");
+    }
+  }, [isAdmin, section, mode]);
+
   useEffect(() => {
     if (!indexJob || (indexJob.status !== "queued" && indexJob.status !== "running")) {
       return;
@@ -121,17 +154,49 @@ export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: (
     return <main className="single-view panel">{t("settings.loading")}</main>;
   }
 
-  async function saveAccount() {
-    await runBusy("save-account", async () => {
+  async function changeMyPassword() {
+    await runBusy("change-password", async () => {
       try {
-        await api("/api/settings/auth", {
-          method: "PUT",
-          body: JSON.stringify({ username: settings!.auth.username, password: accountPassword })
+        await api("/api/users/me/password", {
+          method: "POST",
+          body: JSON.stringify({ currentPassword, newPassword })
         });
-        setAccountPassword("");
-        setMessage(t("settings.account.savedMessage"));
+        setCurrentPassword("");
+        setNewPassword("");
+        setMessage(t("settings.account.passwordChanged"));
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : t("settings.account.saveError"));
+        setMessage(error instanceof Error ? error.message : t("settings.account.passwordChangeError"));
+      }
+    });
+  }
+
+  async function createUser() {
+    await runBusy("create-user", async () => {
+      try {
+        const created = await api<UserSummary>("/api/users", {
+          method: "POST",
+          body: JSON.stringify({ username: newUserName, password: newUserPassword })
+        });
+        setUsers((current) => (current ? [...current, created] : [created]));
+        setNewUserName("");
+        setNewUserPassword("");
+        setMessage(t("settings.users.createdMessage", { name: created.username }));
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : t("settings.users.createError"));
+      }
+    });
+  }
+
+  async function deleteUser(username: string) {
+    await runBusy(`delete-user-${username}`, async () => {
+      try {
+        await api(`/api/users/${encodeURIComponent(username)}`, { method: "DELETE" });
+        setUsers((current) => (current ? current.filter((user) => user.username !== username) : current));
+        setMessage(t("settings.users.deletedMessage", { name: username }));
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : t("settings.users.deleteError"));
+      } finally {
+        setPendingDelete(null);
       }
     });
   }
@@ -343,7 +408,7 @@ export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: (
               <div>
                 <p className="eyebrow">{t("settings.account.eyebrow")}</p>
                 <h2>{t("settings.account.title")}</h2>
-                <p className="muted">{t("settings.account.description")}</p>
+                <p className="muted">{t("settings.account.descriptionMulti")}</p>
               </div>
               <label>
                 {t("settings.account.username")}
@@ -351,30 +416,153 @@ export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: (
                   name="account-username"
                   autoComplete="username"
                   spellCheck={false}
-                  value={settings.auth.username}
-                  onChange={(event) => setSettings({ ...settings, auth: { ...settings.auth, username: event.target.value } })}
+                  value={settings.account?.username ?? settings.auth.username}
+                  readOnly
+                  aria-readonly
+                />
+                <small className="muted">{t("settings.account.usernameLocked")}</small>
+              </label>
+              <label>
+                {t("settings.account.role")}
+                <input
+                  value={(settings.account?.role ?? role) === "admin" ? t("settings.account.roleAdmin") : t("settings.account.roleUser")}
+                  readOnly
+                  aria-readonly
+                />
+              </label>
+              <hr />
+              <p className="eyebrow">{t("settings.account.changePasswordTitle")}</p>
+              <label>
+                {t("settings.account.currentPassword")}
+                <input
+                  name="account-current-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
                 />
               </label>
               <label>
                 {t("settings.account.newPassword")}
                 <input
-                  name="account-password"
+                  name="account-new-password"
                   type="password"
                   autoComplete="new-password"
-                  value={accountPassword}
-                  onChange={(event) => setAccountPassword(event.target.value)}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
                   aria-describedby="account-password-help"
                 />
                 <small id="account-password-help" className="muted">{t("settings.account.passwordHelp")}</small>
               </label>
               <button
                 className="primary"
-                onClick={saveAccount}
-                disabled={accountPassword.length < 8 || isBusy("save-account")}
-                aria-busy={isBusy("save-account")}
+                onClick={changeMyPassword}
+                disabled={currentPassword.length < 1 || newPassword.length < 8 || isBusy("change-password")}
+                aria-busy={isBusy("change-password")}
               >
-                <BusyLabel busy={isBusy("save-account")} busyText={t("settings.account.saveBusy")}>{t("settings.account.save")}</BusyLabel>
+                <BusyLabel busy={isBusy("change-password")} busyText={t("settings.account.changePasswordBusy")}>
+                  {t("settings.account.changePassword")}
+                </BusyLabel>
               </button>
+            </section>
+          ) : null}
+
+          {section === "users" && isAdmin ? (
+            <section className="panel form-panel">
+              <div>
+                <p className="eyebrow">{t("settings.users.eyebrow")}</p>
+                <h2>{t("settings.users.title")}</h2>
+                <p className="muted">{t("settings.users.description")}</p>
+              </div>
+
+              <div>
+                <p className="eyebrow">{t("settings.users.createTitle")}</p>
+                <label>
+                  {t("settings.users.username")}
+                  <input
+                    name="new-user-username"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={newUserName}
+                    onChange={(event) => setNewUserName(event.target.value)}
+                    placeholder={t("settings.users.usernamePlaceholder")}
+                  />
+                </label>
+                <label>
+                  {t("settings.users.password")}
+                  <input
+                    name="new-user-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newUserPassword}
+                    onChange={(event) => setNewUserPassword(event.target.value)}
+                  />
+                  <small className="muted">{t("settings.account.passwordHelp")}</small>
+                </label>
+                <button
+                  className="primary"
+                  onClick={createUser}
+                  disabled={
+                    newUserName.trim().length < 1 ||
+                    newUserPassword.length < 8 ||
+                    isBusy("create-user")
+                  }
+                  aria-busy={isBusy("create-user")}
+                >
+                  <BusyLabel busy={isBusy("create-user")} busyText={t("settings.users.createBusy")}>
+                    {t("settings.users.create")}
+                  </BusyLabel>
+                </button>
+              </div>
+
+              <hr />
+
+              <div>
+                <p className="eyebrow">{t("settings.users.listTitle")}</p>
+                {users === null ? (
+                  <p className="muted">{t("settings.users.loading")}</p>
+                ) : users.length === 0 ? (
+                  <p className="muted">{t("settings.users.empty")}</p>
+                ) : (
+                  <ul className="users-list" role="list">
+                    {users.map((user) => (
+                      <li key={user.username} className="users-list-item">
+                        <div>
+                          <strong translate="no">{user.username}</strong>
+                          <span className={`role-badge role-${user.role}`}>
+                            {user.role === "admin" ? t("settings.users.roleAdmin") : t("settings.users.roleUser")}
+                          </span>
+                          <small className="muted">
+                            {t("settings.users.vault", {
+                              status: user.vaultPathConfigured ? t("settings.users.vaultConfigured") : t("settings.users.vaultMissing")
+                            })}
+                          </small>
+                        </div>
+                        {pendingDelete === user.username ? (
+                          <div className="button-row">
+                            <button
+                              className="danger"
+                              onClick={() => deleteUser(user.username)}
+                              disabled={isBusy(`delete-user-${user.username}`)}
+                              aria-busy={isBusy(`delete-user-${user.username}`)}
+                            >
+                              <BusyLabel busy={isBusy(`delete-user-${user.username}`)} busyText={t("settings.users.deleteBusy")}>
+                                {t("settings.users.confirmDelete")}
+                              </BusyLabel>
+                            </button>
+                            <button onClick={() => setPendingDelete(null)}>{t("settings.users.cancel")}</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setPendingDelete(user.username)}>
+                            {t("settings.users.delete")}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="muted small">{t("settings.users.deleteCaveat")}</p>
+              </div>
             </section>
           ) : null}
 
@@ -415,7 +603,7 @@ export function SettingsView(props: { mode?: SettingsMode; onBackToWorkspace?: (
             </section>
           ) : null}
 
-          {section === "https" ? (
+          {section === "https" && isAdmin ? (
             <section className="panel form-panel">
               <div>
                 <p className="eyebrow">{t("settings.https.eyebrow")}</p>

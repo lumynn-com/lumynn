@@ -109,7 +109,25 @@ export interface RagIndexStats {
   test: RagNamespaceStats;
 }
 
+export type UserRole = "admin" | "user";
+
+// `AppSettings` is the multi-user wire shape returned by GET
+// /api/settings. Most fields describe the *current* caller's
+// account: their username, vault, RAG provider config, etc. The
+// `https` field is server-wide and only included for admins; for
+// non-admins the field is present but contains read-only "is
+// HTTPS on?" info with the rest cleared. The `account` field
+// replaces the old `auth` field with a clearer name and adds
+// the caller's role so the client can show admin-only UI.
 export interface AppSettings {
+  account: {
+    username: string;
+    role: UserRole;
+    hasPassword: boolean;
+  };
+  // Backwards-compat alias for the pre-multi-user `auth` field;
+  // mirrors `account` so existing client code paths keep working
+  // until we sweep them.
   auth: {
     username: string;
     hasPassword: boolean;
@@ -127,6 +145,13 @@ export interface AppSettings {
     validation?: VaultValidation;
   };
   rag: RagSettings;
+}
+
+export interface UserSummary {
+  username: string;
+  role: UserRole;
+  createdAt: string;
+  vaultPathConfigured: boolean;
 }
 
 export interface VaultValidation {

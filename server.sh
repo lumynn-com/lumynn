@@ -19,14 +19,15 @@ NPM_BIN="${NPM_BIN:-$(command -v npm)}"
 
 usage() {
   cat <<USAGE
-Usage: ./server.sh <start|stop|restart|status|logs> [--dev|--prod]
+Usage: ./server.sh <start|stop|restart|status|logs|reset-password> [--dev|--prod]
 
 Commands:
-  start     Start the web app in the background
-  stop      Stop the running app
-  restart   Stop and start the app
-  status    Show whether the app is running
-  logs      Follow the app log
+  start                                 Start the web app in the background
+  stop                                  Stop the running app
+  restart                               Stop and start the app
+  status                                Show whether the app is running
+  logs                                  Follow the app log
+  reset-password <username> <password>  Reset a user's password (out-of-band)
 
 Modes:
   --prod    Run npm run server (default, serves dist/client after npm run build)
@@ -37,6 +38,7 @@ Examples:
   ./server.sh start --dev
   ./server.sh restart
   ./server.sh logs
+  ./server.sh reset-password admin "new-strong-password"
 USAGE
 }
 
@@ -223,6 +225,19 @@ command="${1:-}"
 shift || true
 parse_mode "$@"
 
+reset_password() {
+  local username="${1:-}"
+  local password="${2:-}"
+  if [[ -z "${username}" || -z "${password}" ]]; then
+    echo "Usage: ./server.sh reset-password <username> <new-password>" >&2
+    exit 2
+  fi
+  cd "${ROOT_DIR}"
+  # Run the script directly through tsx; no need for the long-running
+  # server, and no need for ALLOWED_VAULT_ROOTS / network secrets.
+  exec "${NPM_BIN}" exec --silent -- tsx src/server/cli/resetPassword.ts "${username}" "${password}"
+}
+
 case "${command}" in
   start) start_server ;;
   stop) stop_server ;;
@@ -232,6 +247,7 @@ case "${command}" in
     ;;
   status) status_server ;;
   logs) follow_logs ;;
+  reset-password) reset_password "$@" ;;
   -h|--help|help|"") usage ;;
   *)
     echo "Unknown command: ${command}" >&2

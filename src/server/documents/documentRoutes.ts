@@ -1,11 +1,25 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import type { UserRecord } from "../store";
 import { backlinksFor, createDocument, deleteDocument, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
   order: z.enum(["asc", "desc"]).optional()
 });
+
+// Helper: every document route requires an authenticated caller.
+// The requireAuth preHandler in server.ts decorates request.user
+// before any of these handlers run, so this is just a defensive
+// type narrow + 401 if the decoration somehow didn't happen.
+function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | null {
+  const user = request.user;
+  if (!user) {
+    reply.code(401).send({ error: "Authentication required" });
+    return null;
+  }
+  return user;
+}
 
 export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
   // Lightweight folder/file structure for the document tree.
@@ -15,7 +29,9 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   // levels by making additional calls with ?path=<sub-folder>.
   // Pass depth=0 (or any larger number) to override and get a
   // multi-level subtree in one shot.
-  app.get("/api/documents/tree", async (request) => {
+  app.get("/api/documents/tree", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z
       .object({
         path: z.string().min(1).max(1024).optional(),
@@ -24,17 +40,30 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
         order: z.enum(["asc", "desc"]).optional()
       })
       .parse(request.query);
-    return listDocumentTree({
-      folder: query.path,
-      depth: query.depth ?? 1,
-      sort: query.sort,
-      order: query.order
-    });
+    try {
+      return await listDocumentTree(user, {
+        folder: query.path,
+        depth: query.depth ?? 1,
+        sort: query.sort,
+        order: query.order
+      });
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to list folder" };
+    }
   });
 
-  app.get("/api/documents", async (request) => {
+  app.get("/api/documents", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = sortSchema.parse(request.query);
-    const docs = await listDocuments(query.sort ?? "name", query.order ?? "asc");
+    let docs;
+    try {
+      docs = await listDocuments(user, query.sort ?? "name", query.order ?? "asc");
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to list documents" };
+    }
     // The tree view only renders path / name / title / dates /
     // hash. Stripping the per-doc tags / aliases / headings arrays
     // before serialization keeps the wire payload small for vaults
@@ -55,9 +84,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.post("/api/documents", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1), content: z.string().optional() }).parse(request.body);
     try {
-      return await createDocument(body.path, body.content);
+      return await createDocument(user, body.path, body.content);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to create document" };
@@ -69,6 +100,8 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   // original filename in query params, which is much smaller on the
   // wire than multipart or base64.
   app.post("/api/documents/attachments", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z
       .object({
         type: z.string().min(1).max(80),
@@ -80,7 +113,7 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       return { error: "Expected binary body (application/octet-stream)" };
     }
     try {
-      return await writeAttachment({
+      return await writeAttachment(user, {
         bytes: request.body,
         mimeType: query.type,
         preferredName: query.name
@@ -92,9 +125,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.get("/api/documents/content", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z.object({ path: z.string().min(1) }).parse(request.query);
     try {
-      return await readDocument(query.path);
+      return await readDocument(user, query.path);
     } catch (error) {
       reply.code(404);
       return { error: error instanceof Error ? error.message : "Document not found" };
@@ -102,9 +137,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.get("/api/documents/search", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z.object({ q: z.string().min(1).max(500) }).parse(request.query);
     try {
-      return await searchDocuments(query.q);
+      return await searchDocuments(user, query.q);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to search documents" };
@@ -112,9 +149,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.put("/api/documents/content", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1), content: z.string(), expectedHash: z.string().optional() }).parse(request.body);
     try {
-      return await writeDocument(body.path, body.content, body.expectedHash);
+      return await writeDocument(user, body.path, body.content, body.expectedHash);
     } catch (error) {
       reply.code(error instanceof Error && error.name === "ConflictError" ? 409 : 400);
       return { error: error instanceof Error ? error.message : "Unable to save document" };
@@ -122,9 +161,11 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.delete("/api/documents/content", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1) }).parse(request.body);
     try {
-      await deleteDocument(body.path);
+      await deleteDocument(user, body.path);
       return { ok: true };
     } catch (error) {
       reply.code(400);
@@ -133,24 +174,29 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   });
 
   app.patch("/api/documents/rename", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const body = z.object({ path: z.string().min(1), nextPath: z.string().min(1) }).parse(request.body);
     try {
-      return await renameDocument(body.path, body.nextPath);
+      return await renameDocument(user, body.path, body.nextPath);
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to rename document" };
     }
   });
 
+  // Preview rendering is pure; no vault access needed.
   app.post("/api/documents/preview", async (request) => {
     const body = z.object({ content: z.string(), path: z.string().optional() }).parse(request.body);
     return { html: await renderPreview(body.content, body.path) };
   });
 
   app.get("/api/documents/media", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z.object({ path: z.string().min(1), base: z.string().optional() }).parse(request.query);
     try {
-      const media = await readVaultMedia(query.path, query.base);
+      const media = await readVaultMedia(user, query.path, query.base);
       reply.type(media.contentType);
       return media.data;
     } catch (error) {
@@ -159,8 +205,10 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
   });
 
-  app.get("/api/documents/backlinks", async (request) => {
+  app.get("/api/documents/backlinks", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
     const query = z.object({ path: z.string().min(1) }).parse(request.query);
-    return backlinksFor(query.path);
+    return backlinksFor(user, query.path);
   });
 }

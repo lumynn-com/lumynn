@@ -1635,6 +1635,91 @@ progress::-webkit-progress-bar {
   justify-content: end;
 }
 
+/* Compact "you are signed in as foo (admin)" indicator placed
+   between the language switch and the theme/logout buttons. */
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  background: color-mix(in srgb, var(--md-surface, var(--panel)) 88%, transparent);
+  font-size: 0.85rem;
+  color: var(--md-text, var(--text));
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Admin "Users" page: simple stacked list of accounts. */
+.users-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.users-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--md-surface, var(--panel)) 92%, transparent);
+}
+
+.users-list-item > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+  color: var(--md-text, var(--text));
+}
+
+.role-badge.role-admin {
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+}
+
+.danger {
+  background: color-mix(in srgb, #c0392b 90%, transparent);
+  color: white;
+}
+
+.muted.small {
+  font-size: 0.8rem;
+}
+
+.topbar-user-name {
+  font-weight: 600;
+}
+
+.topbar-user-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+}
+
 .topbar-actions .ghost {
   width: auto;
   margin-top: 0;
