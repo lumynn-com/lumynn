@@ -3179,7 +3179,15 @@ button[aria-busy="true"] > .button-spinner {
 
 .obsidian-workspace,
 .workspace-grid {
-  min-height: calc(100dvh - 64px);
+  /* DO NOT pin a fixed height here. The shell uses
+     grid-template-rows: auto minmax(0, 1fr) so the workspace
+     row already gets exactly the leftover height after the
+     sticky topbar. Hardcoding `calc(100dvh - 64px)` overflows
+     by a few pixels whenever the topbar is taller than 64px
+     (extra padding, safe-area-inset-top, wrapped buttons, the
+     new user badge, ...) and produces a permanent vertical
+     scrollbar with only a tiny scroll range. */
+  min-height: 0;
 }
 
 @supports (padding: max(0px)) {
