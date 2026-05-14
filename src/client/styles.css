@@ -1789,8 +1789,28 @@ progress::-webkit-progress-bar {
   overflow: hidden;
 }
 
+/* The vault pane is a flex column: header / toolbar / sort row
+   take their natural height, then the .vault-scroll fills the
+   rest and is the actual scroll container. The doc-tree inside
+   has no own height; it scrolls together with the wrapper.
+   This replaces the old `max-height: calc(100dvh - 270px)` on
+   .doc-tree which was guessed and clipped the bottom row
+   whenever the actual chrome was taller than 270px. */
+.vault-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-pane .vault-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .vault-pane .doc-tree {
-  max-height: calc(100dvh - 270px);
+  max-height: none;
+  overflow: visible;
 }
 
 .editor-pane .panel-header {
