@@ -244,6 +244,7 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
             currentView={view}
             theme={theme}
             loggingOut={loggingOut}
+            username={props.username}
             onSwitchView={setView}
             onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
             onLogout={logout}

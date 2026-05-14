@@ -21,7 +21,19 @@ interface QaState extends SavedQaState {
   error: string;
 }
 
-const qaStateStorageKey = "owd_qa_state";
+// Q&A state used to live under a single localStorage key, but in
+// the multi-user world that bled the previous user's last
+// question/answer/citations into the next user's session on the
+// same browser. Now the key is namespaced by username and the
+// module-level cache is keyed by the same name; switching to a
+// different account starts from a clean slate but switching back
+// rehydrates the same person's last view.
+const QA_STATE_KEY_PREFIX = "owd_qa_state:";
+
+function qaStateKey(username: string): string {
+  return `${QA_STATE_KEY_PREFIX}${username}`;
+}
+
 const emptyQaState: SavedQaState = {
   question: "",
   answer: "",
@@ -32,22 +44,22 @@ const emptyQaState: SavedQaState = {
   providerError: ""
 };
 
-function readSavedQaState(): SavedQaState {
+function readSavedQaState(username: string): SavedQaState {
   try {
     if (typeof localStorage === "undefined") {
       return emptyQaState;
     }
-    return { ...emptyQaState, ...JSON.parse(localStorage.getItem(qaStateStorageKey) ?? "{}") };
+    return { ...emptyQaState, ...JSON.parse(localStorage.getItem(qaStateKey(username)) ?? "{}") };
   } catch {
     return emptyQaState;
   }
 }
 
-function writeSavedQaState(state: SavedQaState): void {
+function writeSavedQaState(username: string, state: SavedQaState): void {
   if (typeof localStorage === "undefined") {
     return;
   }
-  localStorage.setItem(qaStateStorageKey, JSON.stringify(state));
+  localStorage.setItem(qaStateKey(username), JSON.stringify(state));
 }
 
 const emptyRuntimeState: QaState = {
@@ -55,7 +67,12 @@ const emptyRuntimeState: QaState = {
   loading: false,
   error: ""
 };
+// Module-level cache so the QA panel can stay populated across
+// remounts (e.g. switching between Workspace and Settings tabs).
+// We tag it with the username it belongs to; if a different user
+// shows up we throw it away and reload.
 let runtimeState: QaState | null = null;
+let runtimeStateUsername: string | null = null;
 const stateListeners = new Set<(state: QaState) => void>();
 
 function pickSavedState(state: QaState): SavedQaState {
@@ -70,39 +87,46 @@ function pickSavedState(state: QaState): SavedQaState {
   };
 }
 
-function getRuntimeState(): QaState {
-  if (!runtimeState) {
+function getRuntimeState(username: string): QaState {
+  if (!runtimeState || runtimeStateUsername !== username) {
+    // First mount, or the active username changed (logout +
+    // login as somebody else). Throw away whatever was cached
+    // for the old user and seed from the new user's saved state.
     runtimeState = {
       ...emptyRuntimeState,
-      ...readSavedQaState()
+      ...readSavedQaState(username)
     };
+    runtimeStateUsername = username;
   }
   return runtimeState;
 }
 
-function setRuntimeState(patch: Partial<QaState>): QaState {
+function setRuntimeState(username: string, patch: Partial<QaState>): QaState {
   runtimeState = {
-    ...getRuntimeState(),
+    ...getRuntimeState(username),
     ...patch
   };
-  writeSavedQaState(pickSavedState(runtimeState));
+  runtimeStateUsername = username;
+  writeSavedQaState(username, pickSavedState(runtimeState));
   stateListeners.forEach((listener) => listener(runtimeState!));
   return runtimeState;
 }
 
-function subscribeQaState(listener: (state: QaState) => void): () => void {
+function subscribeQaState(username: string, listener: (state: QaState) => void): () => void {
   stateListeners.add(listener);
-  listener(getRuntimeState());
-  return () => stateListeners.delete(listener);
+  listener(getRuntimeState(username));
+  return () => {
+    stateListeners.delete(listener);
+  };
 }
 
-async function runAsk(question: string): Promise<void> {
+async function runAsk(username: string, question: string): Promise<void> {
   const trimmedQuestion = question.trim();
-  if (!trimmedQuestion || getRuntimeState().loading) {
+  if (!trimmedQuestion || getRuntimeState(username).loading) {
     return;
   }
 
-  setRuntimeState({
+  setRuntimeState(username, {
     question,
     loading: true,
     error: "",
@@ -122,7 +146,7 @@ async function runAsk(question: string): Promise<void> {
       method: "POST",
       body: JSON.stringify({ question: trimmedQuestion })
     });
-    setRuntimeState({
+    setRuntimeState(username, {
       answer: result.answer,
       answerHtml: result.answerHtml ?? "",
       indexNamespace: result.indexNamespace ?? "",
@@ -132,24 +156,29 @@ async function runAsk(question: string): Promise<void> {
       loading: false
     });
   } catch (err) {
-    setRuntimeState({
+    setRuntimeState(username, {
       error: err instanceof Error ? err.message : "Unable to answer",
       loading: false
     });
   }
 }
 
-export function QaView(props: { compact?: boolean; onOpenSource?: (path: string) => void }) {
+export function QaView(props: { compact?: boolean; username?: string; onOpenSource?: (path: string) => void }) {
   const t = useT();
-  const [state, setState] = useState(getRuntimeState);
+  // The username is required for state isolation. Default to a
+  // sentinel so QA still works during the brief moment between
+  // auth resolution and the prop arriving (and so the type stays
+  // optional for any callers that haven't been threaded yet).
+  const username = props.username || "__anonymous__";
+  const [state, setState] = useState(() => getRuntimeState(username));
   const answerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    return subscribeQaState(setState);
-  }, []);
+    return subscribeQaState(username, setState);
+  }, [username]);
 
   async function ask() {
-    await runAsk(state.question);
+    await runAsk(username, state.question);
   }
 
   function dispatchCitationFromTarget(target: EventTarget | null): boolean {
@@ -212,7 +241,7 @@ export function QaView(props: { compact?: boolean; onOpenSource?: (path: string)
             autoComplete="off"
             spellCheck={false}
             value={state.question}
-            onChange={(event) => setRuntimeState({ question: event.target.value })}
+            onChange={(event) => setRuntimeState(username, { question: event.target.value })}
             placeholder={t("qa.placeholder")}
           />
           <button

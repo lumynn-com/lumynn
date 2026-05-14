@@ -37,6 +37,10 @@ interface DocumentsViewProps {
   currentView?: AppView;
   theme?: "dark" | "light";
   loggingOut?: boolean;
+  // The current account's username, threaded down so per-user
+  // client state (e.g. cached AI Q&A answer) can be isolated
+  // and not bleed between users on the same browser.
+  username?: string;
   onSwitchView?: (view: AppView) => void;
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -1599,7 +1603,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-ask" : undefined}
       >
-        <QaView compact onOpenSource={openDocument} />
+        <QaView compact username={props.username} onOpenSource={openDocument} />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
         // Mobile FAB is a single contextual button. Its role
