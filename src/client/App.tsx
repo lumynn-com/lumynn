@@ -153,6 +153,32 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
     if (view === "indexing") setIndexingMounted(true);
   }, [view]);
 
+  // Measure the sticky topbar's real rendered height and publish
+  // it as a CSS custom property `--owd-topbar-h`. The CSS uses
+  // it for all "fill the viewport minus topbar" sizing instead
+  // of guessing a magic number; otherwise the page picks up a
+  // few pixels of overflow whenever the topbar is taller than
+  // the guess (admin badge, button wrapping, safe-area-top,
+  // larger-font themes...).
+  useEffect(() => {
+    const root = document.documentElement;
+    function setTopbarHeight() {
+      const topbar = document.querySelector<HTMLElement>(".workspace-topbar");
+      const h = topbar ? Math.ceil(topbar.getBoundingClientRect().height) : 0;
+      root.style.setProperty("--owd-topbar-h", `${h}px`);
+    }
+    setTopbarHeight();
+    const ro = new ResizeObserver(setTopbarHeight);
+    const topbar = document.querySelector<HTMLElement>(".workspace-topbar");
+    if (topbar) ro.observe(topbar);
+    window.addEventListener("resize", setTopbarHeight);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", setTopbarHeight);
+    };
+    // re-run when locale or theme might change topbar layout
+  }, [theme, locale, props.username, props.role]);
+
   useEffect(() => {
     document.body.dataset.theme = theme;
     document.documentElement.dataset.theme = theme;
