@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   ChevronUpIcon,
   EyeIcon,
+  FolderPlusIcon,
   GlobeIcon,
   IndexingIcon,
   LogoutIcon,
@@ -1590,10 +1591,36 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </p>
           </div>
         </div>
+        {/* Single-row toolbar: a primary search button takes
+            most of the width, then two icon-only "create"
+            actions on the right keep the layout compact even
+            when the panel is narrow. */}
         <div className="vault-toolbar desktop-only">
-          <button className="primary" onClick={() => setSearchOpen(true)}>{t("vault.searchVault")}</button>
-          <button onClick={() => openCreateNote(selectedFolder)}>{t("vault.newNote")}</button>
-          <button onClick={() => openCreateFolder(selectedFolder)}>{t("vault.newFolder")}</button>
+          <button
+            className="primary vault-toolbar-search"
+            onClick={() => setSearchOpen(true)}
+          >
+            <SearchIcon />
+            <span>{t("vault.searchVault")}</span>
+          </button>
+          <button
+            type="button"
+            className="icon-button vault-toolbar-action"
+            aria-label={t("vault.newNote")}
+            title={t("vault.newNote")}
+            onClick={() => openCreateNote(selectedFolder)}
+          >
+            <PlusIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button vault-toolbar-action"
+            aria-label={t("vault.newFolder")}
+            title={t("vault.newFolder")}
+            onClick={() => openCreateFolder(selectedFolder)}
+          >
+            <FolderPlusIcon />
+          </button>
         </div>
         <div className="sort-row desktop-only">
           <label>

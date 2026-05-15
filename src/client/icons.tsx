@@ -83,6 +83,17 @@ export function PlusIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+// Folder with a tiny "+" overlay, used by the "new folder"
+// icon-only button in the vault toolbar.
+export function FolderPlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+      <path d="M12 11v6M9 14h6" />
+    </svg>
+  );
+}
+
 export function SortIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>

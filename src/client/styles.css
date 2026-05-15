@@ -4746,3 +4746,72 @@ img.logo {
   outline-offset: -2px;
   background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 16%, transparent);
 }
+
+/* Vault toolbar refresh: one row, primary search button stretches
+   to fill, the two creation actions become icon-only round
+   buttons sitting on the right.  Wins over the earlier two-column
+   grid declaration via source order. */
+.vault-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: var(--md-radius-lg, 16px);
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+.vault-toolbar-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 38px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.vault-toolbar-search > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-toolbar-search svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.vault-toolbar-action {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--md-text, var(--text));
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible {
+  background: var(--surface-hover, color-mix(in srgb, var(--md-primary, var(--accent-2)) 14%, transparent));
+  color: var(--md-primary, var(--accent-2));
+  transform: none;
+}
+
+.vault-toolbar-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* When the vault panel gets very narrow, drop the search label
+   so it doesn't get truncated; the magnifier icon is enough. */
+@media (max-width: 520px) {
+  .vault-toolbar-search > span {
+    display: none;
+  }
+}
