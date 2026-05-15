@@ -29,6 +29,7 @@ import {
 import { useLocale, useT } from "./i18n";
 import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
+import { FolderPicker } from "./FolderPicker";
 
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
@@ -293,9 +294,56 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchHasRun, setSearchHasRun] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Tree row context menu (right-click on desktop, long-press on
+  // mobile). Position is the viewport coordinate to anchor the
+  // menu to; the menu component clamps itself inside the
+  // viewport to avoid clipping at the edges.
+  type TreeNodeTarget = { type: "file" | "folder"; path: string; name: string };
+  const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; node: TreeNodeTarget } | null>(null);
+  function openNodeMenu(node: TreeNodeTarget, x: number, y: number) {
+    haptic(8);
+    setNodeMenu({ node, x, y });
+  }
+  function closeNodeMenu() {
+    setNodeMenu(null);
+  }
+
+  // Drop-target tracking. `dragOverPath` is the folder currently
+  // hovered with a draggable file/folder; CSS uses it to
+  // highlight the drop target.
+  const [dragSource, setDragSource] = useState<TreeNodeTarget | null>(null);
+  const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+
+  // Unified dialog state. Each kind is a destructive or
+  // structural file-system action; `target` tells the dialog
+  // what to operate on (the active document by default, or any
+  // node selected from a tree-row context menu).
+  type DialogState =
+    | null
+    | { kind: "createNote"; defaultFolder: string }
+    | { kind: "createFolder"; defaultFolder: string }
+    | { kind: "rename"; type: "file" | "folder"; path: string; name: string }
+    | { kind: "delete"; type: "file" | "folder"; path: string; name: string }
+    // Confirm step shown when delete-folder hits a non-empty
+    // server response. We surface the file count so the user
+    // knows what they're throwing away.
+    | { kind: "deleteFolderConfirm"; path: string; name: string; fileCount: number };
+  const [dialog, setDialog] = useState<DialogState>(null);
+  function openCreateNote(defaultFolder?: string) {
+    setDialog({ kind: "createNote", defaultFolder: defaultFolder ?? "" });
+  }
+  function openCreateFolder(defaultFolder?: string) {
+    setDialog({ kind: "createFolder", defaultFolder: defaultFolder ?? "" });
+  }
+  function openRename(target: { type: "file" | "folder"; path: string; name: string }) {
+    setDialog({ kind: "rename", ...target });
+  }
+  function openDelete(target: { type: "file" | "folder"; path: string; name: string }) {
+    setDialog({ kind: "delete", ...target });
+  }
+  function closeDialog() {
+    setDialog(null);
+  }
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
@@ -1105,7 +1153,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         });
         if (usedFallback) {
           // No meaningful title yet — give the user a chance to name it.
-          setRenameOpen(true);
+          openRename({ type: "file", path: created.path, name: created.name });
         }
         return;
       } catch (error) {
@@ -1180,23 +1228,25 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
-  async function renameActive(nextPath: string) {
-    if (!active) {
-      return;
-    }
-    if (!nextPath || nextPath === active.path) {
-      return;
-    }
+  // Rename / move a single Markdown file to `nextPath` (full
+  // vault-relative path including the .md extension). Updates
+  // any open editor tab pointing at the old path so the editor
+  // doesn't lose track of the user's draft.
+  async function renameFilePath(currentPath: string, nextPath: string) {
+    if (!nextPath || nextPath === currentPath) return;
     setStatusKey("status.renaming");
     try {
       const renamed = await api<DocumentContent>("/api/documents/rename", {
         method: "PATCH",
-        body: JSON.stringify({ path: active.path, nextPath })
+        body: JSON.stringify({ path: currentPath, nextPath })
       });
       setTabs((current) =>
-        current.map((tab) => (tab.path === active.path ? { ...renamed, draft: tab.draft, mode: tab.mode } : tab))
+        current.map((tab) => (tab.path === currentPath ? { ...renamed, draft: tab.draft, mode: tab.mode } : tab))
       );
-      setActivePath(renamed.path);
+      if (activePath === currentPath) setActivePath(renamed.path);
+      if (selectedFolder !== "" && selectedFolder === parentFolderOf(currentPath)) {
+        setSelectedFolder(parentFolderOf(renamed.path));
+      }
       await refreshDocuments();
       setStatusKey("status.renamed");
     } catch (error) {
@@ -1206,35 +1256,155 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
-  async function deleteActive() {
-    if (!active) {
-      return;
+  // Rename / move a folder. The server moves the directory
+  // atomically and rewrites cache keys for every file under it.
+  // We mirror that here by rewriting the open tabs' paths so the
+  // editor doesn't suddenly think its file was deleted.
+  async function renameFolderPath(currentPath: string, nextPath: string) {
+    if (!nextPath || nextPath === currentPath) return;
+    setStatusKey("status.renaming");
+    try {
+      await api<{ path: string; movedFiles: number }>("/api/documents/folders/rename", {
+        method: "PATCH",
+        body: JSON.stringify({ path: currentPath, nextPath })
+      });
+      const oldPrefix = `${currentPath}/`;
+      const newPrefix = `${nextPath}/`;
+      setTabs((current) =>
+        current.map((tab) => {
+          if (!tab.path.startsWith(oldPrefix)) return tab;
+          const remapped = `${newPrefix}${tab.path.slice(oldPrefix.length)}`;
+          return { ...tab, path: remapped, name: tab.name };
+        })
+      );
+      if (activePath.startsWith(oldPrefix)) {
+        setActivePath(`${newPrefix}${activePath.slice(oldPrefix.length)}`);
+      }
+      if (selectedFolder === currentPath || selectedFolder.startsWith(oldPrefix)) {
+        setSelectedFolder(`${nextPath}${selectedFolder.slice(currentPath.length)}`);
+      }
+      await refreshDocuments();
+      setStatusKey("status.renamed");
+    } catch (error) {
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.renameFailed");
+      throw error;
     }
-    const snapshotPath = active.path;
-    const snapshotContent = active.draft;
-    const snapshotName = active.name;
+  }
+
+  // Delete a single Markdown file. Closes any tab pointing at it
+  // and offers an Undo toast.
+  async function deleteFilePath(filePath: string, fileName: string) {
     setStatusKey("status.deleting");
     try {
+      // Snapshot content for undo BEFORE we drop the tab. If the
+      // file isn't open we read it from the server so undo can
+      // restore the bytes.
+      const openTab = tabs.find((tab) => tab.path === filePath);
+      let snapshotContent = openTab?.draft ?? null;
+      if (snapshotContent === null) {
+        try {
+          const fetched = await api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(filePath)}`);
+          snapshotContent = fetched.content;
+        } catch {
+          snapshotContent = "";
+        }
+      }
       await api("/api/documents/content", {
         method: "DELETE",
-        body: JSON.stringify({ path: snapshotPath })
+        body: JSON.stringify({ path: filePath })
       });
-      setTabs((current) => current.filter((tab) => tab.path !== snapshotPath));
-      if (activePath === snapshotPath) {
-        const remaining = tabs.filter((tab) => tab.path !== snapshotPath);
+      setTabs((current) => current.filter((tab) => tab.path !== filePath));
+      if (activePath === filePath) {
+        const remaining = tabs.filter((tab) => tab.path !== filePath);
         setActivePath(remaining[remaining.length - 1]?.path ?? "");
       }
       await refreshDocuments();
       setStatusKey("status.deleted");
       offerUndo({
         kind: "delete-document",
-        path: snapshotPath,
+        path: filePath,
         content: snapshotContent,
-        label: `${t("undo.deletedPrefix")} ${snapshotName}`
+        label: `${t("undo.deletedPrefix")} ${fileName}`
       });
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
       else setStatusKey("status.deleteFailed");
+      throw error;
+    }
+  }
+
+  // Delete a folder. The server refuses non-empty folders unless
+  // recursive=true is passed; we surface that as a second
+  // "are you sure?" confirm with the actual file count.
+  async function deleteFolderPath(folderPath: string, recursive = false) {
+    setStatusKey("status.deleting");
+    try {
+      await api(`/api/documents/folders?recursive=${recursive ? "1" : "0"}`, {
+        method: "DELETE",
+        body: JSON.stringify({ path: folderPath })
+      });
+      // Drop any open tabs that lived inside the deleted folder.
+      const prefix = `${folderPath}/`;
+      setTabs((current) => current.filter((tab) => !tab.path.startsWith(prefix)));
+      if (activePath.startsWith(prefix)) {
+        setActivePath("");
+      }
+      if (selectedFolder === folderPath || selectedFolder.startsWith(prefix)) {
+        setSelectedFolder(parentFolderOf(folderPath));
+      }
+      await refreshDocuments();
+      setStatusKey("status.deleted");
+    } catch (error) {
+      // Server returns 409 with details.fileCount when a
+      // non-empty folder delete is attempted without recursive=1.
+      // The dialog layer catches that and switches to a confirm
+      // step; here we just rethrow.
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.deleteFailed");
+      throw error;
+    }
+  }
+
+  // Move a tree node (file or folder) into a target folder via
+  // drag-and-drop. Same underlying endpoints as the rename/move
+  // dialog, but no name change — we keep the basename.
+  async function moveNodeIntoFolder(source: TreeNodeTarget, targetFolder: string) {
+    if (!source.path) return;
+    if (source.type === "folder" && (targetFolder === source.path || targetFolder.startsWith(`${source.path}/`))) {
+      setStatusKey("tree.dragDrop.refused");
+      return;
+    }
+    const baseName = source.name;
+    const nextPath = targetFolder ? `${targetFolder}/${baseName}` : baseName;
+    if (nextPath === source.path) return;
+    setStatusKey("tree.dragDrop.busy");
+    try {
+      if (source.type === "file") {
+        await renameFilePath(source.path, nextPath);
+      } else {
+        await renameFolderPath(source.path, nextPath);
+      }
+    } catch {
+      // renameFilePath / renameFolderPath already surface the
+      // error in the status bar, so we just swallow here.
+    }
+  }
+
+  // Create an empty folder via the dedicated server endpoint.
+  async function createFolderPath(folderPath: string) {
+    setStatusKey("status.creating");
+    try {
+      await api<{ path: string }>("/api/documents/folders", {
+        method: "POST",
+        body: JSON.stringify({ path: folderPath })
+      });
+      setSelectedFolder(folderPath);
+      await refreshDocuments();
+      setStatusKey("status.created");
+    } catch (error) {
+      if (error instanceof Error) setStatusText(error.message);
+      else setStatusKey("status.createFailed");
       throw error;
     }
   }
@@ -1393,7 +1563,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               aria-label={t("vault.new")}
               onClick={() => {
                 if (isMobile) closeOverlays();
-                setCreateOpen(true);
+                openCreateNote(selectedFolder);
               }}
             >
               <PlusIcon />
@@ -1422,7 +1592,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         </div>
         <div className="vault-toolbar desktop-only">
           <button className="primary" onClick={() => setSearchOpen(true)}>{t("vault.searchVault")}</button>
-          <button onClick={() => setCreateOpen(true)}>{t("vault.newNote")}</button>
+          <button onClick={() => openCreateNote(selectedFolder)}>{t("vault.newNote")}</button>
+          <button onClick={() => openCreateFolder(selectedFolder)}>{t("vault.newFolder")}</button>
         </div>
         <div className="sort-row desktop-only">
           <label>
@@ -1481,6 +1652,21 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             loadingFolders={loadingFolders}
             onSelect={openDocument}
             emptyLabel={t("vault.empty")}
+            onContextMenu={openNodeMenu}
+            dragSource={dragSource}
+            dragOverPath={dragOverPath}
+            onDragStartNode={setDragSource}
+            onDragEndNode={() => {
+              setDragSource(null);
+              setDragOverPath(null);
+            }}
+            onDragOverFolder={setDragOverPath}
+            onDropOnFolder={(targetFolder) => {
+              const source = dragSource;
+              setDragSource(null);
+              setDragOverPath(null);
+              if (source) void moveNodeIntoFolder(source, targetFolder);
+            }}
           />
         </div>
         {isMobile && vaultScrolled ? (
@@ -1528,10 +1714,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <button onClick={printActive} disabled={!active}>
               {t("editor.print")}
             </button>
-            <button onClick={() => setRenameOpen(true)} disabled={!active || active.isDraft}>
+            <button onClick={() => active && openRename({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
               {t("editor.rename")}
             </button>
-            <button className="danger" onClick={() => setDeleteOpen(true)} disabled={!active || active.isDraft}>
+            <button className="danger" onClick={() => active && openDelete({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
               {t("editor.delete")}
             </button>
             <button className="primary" onClick={save} disabled={!active || saving} aria-busy={saving}>
@@ -1658,60 +1844,193 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </button>
         </div>
       ) : null}
-      {createOpen ? (
-        <PromptModal
+      {nodeMenu ? (
+        <TreeNodeMenu
+          x={nodeMenu.x}
+          y={nodeMenu.y}
+          node={nodeMenu.node}
+          onClose={closeNodeMenu}
+          onOpen={() => {
+            if (nodeMenu.node.type === "file") {
+              openDocument(nodeMenu.node.path);
+            } else {
+              setSelectedFolder(nodeMenu.node.path);
+              setExpandedFolders((current) => ({ ...current, [nodeMenu.node.path]: true }));
+              void loadFolderChildren(nodeMenu.node.path);
+            }
+            closeNodeMenu();
+          }}
+          onRename={() => {
+            openRename(nodeMenu.node);
+            closeNodeMenu();
+          }}
+          onDelete={() => {
+            openDelete(nodeMenu.node);
+            closeNodeMenu();
+          }}
+          onNewNoteHere={() => {
+            const folder = nodeMenu.node.type === "folder" ? nodeMenu.node.path : parentFolderOf(nodeMenu.node.path);
+            openCreateNote(folder);
+            closeNodeMenu();
+          }}
+          onNewFolderHere={() => {
+            const folder = nodeMenu.node.type === "folder" ? nodeMenu.node.path : parentFolderOf(nodeMenu.node.path);
+            openCreateFolder(folder);
+            closeNodeMenu();
+          }}
+          onCopyPath={async () => {
+            try {
+              await navigator.clipboard.writeText(nodeMenu.node.path);
+              setStatusKey("tree.menu.copied");
+            } catch {
+              setStatusKey("tree.menu.copyFailed");
+            }
+            closeNodeMenu();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "createNote" ? (
+        <PathPickerModal
+          mode="create-note"
           title={t("prompt.create.title")}
           eyebrow={t("prompt.create.eyebrow")}
           description={t("prompt.create.description")}
-          label={t("prompt.create.label")}
-          placeholder={t("prompt.create.placeholder")}
-          initialValue={defaultNewNotePath(selectedFolder)}
           submitLabel={t("prompt.create.submit")}
           submitLoadingLabel={t("prompt.create.submitBusy")}
           cancelLabel={t("prompt.cancel")}
           errorFallback={t("error.actionFailed")}
-          isMobile={isMobile}
-          onCancel={() => setCreateOpen(false)}
-          onSubmit={async (value) => {
-            await createDocument(value);
-            setCreateOpen(false);
+          initialFolder={dialog.defaultFolder}
+          initialName="Untitled"
+          folderChildren={folderChildren}
+          loadingFolders={loadingFolders}
+          loadFolder={loadFolderChildren}
+          onCancel={closeDialog}
+          onSubmit={async ({ folder, name }) => {
+            const sanitized = name.replace(/\.md$/i, "").trim();
+            if (!sanitized) throw new Error(t("prompt.error.emptyName"));
+            const path = folder ? `${folder}/${sanitized}.md` : `${sanitized}.md`;
+            await createDocument(path);
+            closeDialog();
           }}
         />
       ) : null}
-      {renameOpen && active ? (
-        <PromptModal
-          title={t("prompt.rename.title")}
-          eyebrow={active.path}
-          description={t("prompt.rename.description")}
-          label={t("prompt.rename.label")}
-          placeholder={active.path}
-          initialValue={active.path}
+      {dialog?.kind === "createFolder" ? (
+        <PathPickerModal
+          mode="create-folder"
+          title={t("prompt.createFolder.title")}
+          eyebrow={t("prompt.createFolder.eyebrow")}
+          description={t("prompt.createFolder.description")}
+          submitLabel={t("prompt.createFolder.submit")}
+          submitLoadingLabel={t("prompt.createFolder.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
+          initialFolder={dialog.defaultFolder}
+          initialName=""
+          folderChildren={folderChildren}
+          loadingFolders={loadingFolders}
+          loadFolder={loadFolderChildren}
+          onCancel={closeDialog}
+          onSubmit={async ({ folder, name }) => {
+            const sanitized = name.trim().replace(/\/+$/, "");
+            if (!sanitized) throw new Error(t("prompt.error.emptyName"));
+            const path = folder ? `${folder}/${sanitized}` : sanitized;
+            await createFolderPath(path);
+            closeDialog();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "rename" ? (
+        <PathPickerModal
+          mode={dialog.type === "folder" ? "rename-folder" : "rename-file"}
+          title={dialog.type === "folder" ? t("prompt.rename.titleFolder") : t("prompt.rename.title")}
+          eyebrow={dialog.path}
+          description={dialog.type === "folder" ? t("prompt.rename.descriptionFolder") : t("prompt.rename.description")}
           submitLabel={t("prompt.rename.submit")}
           submitLoadingLabel={t("prompt.rename.submitBusy")}
           cancelLabel={t("prompt.cancel")}
           errorFallback={t("error.actionFailed")}
-          isMobile={isMobile}
-          onCancel={() => setRenameOpen(false)}
-          onSubmit={async (value) => {
-            await renameActive(value);
-            setRenameOpen(false);
+          initialFolder={parentFolderOf(dialog.path)}
+          initialName={dialog.type === "file" ? dialog.name.replace(/\.md$/i, "") : dialog.name}
+          folderChildren={folderChildren}
+          loadingFolders={loadingFolders}
+          loadFolder={loadFolderChildren}
+          // Block moving a folder into itself or its own subtree.
+          disabledFolderPrefixes={dialog.type === "folder" ? [dialog.path] : []}
+          onCancel={closeDialog}
+          onSubmit={async ({ folder, name }) => {
+            const trimmed = name.trim();
+            if (!trimmed) throw new Error(t("prompt.error.emptyName"));
+            if (dialog.type === "file") {
+              const sanitized = trimmed.replace(/\.md$/i, "");
+              const nextPath = folder ? `${folder}/${sanitized}.md` : `${sanitized}.md`;
+              await renameFilePath(dialog.path, nextPath);
+            } else {
+              const sanitized = trimmed.replace(/\/+$/, "");
+              const nextPath = folder ? `${folder}/${sanitized}` : sanitized;
+              await renameFolderPath(dialog.path, nextPath);
+            }
+            closeDialog();
           }}
         />
       ) : null}
-      {deleteOpen && active ? (
+      {dialog?.kind === "delete" ? (
         <ConfirmModal
-          title={t("confirm.delete.title", { name: active.name })}
-          eyebrow={active.path}
-          description={t("confirm.delete.description")}
+          title={
+            dialog.type === "folder"
+              ? t("confirm.delete.titleFolder", { name: dialog.name })
+              : t("confirm.delete.title", { name: dialog.name })
+          }
+          eyebrow={dialog.path}
+          description={
+            dialog.type === "folder"
+              ? t("confirm.delete.descriptionFolder")
+              : t("confirm.delete.description")
+          }
           confirmLabel={t("confirm.delete.submit")}
           confirmLoadingLabel={t("confirm.delete.submitBusy")}
           cancelLabel={t("prompt.cancel")}
           errorFallback={t("error.actionFailed")}
           danger
-          onCancel={() => setDeleteOpen(false)}
+          onCancel={closeDialog}
           onConfirm={async () => {
-            await deleteActive();
-            setDeleteOpen(false);
+            if (dialog.type === "file") {
+              await deleteFilePath(dialog.path, dialog.name);
+              closeDialog();
+              return;
+            }
+            // Folder: try non-recursive first; if the server says
+            // "non-empty", switch to a second confirm step that
+            // surfaces the file count.
+            try {
+              await deleteFolderPath(dialog.path, false);
+              closeDialog();
+            } catch (error) {
+              const message = error instanceof Error ? error.message : "";
+              const match = message.match(/\((\d+) files?\)/);
+              const fileCount = match ? Number(match[1]) : 0;
+              if (fileCount > 0) {
+                setDialog({ kind: "deleteFolderConfirm", path: dialog.path, name: dialog.name, fileCount });
+              } else {
+                throw error;
+              }
+            }
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "deleteFolderConfirm" ? (
+        <ConfirmModal
+          title={t("confirm.deleteFolderRecursive.title", { name: dialog.name })}
+          eyebrow={dialog.path}
+          description={t("confirm.deleteFolderRecursive.description", { count: dialog.fileCount })}
+          confirmLabel={t("confirm.deleteFolderRecursive.submit")}
+          confirmLoadingLabel={t("confirm.delete.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
+          danger
+          onCancel={closeDialog}
+          onConfirm={async () => {
+            await deleteFolderPath(dialog.path, true);
+            closeDialog();
           }}
         />
       ) : null}
@@ -1770,7 +2089,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                       type="button"
                       onClick={() => {
                         setCommandSheetOpen(false);
-                        setRenameOpen(true);
+                        if (active) openRename({ type: "file", path: active.path, name: active.name });
                       }}
                     >
                       <span className="action-sheet-icon" aria-hidden="true"><PencilIcon /></span>
@@ -1781,7 +2100,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                       className="danger"
                       onClick={() => {
                         setCommandSheetOpen(false);
-                        setDeleteOpen(true);
+                        if (active) openDelete({ type: "file", path: active.path, name: active.name });
                       }}
                     >
                       <span className="action-sheet-icon" aria-hidden="true"><TrashIcon /></span>
@@ -2096,6 +2415,25 @@ function SwipeableTab(props: {
   );
 }
 
+interface TreeRowExtras {
+  // Right-click on desktop, long-press on mobile.
+  onContextMenu?: (
+    node: { type: "file" | "folder"; path: string; name: string },
+    x: number,
+    y: number
+  ) => void;
+  // Drag-and-drop coordination state. dragSource is the node
+  // currently being dragged (so we can hide its own row's drop
+  // target highlighting); dragOverPath is the folder currently
+  // hovered.
+  dragSource?: { type: "file" | "folder"; path: string; name: string } | null;
+  dragOverPath?: string | null;
+  onDragStartNode?: (node: { type: "file" | "folder"; path: string; name: string }) => void;
+  onDragEndNode?: () => void;
+  onDragOverFolder?: (path: string) => void;
+  onDropOnFolder?: (path: string) => void;
+}
+
 function DocumentTree(props: {
   nodes: TreeNode[];
   selectedPath: string;
@@ -2105,7 +2443,7 @@ function DocumentTree(props: {
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
   emptyLabel: string;
-}) {
+} & TreeRowExtras) {
   if (props.nodes.length === 0) {
     return <div className="empty-state">{props.emptyLabel}</div>;
   }
@@ -2130,21 +2468,102 @@ function TreeNodeRow(props: {
   loadingFolders?: Set<string>;
   onToggleFolder: (folderPath: string) => void;
   onSelect: (path: string) => void;
-}) {
+} & TreeRowExtras) {
   const isExpanded = props.expandedFolders[props.node.id] ?? false;
+  // Long-press detection for mobile context menu. Pointer events
+  // unify mouse and touch; we start a timer on pointerdown and
+  // cancel it on move/up. We don't want the press to also count
+  // as a click if it actually fired the menu, so we set a flag.
+  const longPressRef = useRef<{ timer: number | null; fired: boolean; startX: number; startY: number }>({ timer: null, fired: false, startX: 0, startY: 0 });
+
+  function fireMenu(target: { type: "file" | "folder"; path: string; name: string }, x: number, y: number) {
+    props.onContextMenu?.(target, x, y);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent, target: { type: "file" | "folder"; path: string; name: string }) {
+    if (event.pointerType === "mouse") return; // desktop uses contextmenu
+    longPressRef.current.fired = false;
+    longPressRef.current.startX = event.clientX;
+    longPressRef.current.startY = event.clientY;
+    longPressRef.current.timer = window.setTimeout(() => {
+      longPressRef.current.fired = true;
+      fireMenu(target, longPressRef.current.startX, longPressRef.current.startY);
+    }, 500);
+  }
+  function handlePointerMove(event: ReactPointerEvent) {
+    if (longPressRef.current.timer == null) return;
+    const dx = Math.abs(event.clientX - longPressRef.current.startX);
+    const dy = Math.abs(event.clientY - longPressRef.current.startY);
+    if (dx > 10 || dy > 10) {
+      window.clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
+    }
+  }
+  function handlePointerUp() {
+    if (longPressRef.current.timer != null) {
+      window.clearTimeout(longPressRef.current.timer);
+      longPressRef.current.timer = null;
+    }
+  }
 
   if (props.node.type === "folder") {
     const isSelected = props.selectedFolder === props.node.id;
     const isLoading = props.loadingFolders?.has(props.node.id) ?? false;
     const showLoadingPlaceholder = isExpanded && isLoading && props.node.children.length === 0;
+    const folderTarget = { type: "folder" as const, path: props.node.id, name: props.node.name || "/" };
+    const isDropTarget = props.dragOverPath === props.node.id && props.dragSource && props.dragSource.path !== props.node.id;
     return (
       <div className="tree-group">
         <button
-          className={`tree-row folder-row ${isSelected ? "selected" : ""}`}
+          className={`tree-row folder-row ${isSelected ? "selected" : ""} ${isDropTarget ? "drop-target" : ""}`}
           aria-expanded={isExpanded}
           aria-current={isSelected ? "true" : undefined}
           style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }}
-          onClick={() => props.onToggleFolder(props.node.id)}
+          onClick={(event) => {
+            // Don't fire toggle when the long-press menu just popped.
+            if (longPressRef.current.fired) {
+              event.preventDefault();
+              longPressRef.current.fired = false;
+              return;
+            }
+            props.onToggleFolder(props.node.id);
+          }}
+          onContextMenu={(event) => {
+            if (!props.onContextMenu) return;
+            event.preventDefault();
+            fireMenu(folderTarget, event.clientX, event.clientY);
+          }}
+          onPointerDown={(event) => handlePointerDown(event, folderTarget)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          // Drag a folder to move the whole subtree.
+          draggable={Boolean(props.node.id && props.onDragStartNode)}
+          onDragStart={(event) => {
+            if (!props.node.id) return;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", props.node.id);
+            props.onDragStartNode?.(folderTarget);
+          }}
+          onDragEnd={() => props.onDragEndNode?.()}
+          // Accept drops from other tree nodes onto this folder.
+          onDragOver={(event) => {
+            if (!props.dragSource) return;
+            // Forbid dropping a folder onto itself or into its
+            // own subtree at the visual level too.
+            if (props.dragSource.type === "folder" && (props.dragSource.path === props.node.id || props.node.id.startsWith(`${props.dragSource.path}/`))) {
+              return;
+            }
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            if (props.dragOverPath !== props.node.id) {
+              props.onDragOverFolder?.(props.node.id);
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            props.onDropOnFolder?.(props.node.id);
+          }}
         >
           <span className="tree-caret" aria-hidden="true">
             {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
@@ -2164,12 +2583,40 @@ function TreeNodeRow(props: {
     );
   }
 
+  const fileTarget = props.node.document
+    ? { type: "file" as const, path: props.node.document.path, name: props.node.name }
+    : null;
+
   return (
     <button
       className={`tree-row file-row ${props.selectedPath === props.node.document?.path ? "selected" : ""}`}
       style={{ paddingLeft: `${0.65 + props.depth * 0.85}rem` }}
       aria-current={props.selectedPath === props.node.document?.path ? "true" : undefined}
-      onClick={() => props.node.document && props.onSelect(props.node.document.path)}
+      onClick={(event) => {
+        if (longPressRef.current.fired) {
+          event.preventDefault();
+          longPressRef.current.fired = false;
+          return;
+        }
+        props.node.document && props.onSelect(props.node.document.path);
+      }}
+      onContextMenu={(event) => {
+        if (!fileTarget || !props.onContextMenu) return;
+        event.preventDefault();
+        fireMenu(fileTarget, event.clientX, event.clientY);
+      }}
+      onPointerDown={(event) => fileTarget && handlePointerDown(event, fileTarget)}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      draggable={Boolean(fileTarget && props.onDragStartNode)}
+      onDragStart={(event) => {
+        if (!fileTarget) return;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", fileTarget.path);
+        props.onDragStartNode?.(fileTarget);
+      }}
+      onDragEnd={() => props.onDragEndNode?.()}
     >
       <span className="tree-file-dot" />
       <span className="tree-file-text" translate="no">
@@ -2185,6 +2632,233 @@ function CheckMark() {
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M5 12l5 5 9-11" />
     </svg>
+  );
+}
+
+// Floating context menu shown next to a tree row. Anchored at
+// the click/long-press position; clamps to the viewport so it
+// never gets clipped at the edges. Closes on outside click,
+// scroll, Escape, or any item click.
+function TreeNodeMenu(props: {
+  x: number;
+  y: number;
+  node: { type: "file" | "folder"; path: string; name: string };
+  onClose: () => void;
+  onOpen: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+  onNewNoteHere: () => void;
+  onNewFolderHere: () => void;
+  onCopyPath: () => void;
+}) {
+  const t = useT();
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ x: props.x, y: props.y, ready: false });
+
+  // After mount, measure the menu and clamp it inside the
+  // viewport. The first paint uses the raw click coordinate;
+  // the layoutEffect-style measure runs synchronously before
+  // the user can perceive the menu.
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const pad = 8;
+    const maxX = window.innerWidth - rect.width - pad;
+    const maxY = window.innerHeight - rect.height - pad;
+    setPos({
+      x: Math.max(pad, Math.min(props.x, maxX)),
+      y: Math.max(pad, Math.min(props.y, maxY)),
+      ready: true
+    });
+  }, [props.x, props.y]);
+
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        props.onClose();
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") props.onClose();
+    }
+    function onScroll() {
+      props.onClose();
+    }
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [props]);
+
+  const isFolder = props.node.type === "folder";
+
+  return (
+    <div
+      ref={ref}
+      className="tree-context-menu"
+      role="menu"
+      aria-label={props.node.path || "/"}
+      style={{
+        position: "fixed",
+        left: pos.x,
+        top: pos.y,
+        visibility: pos.ready ? "visible" : "hidden",
+        zIndex: 50
+      }}
+    >
+      <button type="button" role="menuitem" onClick={props.onOpen}>
+        {t("tree.menu.open")}
+      </button>
+      {isFolder ? (
+        <>
+          <button type="button" role="menuitem" onClick={props.onNewNoteHere}>
+            {t("tree.menu.newNoteHere")}
+          </button>
+          <button type="button" role="menuitem" onClick={props.onNewFolderHere}>
+            {t("tree.menu.newFolderHere")}
+          </button>
+        </>
+      ) : null}
+      <button type="button" role="menuitem" onClick={props.onRename}>
+        {t("tree.menu.rename")}
+      </button>
+      <button type="button" role="menuitem" onClick={props.onCopyPath}>
+        {t("tree.menu.copyPath")}
+      </button>
+      <hr />
+      <button type="button" role="menuitem" className="danger" onClick={props.onDelete}>
+        {t("tree.menu.delete")}
+      </button>
+    </div>
+  );
+}
+
+// Modal that combines a folder picker with a name input. Used by
+// New Note, New Folder, and Rename/Move dialogs. The user picks a
+// destination folder from the (folders-only) tree and types a
+// name; on submit the parent constructs the final path. Errors
+// from onSubmit are surfaced inline so the user can retry without
+// closing the dialog.
+function PathPickerModal(props: {
+  mode: "create-note" | "create-folder" | "rename-file" | "rename-folder";
+  title: string;
+  eyebrow?: string;
+  description?: string;
+  submitLabel: string;
+  submitLoadingLabel: string;
+  cancelLabel: string;
+  errorFallback: string;
+  initialFolder: string;
+  initialName: string;
+  folderChildren: Map<string, DocumentTreeEntry[]>;
+  loadingFolders: ReadonlySet<string>;
+  loadFolder: (path: string) => Promise<DocumentTreeEntry[] | null>;
+  disabledFolderPrefixes?: string[];
+  onCancel: () => void;
+  onSubmit: (value: { folder: string; name: string }) => Promise<void>;
+}) {
+  const t = useT();
+  const [folder, setFolder] = useState(props.initialFolder);
+  const [name, setName] = useState(props.initialName);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    // Focus + select the name input on mount so the user can
+    // start typing immediately. For renames the existing name
+    // is pre-selected so a single keystroke replaces it.
+    const node = inputRef.current;
+    if (!node) return;
+    node.focus();
+    if (typeof node.setSelectionRange === "function") {
+      node.setSelectionRange(0, node.value.length);
+    }
+  }, []);
+
+  async function submit() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await props.onSubmit({ folder, name });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : props.errorFallback);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={() => !busy && props.onCancel()}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !busy) props.onCancel();
+      }}
+    >
+      <section
+        className="prompt-modal panel path-picker-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="path-picker-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        {props.eyebrow ? <p className="eyebrow" translate="no">{props.eyebrow}</p> : null}
+        <h2 id="path-picker-title">{props.title}</h2>
+        {props.description ? <p className="muted">{props.description}</p> : null}
+        <form
+          className="prompt-form path-picker-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <div>
+            <label className="path-picker-section-label">{t("prompt.pickFolder")}</label>
+            <FolderPicker
+              folderChildren={props.folderChildren}
+              loadingFolders={props.loadingFolders}
+              loadFolder={props.loadFolder}
+              value={folder}
+              onChange={setFolder}
+              disabledPrefixes={props.disabledFolderPrefixes}
+            />
+            <p className="muted path-picker-current" translate="no">
+              {t("prompt.targetFolder", { folder: folder || t("folderPicker.vaultRoot") })}
+            </p>
+          </div>
+          <label>
+            {props.mode === "create-folder" || props.mode === "rename-folder" ? t("prompt.folderName") : t("prompt.fileName")}
+            <input
+              ref={inputRef}
+              name="path-picker-name"
+              autoComplete="off"
+              spellCheck={false}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          {error ? <div className="error" role="alert">{error}</div> : null}
+          <div className="prompt-actions">
+            <button type="button" onClick={props.onCancel} disabled={busy}>{props.cancelLabel}</button>
+            <button
+              type="submit"
+              className="primary"
+              disabled={busy || !name.trim()}
+              aria-busy={busy}
+            >
+              <BusyLabel busy={busy} busyText={props.submitLoadingLabel}>{props.submitLabel}</BusyLabel>
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 

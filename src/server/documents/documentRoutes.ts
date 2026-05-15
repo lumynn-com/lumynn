@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { UserRecord } from "../store";
-import { backlinksFor, createDocument, deleteDocument, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
+import { backlinksFor, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -173,6 +173,9 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     }
   });
 
+  // Rename or move a single Markdown file. The new path can be in
+  // the same directory (rename) or a different directory (move +
+  // optionally rename) — same handler.
   app.patch("/api/documents/rename", async (request, reply) => {
     const user = authedUser(request, reply);
     if (!user) return;
@@ -182,6 +185,75 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to rename document" };
+    }
+  });
+
+  // ---- Folder operations -------------------------------------------
+
+  // Create a new (empty) folder. We drop a hidden .gitkeep
+  // placeholder inside so the tree view (which enumerates by
+  // .md content) can still see it before the user adds notes.
+  app.post("/api/documents/folders", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const body = z.object({ path: z.string().min(1).max(1024) }).parse(request.body);
+    try {
+      return await createFolder(user, body.path);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to create folder" };
+    }
+  });
+
+  // Inspect a folder before destructive actions: returns how many
+  // .md files live inside (recursively) so the UI can show
+  // "About to delete N files" in its confirm dialog.
+  app.get("/api/documents/folders/inspect", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const query = z.object({ path: z.string().min(1).max(1024) }).parse(request.query);
+    try {
+      return await inspectFolder(user, query.path);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to inspect folder" };
+    }
+  });
+
+  // Rename or move a folder. Atomic at the filesystem level; we
+  // also rewrite per-user metadata cache keys for every file
+  // that lived under the moved folder so RAG / mtime cache
+  // stay consistent.
+  app.patch("/api/documents/folders/rename", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const body = z.object({ path: z.string().min(1).max(1024), nextPath: z.string().min(1).max(1024) }).parse(request.body);
+    try {
+      return await renameFolder(user, body.path, body.nextPath);
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to move folder" };
+    }
+  });
+
+  // Delete a folder. Refuses non-empty folders unless ?recursive=1
+  // is passed (the client sets this only after an extra confirm
+  // that surfaces the inspect-folder file count).
+  app.delete("/api/documents/folders", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const body = z.object({ path: z.string().min(1).max(1024) }).parse(request.body);
+    const query = z.object({ recursive: z.coerce.boolean().optional() }).parse(request.query);
+    try {
+      return await deleteFolder(user, body.path, { recursive: query.recursive ?? false });
+    } catch (error) {
+      const isNonEmpty = error instanceof Error && error.name === "FolderNotEmpty";
+      reply.code(isNonEmpty ? 409 : 400);
+      const details = (error as { details?: unknown }).details;
+      return {
+        error: error instanceof Error ? error.message : "Unable to delete folder",
+        ...(details ? { details } : {})
+      };
     }
   });
 

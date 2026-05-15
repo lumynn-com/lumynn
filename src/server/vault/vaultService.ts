@@ -670,6 +670,11 @@ export async function deleteDocument(user: UserRecord, documentPath: string): Pr
   invalidateTreeCache(vaultRoot);
 }
 
+// Rename / move a single Markdown file. The new path can either
+// be in the same directory (pure rename) or in another directory
+// (move + optionally rename). Per-user metadata caches keyed by
+// the old path are migrated to the new key so RAG indexing and
+// the tree's mtime cache stay correct.
 export async function renameDocument(user: UserRecord, documentPath: string, nextPath: string): Promise<DocumentContent> {
   const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
@@ -703,6 +708,195 @@ export async function renameDocument(user: UserRecord, documentPath: string, nex
   await store.save();
   invalidateTreeCache(vaultRoot);
   return readDocument(user, safeNextPath);
+}
+
+// --- Folder operations ---------------------------------------------
+//
+// We surface folders as first-class via three operations: create,
+// rename/move, delete. Empty folders are tracked by a single
+// `.gitkeep` placeholder file because the tree view enumerates
+// directories from the filesystem; without a placeholder a brand
+// new empty folder would vanish on the next refresh.
+
+const FOLDER_PLACEHOLDER = ".gitkeep";
+
+export interface CreateFolderResult {
+  path: string;
+}
+
+export async function createFolder(user: UserRecord, folderPath: string): Promise<CreateFolderResult> {
+  const vaultRoot = await ensureVault(user);
+  const safeFolder = normalizeFolderPath(folderPath);
+  const folderAbs = path.resolve(vaultRoot, safeFolder);
+  if (!isInside(vaultRoot, folderAbs)) {
+    throw new Error("Folder path escapes the vault");
+  }
+  // Reject if a *file* already exists at that path.
+  const stat = await fs.stat(folderAbs).catch(() => null);
+  if (stat && !stat.isDirectory()) {
+    throw new Error("A file already exists at that path");
+  }
+  await fs.mkdir(folderAbs, { recursive: true });
+  // Drop a hidden placeholder so the empty folder is visible in
+  // the tree until the user puts a real .md inside.
+  const placeholderAbs = path.resolve(folderAbs, FOLDER_PLACEHOLDER);
+  await fs.writeFile(placeholderAbs, "", { flag: "a" }).catch(() => undefined);
+  invalidateTreeCache(vaultRoot);
+  return { path: safeFolder };
+}
+
+// Recursively count Markdown files in a folder (for the "you are
+// about to delete N files" confirmation).
+async function countMarkdownFiles(dir: string): Promise<number> {
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+  let total = 0;
+  for (const entry of entries) {
+    if (entry.name === ".obsidian" || entry.name.startsWith(".")) continue;
+    const child = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      total += await countMarkdownFiles(child);
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      total += 1;
+    }
+  }
+  return total;
+}
+
+export interface FolderInspection {
+  path: string;
+  fileCount: number;
+  exists: boolean;
+}
+
+export async function inspectFolder(user: UserRecord, folderPath: string): Promise<FolderInspection> {
+  const vaultRoot = await ensureVault(user);
+  const safeFolder = normalizeFolderPath(folderPath);
+  const folderAbs = path.resolve(vaultRoot, safeFolder);
+  if (!isInside(vaultRoot, folderAbs)) {
+    throw new Error("Folder path escapes the vault");
+  }
+  const stat = await fs.stat(folderAbs).catch(() => null);
+  if (!stat || !stat.isDirectory()) {
+    return { path: safeFolder, fileCount: 0, exists: false };
+  }
+  return {
+    path: safeFolder,
+    fileCount: await countMarkdownFiles(folderAbs),
+    exists: true
+  };
+}
+
+export async function deleteFolder(user: UserRecord, folderPath: string, options: { recursive?: boolean } = {}): Promise<{ deletedFiles: number }> {
+  const vaultRoot = await ensureVault(user);
+  const safeFolder = normalizeFolderPath(folderPath);
+  if (!safeFolder) {
+    throw new Error("Refusing to delete the vault root");
+  }
+  const folderAbs = path.resolve(vaultRoot, safeFolder);
+  if (!isInside(vaultRoot, folderAbs)) {
+    throw new Error("Folder path escapes the vault");
+  }
+  const stat = await fs.stat(folderAbs).catch(() => null);
+  if (!stat || !stat.isDirectory()) {
+    throw new Error("Folder not found");
+  }
+  const fileCount = await countMarkdownFiles(folderAbs);
+  // Empty (only .gitkeep / hidden files) -> always allow.
+  if (fileCount > 0 && !options.recursive) {
+    const error: Error & { code?: string; details?: { fileCount: number } } = new Error(
+      `Folder is not empty (${fileCount} file${fileCount === 1 ? "" : "s"}). Pass recursive=true to delete it anyway.`
+    );
+    error.name = "FolderNotEmpty";
+    error.code = "FOLDER_NOT_EMPTY";
+    error.details = { fileCount };
+    throw error;
+  }
+
+  // Drop every per-user metadata cache entry that lived under the
+  // deleted folder so RAG and the mtime cache don't keep stale
+  // references.
+  const prefix = `${safeFolder}/`;
+  for (const key of Object.keys(user.metadataByPath)) {
+    if (key === safeFolder || key.startsWith(prefix)) delete user.metadataByPath[key];
+  }
+  for (const key of Object.keys(user.createdAtByPath)) {
+    if (key === safeFolder || key.startsWith(prefix)) delete user.createdAtByPath[key];
+  }
+
+  await fs.rm(folderAbs, { recursive: true, force: true });
+  await store.save();
+  invalidateTreeCache(vaultRoot);
+  return { deletedFiles: fileCount };
+}
+
+// Rename / move a folder. Atomic at the filesystem level; we then
+// rewrite every per-user metadata cache key whose path lived
+// under the moved folder so RAG indexing and the mtime cache see
+// the new location instead of the old.
+export interface RenameFolderResult {
+  path: string;
+  movedFiles: number;
+}
+
+export async function renameFolder(user: UserRecord, folderPath: string, nextPath: string): Promise<RenameFolderResult> {
+  const vaultRoot = await ensureVault(user);
+  const safeFolder = normalizeFolderPath(folderPath);
+  const safeNext = normalizeFolderPath(nextPath);
+  if (!safeFolder) {
+    throw new Error("Refusing to move the vault root");
+  }
+  if (safeFolder === safeNext) {
+    return { path: safeFolder, movedFiles: 0 };
+  }
+  // Forbid moving a folder into itself or one of its descendants.
+  if (safeNext === safeFolder || safeNext.startsWith(`${safeFolder}/`)) {
+    throw new Error("Cannot move a folder into itself");
+  }
+
+  const fromAbs = path.resolve(vaultRoot, safeFolder);
+  const toAbs = path.resolve(vaultRoot, safeNext);
+  if (!isInside(vaultRoot, fromAbs) || !isInside(vaultRoot, toAbs)) {
+    throw new Error("Folder path escapes the vault");
+  }
+
+  const fromStat = await fs.stat(fromAbs).catch(() => null);
+  if (!fromStat || !fromStat.isDirectory()) {
+    throw new Error("Source folder not found");
+  }
+  const toExists = await fs.stat(toAbs).then(() => true).catch(() => false);
+  if (toExists) {
+    throw new Error("A file or folder already exists at the destination");
+  }
+
+  await fs.mkdir(path.dirname(toAbs), { recursive: true });
+  await fs.rename(fromAbs, toAbs);
+
+  // Rewrite all per-user cache keys that lived under the old
+  // folder prefix.
+  const oldPrefix = `${safeFolder}/`;
+  const newPrefix = `${safeNext}/`;
+  let movedFiles = 0;
+  for (const oldKey of Object.keys(user.metadataByPath)) {
+    if (!oldKey.startsWith(oldPrefix)) continue;
+    const newKey = `${newPrefix}${oldKey.slice(oldPrefix.length)}`;
+    user.metadataByPath[newKey] = {
+      ...user.metadataByPath[oldKey],
+      path: newKey,
+      cachedAt: new Date().toISOString()
+    };
+    delete user.metadataByPath[oldKey];
+    movedFiles += 1;
+  }
+  for (const oldKey of Object.keys(user.createdAtByPath)) {
+    if (!oldKey.startsWith(oldPrefix)) continue;
+    const newKey = `${newPrefix}${oldKey.slice(oldPrefix.length)}`;
+    user.createdAtByPath[newKey] = user.createdAtByPath[oldKey];
+    delete user.createdAtByPath[oldKey];
+  }
+
+  await store.save();
+  invalidateTreeCache(vaultRoot);
+  return { path: safeNext, movedFiles };
 }
 
 function mediaUrl(assetPath: string, basePath?: string): string {
