@@ -323,7 +323,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     | null
     | { kind: "createNote"; defaultFolder: string }
     | { kind: "createFolder"; defaultFolder: string }
+    // Rename keeps the folder, only changes the basename.
     | { kind: "rename"; type: "file" | "folder"; path: string; name: string }
+    // Move keeps the basename, only changes the parent folder.
+    | { kind: "move"; type: "file" | "folder"; path: string; name: string }
     | { kind: "delete"; type: "file" | "folder"; path: string; name: string }
     // Confirm step shown when delete-folder hits a non-empty
     // server response. We surface the file count so the user
@@ -338,6 +341,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }
   function openRename(target: { type: "file" | "folder"; path: string; name: string }) {
     setDialog({ kind: "rename", ...target });
+  }
+  function openMove(target: { type: "file" | "folder"; path: string; name: string }) {
+    setDialog({ kind: "move", ...target });
   }
   function openDelete(target: { type: "file" | "folder"; path: string; name: string }) {
     setDialog({ kind: "delete", ...target });
@@ -1744,6 +1750,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <button onClick={() => active && openRename({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
               {t("editor.rename")}
             </button>
+            <button onClick={() => active && openMove({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
+              {t("editor.move")}
+            </button>
             <button className="danger" onClick={() => active && openDelete({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
               {t("editor.delete")}
             </button>
@@ -1891,6 +1900,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             openRename(nodeMenu.node);
             closeNodeMenu();
           }}
+          onMove={() => {
+            openMove(nodeMenu.node);
+            closeNodeMenu();
+          }}
           onDelete={() => {
             openDelete(nodeMenu.node);
             closeNodeMenu();
@@ -1967,6 +1980,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         />
       ) : null}
       {dialog?.kind === "rename" ? (
+        // Rename only changes the basename; the FolderPicker is
+        // hidden so the user makes one focused decision. Move
+        // lives behind a separate "Move to..." action.
         <PathPickerModal
           mode={dialog.type === "folder" ? "rename-folder" : "rename-file"}
           title={dialog.type === "folder" ? t("prompt.rename.titleFolder") : t("prompt.rename.title")}
@@ -1981,8 +1997,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           folderChildren={folderChildren}
           loadingFolders={loadingFolders}
           loadFolder={loadFolderChildren}
-          // Block moving a folder into itself or its own subtree.
-          disabledFolderPrefixes={dialog.type === "folder" ? [dialog.path] : []}
+          hideFolder
           onCancel={closeDialog}
           onSubmit={async ({ folder, name }) => {
             const trimmed = name.trim();
@@ -1994,6 +2009,51 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             } else {
               const sanitized = trimmed.replace(/\/+$/, "");
               const nextPath = folder ? `${folder}/${sanitized}` : sanitized;
+              await renameFolderPath(dialog.path, nextPath);
+            }
+            closeDialog();
+          }}
+        />
+      ) : null}
+      {dialog?.kind === "move" ? (
+        // Move only changes the parent folder; the name input is
+        // hidden so the user makes one focused decision. Rename
+        // lives behind a separate "Rename..." action.
+        <PathPickerModal
+          mode={dialog.type === "folder" ? "move-folder" : "move-file"}
+          title={dialog.type === "folder" ? t("prompt.move.titleFolder") : t("prompt.move.title")}
+          eyebrow={dialog.path}
+          description={t("prompt.move.description", { name: dialog.name })}
+          submitLabel={t("prompt.move.submit")}
+          submitLoadingLabel={t("prompt.move.submitBusy")}
+          cancelLabel={t("prompt.cancel")}
+          errorFallback={t("error.actionFailed")}
+          initialFolder={parentFolderOf(dialog.path)}
+          // Name stays at the original basename; we never read it
+          // in submit() but PathPickerModal still needs *some*
+          // value so the disabled-state logic doesn't trip.
+          initialName={dialog.name}
+          folderChildren={folderChildren}
+          loadingFolders={loadingFolders}
+          loadFolder={loadFolderChildren}
+          // Block moving a folder into itself or its own subtree.
+          disabledFolderPrefixes={dialog.type === "folder" ? [dialog.path] : []}
+          hideName
+          onCancel={closeDialog}
+          onSubmit={async ({ folder }) => {
+            // Same parent? Treat as a no-op so the user's click
+            // doesn't surface a misleading "moved" message.
+            if (folder === parentFolderOf(dialog.path)) {
+              closeDialog();
+              return;
+            }
+            if (dialog.type === "file") {
+              const baseName = dialog.name; // already includes .md
+              const nextPath = folder ? `${folder}/${baseName}` : baseName;
+              await renameFilePath(dialog.path, nextPath);
+            } else {
+              const baseName = dialog.name;
+              const nextPath = folder ? `${folder}/${baseName}` : baseName;
               await renameFolderPath(dialog.path, nextPath);
             }
             closeDialog();
@@ -2121,6 +2181,16 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                     >
                       <span className="action-sheet-icon" aria-hidden="true"><PencilIcon /></span>
                       <span>{t("editor.rename")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCommandSheetOpen(false);
+                        if (active) openMove({ type: "file", path: active.path, name: active.name });
+                      }}
+                    >
+                      <span className="action-sheet-icon" aria-hidden="true"><FolderPlusIcon /></span>
+                      <span>{t("editor.move")}</span>
                     </button>
                     <button
                       type="button"
@@ -2673,6 +2743,7 @@ function TreeNodeMenu(props: {
   onClose: () => void;
   onOpen: () => void;
   onRename: () => void;
+  onMove: () => void;
   onDelete: () => void;
   onNewNoteHere: () => void;
   onNewFolderHere: () => void;
@@ -2754,6 +2825,9 @@ function TreeNodeMenu(props: {
       <button type="button" role="menuitem" onClick={props.onRename}>
         {t("tree.menu.rename")}
       </button>
+      <button type="button" role="menuitem" onClick={props.onMove}>
+        {t("tree.menu.move")}
+      </button>
       <button type="button" role="menuitem" onClick={props.onCopyPath}>
         {t("tree.menu.copyPath")}
       </button>
@@ -2772,7 +2846,7 @@ function TreeNodeMenu(props: {
 // from onSubmit are surfaced inline so the user can retry without
 // closing the dialog.
 function PathPickerModal(props: {
-  mode: "create-note" | "create-folder" | "rename-file" | "rename-folder";
+  mode: "create-note" | "create-folder" | "rename-file" | "rename-folder" | "move-file" | "move-folder";
   title: string;
   eyebrow?: string;
   description?: string;
@@ -2786,6 +2860,14 @@ function PathPickerModal(props: {
   loadingFolders: ReadonlySet<string>;
   loadFolder: (path: string) => Promise<DocumentTreeEntry[] | null>;
   disabledFolderPrefixes?: string[];
+  // Single-purpose dialogs (Rename / Move) hide one of the two
+  // fields so the user only deals with one decision at a time:
+  // `hideFolder` is set by the Rename dialog (only the name
+  // changes); `hideName` is set by the Move dialog (only the
+  // folder changes). Validators upstream still receive both
+  // fields — the hidden one stays at its initial value.
+  hideFolder?: boolean;
+  hideName?: boolean;
   onCancel: () => void;
   onSubmit: (value: { folder: string; name: string }) => Promise<void>;
 }) {
@@ -2799,13 +2881,16 @@ function PathPickerModal(props: {
   useEffect(() => {
     // Focus + select the name input on mount so the user can
     // start typing immediately. For renames the existing name
-    // is pre-selected so a single keystroke replaces it.
+    // is pre-selected so a single keystroke replaces it. Move
+    // dialogs hide the input entirely; nothing to focus.
+    if (props.hideName) return;
     const node = inputRef.current;
     if (!node) return;
     node.focus();
     if (typeof node.setSelectionRange === "function") {
       node.setSelectionRange(0, node.value.length);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function submit() {
@@ -2846,38 +2931,42 @@ function PathPickerModal(props: {
             void submit();
           }}
         >
-          <div>
-            <label className="path-picker-section-label">{t("prompt.pickFolder")}</label>
-            <FolderPicker
-              folderChildren={props.folderChildren}
-              loadingFolders={props.loadingFolders}
-              loadFolder={props.loadFolder}
-              value={folder}
-              onChange={setFolder}
-              disabledPrefixes={props.disabledFolderPrefixes}
-            />
-            <p className="muted path-picker-current" translate="no">
-              {t("prompt.targetFolder", { folder: folder || t("folderPicker.vaultRoot") })}
-            </p>
-          </div>
-          <label>
-            {props.mode === "create-folder" || props.mode === "rename-folder" ? t("prompt.folderName") : t("prompt.fileName")}
-            <input
-              ref={inputRef}
-              name="path-picker-name"
-              autoComplete="off"
-              spellCheck={false}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
+          {props.hideFolder ? null : (
+            <div>
+              <label className="path-picker-section-label">{t("prompt.pickFolder")}</label>
+              <FolderPicker
+                folderChildren={props.folderChildren}
+                loadingFolders={props.loadingFolders}
+                loadFolder={props.loadFolder}
+                value={folder}
+                onChange={setFolder}
+                disabledPrefixes={props.disabledFolderPrefixes}
+              />
+              <p className="muted path-picker-current" translate="no">
+                {t("prompt.targetFolder", { folder: folder || t("folderPicker.vaultRoot") })}
+              </p>
+            </div>
+          )}
+          {props.hideName ? null : (
+            <label>
+              {props.mode === "create-folder" || props.mode === "rename-folder" ? t("prompt.folderName") : t("prompt.fileName")}
+              <input
+                ref={inputRef}
+                name="path-picker-name"
+                autoComplete="off"
+                spellCheck={false}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+          )}
           {error ? <div className="error" role="alert">{error}</div> : null}
           <div className="prompt-actions">
             <button type="button" onClick={props.onCancel} disabled={busy}>{props.cancelLabel}</button>
             <button
               type="submit"
               className="primary"
-              disabled={busy || !name.trim()}
+              disabled={busy || (!props.hideName && !name.trim())}
               aria-busy={busy}
             >
               <BusyLabel busy={busy} busyText={props.submitLoadingLabel}>{props.submitLabel}</BusyLabel>
