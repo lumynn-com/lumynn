@@ -1105,14 +1105,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       if (active.isDraft) {
         await commitDraft(active);
       } else {
+        const savedPath = active.path;
+        const sentDraft = active.draft;
         const saved = await api<DocumentContent>("/api/documents/content", {
           method: "PUT",
-          body: JSON.stringify({ path: active.path, content: active.draft, expectedHash: active.hash })
+          body: JSON.stringify({ path: savedPath, content: sentDraft, expectedHash: active.hash })
         });
-        // Preserve the tab's current mode across the save: the
-        // post-save preview switch is applied separately by the
-        // caller, so a silent autosave never changes mode.
-        setTabs((current) => current.map((tab) => (tab.path === saved.path ? { ...saved, draft: saved.content, mode: tab.mode } : tab)));
+        // Never overwrite characters typed while the save request
+        // was in flight. If the draft still equals the exact bytes
+        // we sent, mark it clean with the saved server content. If
+        // the user kept typing, update the saved baseline/hash but
+        // preserve the newer draft so autosave can persist it on the
+        // next tick. This is especially important for the 5-second
+        // autosave loop where the user usually keeps writing.
+        setTabs((current) =>
+          current.map((tab) => {
+            if (tab.path !== saved.path) return tab;
+            const currentDraft = tab.draft;
+            const draft = currentDraft === sentDraft ? saved.content : currentDraft;
+            return { ...saved, draft, mode: tab.mode };
+          })
+        );
         if (options.refreshList) await refreshDocuments();
         if (!options.silent) setStatusKey("status.saved");
       }
