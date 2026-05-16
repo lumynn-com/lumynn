@@ -1921,24 +1921,29 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             closeNodeMenu();
           }}
           onRename={() => {
+            if (isMobile) closeOverlays();
             openRename(nodeMenu.node);
             closeNodeMenu();
           }}
           onMove={() => {
+            if (isMobile) closeOverlays();
             openMove(nodeMenu.node);
             closeNodeMenu();
           }}
           onDelete={() => {
+            if (isMobile) closeOverlays();
             openDelete(nodeMenu.node);
             closeNodeMenu();
           }}
           onNewNoteHere={() => {
             const folder = nodeMenu.node.type === "folder" ? nodeMenu.node.path : parentFolderOf(nodeMenu.node.path);
+            if (isMobile) closeOverlays();
             openCreateNote(folder);
             closeNodeMenu();
           }}
           onNewFolderHere={() => {
             const folder = nodeMenu.node.type === "folder" ? nodeMenu.node.path : parentFolderOf(nodeMenu.node.path);
+            if (isMobile) closeOverlays();
             openCreateFolder(folder);
             closeNodeMenu();
           }}
