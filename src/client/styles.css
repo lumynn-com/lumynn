@@ -4325,13 +4325,21 @@ img.logo {
     gap: 0;
     padding: 0.55rem;
     padding-top: 0;
+    /* Mobile owns its scrolling inside panes/drawers/sheets.
+       Keep the outer page locked to the visual viewport so Android
+       doesn't show a body scrollbar caused by app-bar height guesses. */
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
 
   /* Editor is always the main content on mobile. */
   .obsidian-workspace[data-mobile-section] > [data-section="editor"] {
     display: flex !important;
     flex-direction: column;
-    min-height: calc(100dvh - 50px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - var(--owd-mobile-appbar-h, 56px) - 0.55rem - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - var(--owd-mobile-appbar-h, 56px) - 0.55rem - env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
   }
 
   /* Vault becomes a left-side drawer, only visible when active. */

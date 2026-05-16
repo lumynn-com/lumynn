@@ -153,31 +153,38 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
     if (view === "indexing") setIndexingMounted(true);
   }, [view]);
 
-  // Measure the sticky topbar's real rendered height and publish
-  // it as a CSS custom property `--owd-topbar-h`. The CSS uses
-  // it for all "fill the viewport minus topbar" sizing instead
-  // of guessing a magic number; otherwise the page picks up a
-  // few pixels of overflow whenever the topbar is taller than
-  // the guess (admin badge, button wrapping, safe-area-top,
-  // larger-font themes...).
+  // Measure the real rendered height of the active app chrome
+  // and publish it as CSS custom properties. Desktop uses
+  // .workspace-topbar; mobile uses .mobile-app-bar. The CSS uses
+  // these values for all "fill the viewport minus topbar" sizing
+  // instead of guessing magic numbers like 50/64/74px; otherwise
+  // Android/iOS can pick up a few pixels of body overflow when
+  // the rendered app bar is taller than the guess.
   useEffect(() => {
     const root = document.documentElement;
-    function setTopbarHeight() {
-      const topbar = document.querySelector<HTMLElement>(".workspace-topbar");
-      const h = topbar ? Math.ceil(topbar.getBoundingClientRect().height) : 0;
-      root.style.setProperty("--owd-topbar-h", `${h}px`);
+    function visibleHeight(selector: string) {
+      const node = document.querySelector<HTMLElement>(selector);
+      if (!node) return 0;
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden") return 0;
+      return Math.ceil(node.getBoundingClientRect().height);
     }
-    setTopbarHeight();
-    const ro = new ResizeObserver(setTopbarHeight);
-    const topbar = document.querySelector<HTMLElement>(".workspace-topbar");
-    if (topbar) ro.observe(topbar);
-    window.addEventListener("resize", setTopbarHeight);
+    function setChromeHeights() {
+      const desktopTopbarH = visibleHeight(".workspace-topbar");
+      const mobileAppbarH = visibleHeight(".mobile-app-bar");
+      root.style.setProperty("--owd-topbar-h", `${desktopTopbarH}px`);
+      root.style.setProperty("--owd-mobile-appbar-h", `${mobileAppbarH}px`);
+    }
+    setChromeHeights();
+    const ro = new ResizeObserver(setChromeHeights);
+    document.querySelectorAll<HTMLElement>(".workspace-topbar, .mobile-app-bar").forEach((node) => ro.observe(node));
+    window.addEventListener("resize", setChromeHeights);
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", setTopbarHeight);
+      window.removeEventListener("resize", setChromeHeights);
     };
-    // re-run when locale or theme might change topbar layout
-  }, [theme, locale, props.username, props.role]);
+    // re-run when locale/theme/user/view changes might alter app bar layout
+  }, [theme, locale, props.username, props.role, view]);
 
   useEffect(() => {
     document.body.dataset.theme = theme;
