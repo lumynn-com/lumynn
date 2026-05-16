@@ -1578,6 +1578,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <button
               type="button"
               className="icon-button"
+              aria-label={t("vault.newFolder")}
+              onClick={() => {
+                if (isMobile) closeOverlays();
+                openCreateFolder(selectedFolder);
+              }}
+            >
+              <FolderPlusIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
               aria-label={t("vault.sort")}
               onClick={() => {
                 if (isMobile) closeOverlays();
