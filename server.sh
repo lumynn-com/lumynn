@@ -60,9 +60,16 @@ is_running() {
 
 project_pids() {
   ps -axo pid=,pgid=,command= | awk -v root="${ROOT_DIR}" -v ppid="$$" '
-    # Match: command contains root path AND is a relevant process
-    # Exclude: ps, grep, awk commands (the current command searching for matches)
-    index($0, root) > 0 && $0 ~ /(node|npm|vite|tsx|concurrently)/ && $0 !~ /(ps |grep |awk )/ {
+    # Match only processes that are actually started by this script.
+    # The repo path can also appear in editor helper commands such as
+    # tsserver / typingsInstaller; do not block start/stop on those.
+    index($0, root) > 0 &&
+      $0 !~ /(ps |grep |awk |typescript\/lib\/tsserver|typingsInstaller)/ &&
+      ($0 ~ /npm run (server|dev)/ ||
+       $0 ~ /tsx( watch)? src\/server\/server\.ts/ ||
+       $0 ~ /src\/server\/server\.ts/ ||
+       $0 ~ /vite( |$)/ ||
+       $0 ~ /concurrently/) {
       print $1
     }
   '

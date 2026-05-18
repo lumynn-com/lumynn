@@ -162,6 +162,11 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
   // the rendered app bar is taller than the guess.
   useEffect(() => {
     const root = document.documentElement;
+    const observedChrome = new Set<HTMLElement>();
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || Boolean(("standalone" in navigator) && navigator.standalone);
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    root.dataset.standalone = standalone ? "true" : "false";
+    root.dataset.ios = iOS ? "true" : "false";
     function visibleHeight(selector: string) {
       const node = document.querySelector<HTMLElement>(selector);
       if (!node) return 0;
@@ -169,19 +174,61 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
       if (style.display === "none" || style.visibility === "hidden") return 0;
       return Math.ceil(node.getBoundingClientRect().height);
     }
+    function viewportHeight() {
+      const visualHeight = window.visualViewport?.height ?? 0;
+      const layoutHeight = window.innerHeight || root.clientHeight || 0;
+      const screenHeight = window.screen?.height ?? 0;
+      // iOS standalone Web Apps can report a too-small visualViewport
+      // until the first user scroll/touch. In standalone mode there is no
+      // browser address bar to reserve, so seed the layout from the
+      // physical screen height instead of waiting for Safari's first
+      // interaction-driven viewport correction.
+      if (standalone && iOS) {
+        return Math.ceil(Math.max(visualHeight, layoutHeight, screenHeight));
+      }
+      return Math.ceil(standalone ? Math.max(visualHeight, layoutHeight) : (visualHeight || layoutHeight));
+    }
     function setChromeHeights() {
       const desktopTopbarH = visibleHeight(".workspace-topbar");
       const mobileAppbarH = visibleHeight(".mobile-app-bar");
       root.style.setProperty("--owd-topbar-h", `${desktopTopbarH}px`);
       root.style.setProperty("--owd-mobile-appbar-h", `${mobileAppbarH}px`);
+      root.style.setProperty("--owd-viewport-h", `${viewportHeight()}px`);
     }
-    setChromeHeights();
     const ro = new ResizeObserver(setChromeHeights);
-    document.querySelectorAll<HTMLElement>(".workspace-topbar, .mobile-app-bar").forEach((node) => ro.observe(node));
+    function observeChrome() {
+      document.querySelectorAll<HTMLElement>(".workspace-topbar, .mobile-app-bar").forEach((node) => {
+        if (observedChrome.has(node)) return;
+        observedChrome.add(node);
+        ro.observe(node);
+      });
+    }
+    function refreshSoon() {
+      observeChrome();
+      setChromeHeights();
+    }
+    refreshSoon();
+    const raf = window.requestAnimationFrame(refreshSoon);
+    const timers = [100, 350, 800, 1500].map((delay) => window.setTimeout(refreshSoon, delay));
+    const mo = new MutationObserver(refreshSoon);
+    mo.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", setChromeHeights);
+    window.addEventListener("orientationchange", refreshSoon);
+    window.addEventListener("pageshow", refreshSoon);
+    document.addEventListener("visibilitychange", refreshSoon);
+    window.visualViewport?.addEventListener("resize", setChromeHeights);
+    window.visualViewport?.addEventListener("scroll", setChromeHeights);
     return () => {
+      window.cancelAnimationFrame(raf);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      mo.disconnect();
       ro.disconnect();
       window.removeEventListener("resize", setChromeHeights);
+      window.removeEventListener("orientationchange", refreshSoon);
+      window.removeEventListener("pageshow", refreshSoon);
+      document.removeEventListener("visibilitychange", refreshSoon);
+      window.visualViewport?.removeEventListener("resize", setChromeHeights);
+      window.visualViewport?.removeEventListener("scroll", setChromeHeights);
     };
     // re-run when locale/theme/user/view changes might alter app bar layout
   }, [theme, locale, props.username, props.role, view]);

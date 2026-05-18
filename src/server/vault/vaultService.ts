@@ -2,7 +2,7 @@ import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import katex from "katex";
-import { marked } from "marked";
+import { marked, type Tokens } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
@@ -1025,6 +1025,34 @@ function prepareObsidianMarkdown(content: string, basePath?: string): string {
     .join("");
 }
 
+function orderedListItemValue(item: Tokens.ListItem): number | null {
+  const match = item.raw.match(/^\s{0,3}(\d{1,9})[.)]\s/);
+  return match ? Number(match[1]) : null;
+}
+
+function previewRenderer() {
+  const renderer = new marked.Renderer();
+  const defaultList = renderer.list.bind(renderer);
+
+  renderer.list = function list(this: typeof renderer, token: Tokens.List): string {
+    if (!token.ordered) return defaultList(token);
+
+    const start = typeof token.start === "number" ? token.start : 1;
+    const body = token.items
+      .map((item) => {
+        const rendered = this.listitem(item);
+        const value = orderedListItemValue(item);
+        if (value === null) return rendered;
+        return rendered.replace(/^<li>/, `<li value="${value}">`);
+      })
+      .join("");
+
+    return `<ol${start !== 1 ? ` start="${start}"` : ""}>\n${body}</ol>\n`;
+  };
+
+  return renderer;
+}
+
 export async function readVaultMedia(user: UserRecord, assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
   const vaultRoot = await ensureVault(user);
   const safeAssetPath = normalizeVaultAssetPath(assetPath);
@@ -1067,13 +1095,15 @@ export async function readVaultMedia(user: UserRecord, assetPath: string, basePa
 }
 
 export async function renderPreview(content: string, basePath?: string): Promise<string> {
-  const html = await marked.parse(prepareObsidianMarkdown(content, basePath), { async: true, gfm: true, breaks: true });
+  const html = await marked.parse(prepareObsidianMarkdown(content, basePath), { async: true, gfm: true, breaks: true, renderer: previewRenderer() });
   return sanitizeHtml(html, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "input", "mark"]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
       a: ["href", "name", "target", "title", "class"],
       input: ["checked", "disabled", "type"],
+      ol: ["start", "type"],
+      li: ["value"],
       span: ["class", "style", "aria-hidden"],
       img: ["src", "alt", "title", "loading", "width", "height"],
       mark: ["class"]

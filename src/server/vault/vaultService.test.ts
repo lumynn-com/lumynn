@@ -63,6 +63,16 @@ test("renderPreview keeps safe task list checkboxes", async () => {
   assert.match(html, /Done task/);
 });
 
+test("renderPreview preserves explicit ordered list numbering", async () => {
+  const html = await renderPreview("7. Seventh\n9. Ninth\n\nBreak\n\n10. Tenth");
+
+  assert.match(html, /<ol start="7">/);
+  assert.match(html, /<li value="7">[\s\S]*Seventh/);
+  assert.match(html, /<li value="9">[\s\S]*Ninth/);
+  assert.match(html, /<ol start="10">/);
+  assert.match(html, /<li value="10">[\s\S]*Tenth/);
+});
+
 test("renderPreview preserves soft line breaks", async () => {
   const html = await renderPreview("first line\nsecond line\nthird line");
 
