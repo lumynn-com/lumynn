@@ -194,6 +194,22 @@ function readSavedSort(): { sort: SortField; order: SortOrder } {
   }
 }
 
+function summaryFromContent(content: DocumentContent): DocumentSummary {
+  const { content: _content, frontmatter: _frontmatter, links: _links, ...summary } = content;
+  return summary;
+}
+
+function compareDocumentsBy(sort: SortField, order: SortOrder) {
+  const factor = order === "asc" ? 1 : -1;
+  return (a: DocumentSummary, b: DocumentSummary) => {
+    const aValue = a[sort] ?? "";
+    const bValue = b[sort] ?? "";
+    const primary = String(aValue).localeCompare(String(bValue));
+    if (primary !== 0) return primary * factor;
+    return a.path.localeCompare(b.path);
+  };
+}
+
 // Synthesize a minimal DocumentSummary for a file entry whose
 // metadata listing hasn't loaded yet. Only path + name are read
 // by the tree row; the rest stays empty until the metadata fetch
@@ -908,6 +924,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setDocuments(docs);
   }
 
+  async function refreshFolders(paths: string[]) {
+    const uniquePaths = Array.from(new Set(paths));
+    // Cancel stale background prefetches without clearing the whole
+    // lazy tree. A single file move only makes the old and new parent
+    // folder listings stale, so reloading the full vault is unnecessary.
+    folderFetchTracker.current.generation += 1;
+    folderFetchTracker.current.inFlight = new Map();
+    uniquePaths.forEach((folderPath) => {
+      folderFetchTracker.current.loaded.delete(folderPath);
+    });
+    await Promise.all(uniquePaths.map((folderPath) => loadFolderChildren(folderPath, { force: true, silent: true })));
+  }
+
   function setStatusKey(key: TKey, params?: Record<string, string | number>) {
     setStatus({ kind: "key", key, params });
   }
@@ -1267,7 +1296,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       if (selectedFolder !== "" && selectedFolder === parentFolderOf(currentPath)) {
         setSelectedFolder(parentFolderOf(renamed.path));
       }
-      await refreshDocuments();
+      setDocuments((current) => {
+        const movedSummary = summaryFromContent(renamed);
+        const next = current.some((doc) => doc.path === currentPath)
+          ? current.map((doc) => (doc.path === currentPath ? movedSummary : doc))
+          : [...current, movedSummary];
+        return next.sort(compareDocumentsBy(sort, order));
+      });
+      await refreshFolders([parentFolderOf(currentPath), parentFolderOf(renamed.path)]);
       setStatusKey("status.renamed");
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -2611,8 +2647,16 @@ function TreeNodeRow(props: {
     longPressRef.current.fired = false;
     longPressRef.current.startX = event.clientX;
     longPressRef.current.startY = event.clientY;
+    // Capture the DOM node synchronously -- React recycles the
+    // synthetic event, so currentTarget is null inside setTimeout.
+    const el = event.currentTarget as HTMLElement;
     longPressRef.current.timer = window.setTimeout(() => {
       longPressRef.current.fired = true;
+      // Suppress the native context menu that mobile browsers fire
+      // after a long touch so only our custom menu appears.
+      const suppress = (e: Event) => { e.preventDefault(); };
+      el.addEventListener("contextmenu", suppress, { once: true, capture: true });
+      window.setTimeout(() => el.removeEventListener("contextmenu", suppress, true), 600);
       fireMenu(target, longPressRef.current.startX, longPressRef.current.startY);
     }, 500);
   }

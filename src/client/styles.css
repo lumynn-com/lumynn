@@ -242,6 +242,9 @@ nav .active {
 .tree-row {
   display: flex;
   align-items: center;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   gap: 0.55rem;
   width: 100%;
   min-height: 38px;
