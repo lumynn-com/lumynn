@@ -404,6 +404,24 @@ nav .active {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.preview article pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.preview article pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: #c9d1d9;
+}
+
 .qa-answer {
   line-height: 1.72;
   color: #d7dee8;
@@ -421,6 +439,23 @@ nav .active {
   border-radius: 6px;
   padding: 0.15rem 0.3rem;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.qa-answer pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.qa-answer pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: #c9d1d9;
 }
 
 .qa-answer a[href^="#source-"] {
@@ -822,6 +857,14 @@ body[data-theme="light"] .folder-row,
 body[data-theme="light"] .preview article,
 body[data-theme="light"] .qa-answer {
   color: #24324a;
+}
+
+body[data-theme="light"] :where(.preview, .preview-surface, .qa-answer) pre.hljs {
+  background: rgba(240, 243, 248, 0.95);
+}
+
+body[data-theme="light"] :where(.preview, .preview-surface, .qa-answer) pre.hljs code {
+  color: #24292e;
 }
 
 /* Redesign layer: clearer hierarchy, accessible focus, and denser doc workflows. */
@@ -1924,6 +1967,23 @@ progress::-webkit-progress-bar {
   border-radius: 6px;
   padding: 0.15rem 0.3rem;
   background: rgba(148, 163, 184, 0.14);
+}
+
+.preview-surface article pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.preview-surface article pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: #c9d1d9;
 }
 
 .preview-surface article :where(p, li, blockquote, td, th) {
@@ -4856,3 +4916,77 @@ img.logo {
     display: none;
   }
 }
+
+/* ---- highlight.js syntax token colours (GitHub-dark) ----------- */
+.hljs-comment,
+.hljs-quote { color: #8b949e; font-style: italic; }
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-meta { color: #ff7b72; }
+
+.hljs-string,
+.hljs-attr,
+.hljs-addition { color: #a5d6ff; }
+
+.hljs-number,
+.hljs-literal { color: #79c0ff; }
+
+.hljs-built_in,
+.hljs-type,
+.hljs-params { color: #ffa657; }
+
+.hljs-title,
+.hljs-title\.class_,
+.hljs-title\.function_ { color: #d2a8ff; }
+
+.hljs-variable,
+.hljs-template-variable { color: #ffa657; }
+
+.hljs-regexp { color: #7ee787; }
+
+.hljs-symbol,
+.hljs-bullet { color: #f2cc60; }
+
+.hljs-section { color: #79c0ff; font-weight: 700; }
+
+.hljs-deletion { color: #ffa198; background: rgba(248, 81, 73, 0.1); }
+.hljs-addition { background: rgba(63, 185, 80, 0.1); }
+
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* Light theme token overrides */
+body[data-theme="light"] .hljs-comment,
+body[data-theme="light"] .hljs-quote { color: #6a737d; }
+
+body[data-theme="light"] .hljs-keyword,
+body[data-theme="light"] .hljs-selector-tag,
+body[data-theme="light"] .hljs-meta { color: #d73a49; }
+
+body[data-theme="light"] .hljs-string,
+body[data-theme="light"] .hljs-attr { color: #032f62; }
+
+body[data-theme="light"] .hljs-number,
+body[data-theme="light"] .hljs-literal { color: #005cc5; }
+
+body[data-theme="light"] .hljs-built_in,
+body[data-theme="light"] .hljs-type,
+body[data-theme="light"] .hljs-params { color: #e36209; }
+
+body[data-theme="light"] .hljs-title,
+body[data-theme="light"] .hljs-title\.class_,
+body[data-theme="light"] .hljs-title\.function_ { color: #6f42c1; }
+
+body[data-theme="light"] .hljs-variable,
+body[data-theme="light"] .hljs-template-variable { color: #e36209; }
+
+body[data-theme="light"] .hljs-regexp { color: #22863a; }
+
+body[data-theme="light"] .hljs-symbol,
+body[data-theme="light"] .hljs-bullet { color: #b08800; }
+
+body[data-theme="light"] .hljs-section { color: #005cc5; }
+
+body[data-theme="light"] .hljs-deletion { color: #b31d28; background: rgba(255, 220, 220, 0.5); }
+body[data-theme="light"] .hljs-addition { color: #22863a; background: rgba(220, 255, 220, 0.5); }

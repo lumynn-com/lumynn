@@ -1,6 +1,7 @@
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import hljs from "highlight.js";
 import katex from "katex";
 import { marked, type Tokens } from "marked";
 import sanitizeHtml from "sanitize-html";
@@ -1050,6 +1051,19 @@ function previewRenderer() {
     return `<ol${start !== 1 ? ` start="${start}"` : ""}>\n${body}</ol>\n`;
   };
 
+  renderer.code = function code(_token: Tokens.Code): string {
+    const token = _token as Tokens.Code;
+    const lang = (token.lang || "").trim().split(/\s+/)[0];
+    let highlighted: string;
+    if (lang && hljs.getLanguage(lang)) {
+      highlighted = hljs.highlight(token.text, { language: lang }).value;
+    } else {
+      highlighted = hljs.highlightAuto(token.text).value;
+    }
+    const langClass = lang ? ` class="language-${lang}"` : "";
+    return `<pre class="hljs"><code${langClass}>${highlighted}</code></pre>\n`;
+  };
+
   return renderer;
 }
 
@@ -1104,6 +1118,8 @@ export async function renderPreview(content: string, basePath?: string): Promise
       input: ["checked", "disabled", "type"],
       ol: ["start", "type"],
       li: ["value"],
+      pre: ["class"],
+      code: ["class"],
       span: ["class", "style", "aria-hidden"],
       img: ["src", "alt", "title", "loading", "width", "height"],
       mark: ["class"]
