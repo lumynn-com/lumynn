@@ -199,6 +199,7 @@ interface FolderRowProps {
 }
 
 function FolderRow(props: FolderRowProps) {
+  const t = useT();
   return (
     <div
       className={`folder-picker-row ${props.selected ? "selected" : ""} ${props.disabled ? "disabled" : ""}`}
@@ -209,7 +210,7 @@ function FolderRow(props: FolderRowProps) {
         className="folder-picker-caret"
         onClick={() => props.onToggle(props.path)}
         aria-expanded={props.expanded}
-        aria-label={props.expanded ? "Collapse" : "Expand"}
+        aria-label={props.expanded ? t("folderPicker.collapse") : t("folderPicker.expand")}
         // Always render a caret so click targets line up vertically;
         // hide arrow visually on leaves.
         tabIndex={props.hasChildren ? 0 : -1}

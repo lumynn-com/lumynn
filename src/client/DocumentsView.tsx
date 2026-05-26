@@ -169,6 +169,15 @@ function isDraftPath(value: string): boolean {
   return value.startsWith("__draft__/");
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
 // Returns the folder portion of a vault-relative file path (without
 // trailing slash). Returns "" for files at the vault root, drafts, or
 // empty input.
@@ -237,54 +246,6 @@ function synthSummary(entry: DocumentTreeEntry): DocumentSummary {
   };
 }
 
-
-function buildDocumentTree(documents: DocumentSummary[]): TreeNode[] {
-  const root: TreeNode = { id: "", name: "", type: "folder", children: [], order: 0 };
-
-  documents.forEach((document, order) => {
-    const parts = document.path.split("/");
-    let current = root;
-
-    parts.forEach((part, index) => {
-      const id = parts.slice(0, index + 1).join("/");
-      const isDocument = index === parts.length - 1;
-      let child = current.children.find((node) => node.id === id);
-
-      if (!child) {
-        child = {
-          id,
-          name: part,
-          type: isDocument ? "document" : "folder",
-          document: isDocument ? document : undefined,
-          children: [],
-          order
-        };
-        current.children.push(child);
-      }
-
-      if (isDocument) {
-        child.document = document;
-        child.order = order;
-      }
-
-      current = child;
-    });
-  });
-
-  function sortNodes(nodes: TreeNode[]): TreeNode[] {
-    return nodes
-      .map((node) => ({ ...node, children: sortNodes(node.children) }))
-      .sort((a, b) => {
-        if (a.type !== b.type) {
-          return a.type === "folder" ? -1 : 1;
-        }
-        return a.type === "folder" ? a.name.localeCompare(b.name) : a.order - b.order;
-      });
-  }
-
-  return sortNodes(root.children);
-}
-
 type StatusValue =
   | { kind: "key"; key: TKey; params?: Record<string, string | number> }
   | { kind: "text"; text: string };
@@ -344,6 +305,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const [preview, setPreview] = useState("");
+  const previewRequestSeq = useRef(0);
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
   const [status, setStatus] = useState<StatusValue>(READY_STATUS);
@@ -990,7 +952,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
 
   async function loadFolderChildren(
     folderPath: string,
-    options: { force?: boolean; silent?: boolean } = {}
+    options: { force?: boolean; silent?: boolean; sort?: SortField; order?: SortOrder } = {}
   ): Promise<DocumentTreeEntry[] | null> {
     const tracker = folderFetchTracker.current;
     if (!options.force && tracker.loaded.has(folderPath)) {
@@ -1035,9 +997,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       try {
         const params = new URLSearchParams();
         if (folderPath) params.set("path", folderPath);
-        const treeSort: "name" | "updatedAt" = sort === "updatedAt" ? "updatedAt" : "name";
+        const effectiveSort = options.sort ?? sort;
+        const effectiveOrder = options.order ?? order;
+        const treeSort: "name" | "updatedAt" = effectiveSort === "updatedAt" ? "updatedAt" : "name";
         params.set("sort", treeSort);
-        params.set("order", order);
+        params.set("order", effectiveOrder);
         const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
         if (folderFetchTracker.current.generation !== generation) return null;
         const children = data.children ?? [];
@@ -1071,22 +1035,26 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // requestIdleCallback (falls back to setTimeout) so user
   // interactions get processed first. Cancelled when the
   // generation counter is bumped (refreshDocuments invalidates).
-  async function prefetchFolderTree(rootChildren: DocumentTreeEntry[]): Promise<void> {
+  async function prefetchFolderTree(rootChildren: DocumentTreeEntry[], nextSort: SortField, nextOrder: SortOrder): Promise<void> {
     const tracker = folderFetchTracker.current;
     const generation = tracker.generation;
     const queue: string[] = rootChildren
       .filter((entry) => entry.type === "folder" && (entry.hasChildren ?? true))
       .map((entry) => entry.path);
     const concurrency = 2;
+    const maxPrefetchFolders = 40;
+    let prefetched = 0;
 
     async function processOne(): Promise<void> {
       if (tracker.generation !== generation) return;
+      if (prefetched >= maxPrefetchFolders) return;
       const next = queue.shift();
       if (!next) return;
       if (tracker.loaded.has(next) || tracker.inFlight.has(next)) {
         return processOne();
       }
-      const fetched = await loadFolderChildren(next, { silent: true });
+      prefetched += 1;
+      const fetched = await loadFolderChildren(next, { silent: true, sort: nextSort, order: nextOrder });
       if (tracker.generation !== generation) return;
       // Push this folder's sub-folders so the prefetch goes deep
       // but breadth-first.
@@ -1125,14 +1093,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setFolderChildren(new Map());
     // Fetch the root immediately so the sidebar appears within
     // milliseconds even on a multi-thousand-file vault.
-    const rootChildren = await loadFolderChildren("", { force: true });
-    // After the root renders, kick off a background prefetch of
-    // every other folder. The user can keep interacting; the
-    // prefetch yields to idle time. Once it finishes, expanding
-    // any folder is instant because the children are already in
-    // the cache.
+    const rootChildren = await loadFolderChildren("", { force: true, sort: nextSort, order: nextOrder });
+    // After the root renders, warm a bounded number of folders in
+    // the background. The user can keep interacting; the prefetch
+    // yields to idle time and deeper folders still load lazily.
     if (rootChildren && rootChildren.length > 0) {
-      void prefetchFolderTree(rootChildren);
+      void prefetchFolderTree(rootChildren, nextSort, nextOrder);
     }
     // /api/documents is still fetched in parallel for the file
     // count and any feature that needs real metadata. It does not
@@ -1221,6 +1187,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // and tied to the actual content the preview renders from.
   useEffect(() => {
     if (!active) {
+      previewRequestSeq.current += 1;
       setPreview("");
       return;
     }
@@ -1228,19 +1195,34 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const draft = active.draft;
     const isDraft = active.isDraft;
     const path = active.path;
+    const requestSeq = ++previewRequestSeq.current;
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
       api<{ html: string }>("/api/documents/preview", {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({
           // Don't send a synthetic draft path to the server.
           path: isDraft ? undefined : path,
           content: draft
         })
       })
-        .then((result) => setPreview(result.html))
-        .catch(() => setPreview(""));
+        .then((result) => {
+          if (requestSeq === previewRequestSeq.current) {
+            setPreview(result.html);
+          }
+        })
+        .catch((error) => {
+          if (isAbortError(error)) return;
+          if (requestSeq === previewRequestSeq.current) {
+            setPreview("");
+          }
+        });
     }, 250);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [active?.draft, active?.path, active?.isDraft]);
 
   // Mode is per-tab: switching Edit/Preview only affects the
@@ -3391,122 +3373,6 @@ function PathPickerModal(props: {
               aria-busy={busy}
             >
               <BusyLabel busy={busy} busyText={props.submitLoadingLabel}>{props.submitLabel}</BusyLabel>
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-function PromptModal(props: {
-  title: string;
-  eyebrow?: string;
-  description?: string;
-  label: string;
-  placeholder: string;
-  initialValue: string;
-  submitLabel: string;
-  submitLoadingLabel: string;
-  cancelLabel: string;
-  errorFallback: string;
-  isMobile: boolean;
-  onCancel: () => void;
-  onSubmit: (value: string) => Promise<void>;
-}) {
-  const [value, setValue] = useState(props.initialValue);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const titleId = useId();
-  const descId = useId();
-
-  useEffect(() => {
-    if (props.isMobile) return;
-    const node = inputRef.current;
-    if (!node) return;
-    node.focus();
-    if (typeof node.setSelectionRange === "function") {
-      node.setSelectionRange(0, node.value.length);
-    }
-  }, [props.isMobile]);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        if (!submitting) props.onCancel();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [props, submitting]);
-
-  async function submit() {
-    const trimmed = value.trim();
-    if (!trimmed || submitting) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await props.onSubmit(trimmed);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : props.errorFallback);
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={() => { if (!submitting) props.onCancel(); }}>
-      <section
-        className="prompt-modal panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={props.description ? descId : undefined}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="panel-header">
-          <div>
-            {props.eyebrow ? <p className="eyebrow">{props.eyebrow}</p> : null}
-            <h2 id={titleId}>{props.title}</h2>
-            {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
-          </div>
-          <button type="button" onClick={props.onCancel} disabled={submitting}>
-            {props.cancelLabel}
-          </button>
-        </div>
-        <form
-          className="prompt-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submit();
-          }}
-        >
-          <label>
-            {props.label}
-            <input
-              ref={inputRef}
-              name="prompt-value"
-              autoComplete="off"
-              spellCheck={false}
-              value={value}
-              placeholder={props.placeholder}
-              onChange={(event) => setValue(event.target.value)}
-              disabled={submitting}
-            />
-          </label>
-          {error ? <div className="error" aria-live="polite">{error}</div> : null}
-          <div className="prompt-actions">
-            <button type="button" onClick={props.onCancel} disabled={submitting}>
-              {props.cancelLabel}
-            </button>
-            <button
-              className="primary"
-              type="submit"
-              disabled={!value.trim() || submitting}
-              aria-busy={submitting}
-            >
-              <BusyLabel busy={submitting} busyText={props.submitLoadingLabel}>{props.submitLabel}</BusyLabel>
             </button>
           </div>
         </form>

@@ -6467,3 +6467,222 @@ textarea:focus-visible,
     overflow: hidden;
   }
 }
+
+/* ============================================================
+   19. Redesign branch visual polish guardrail.
+
+   Scope:
+     - no font-family or font-size changes
+     - no tab-strip / editor-tab styling changes
+     - no action-sheet or tree-context-menu changes
+     - no Markdown preview typography/content styling changes
+
+   This layer tunes the workspace surfaces, light-mode contrast,
+   empty/loading states, and non-menu controls only.
+   ============================================================ */
+:root {
+  --owd-polish-panel-border: color-mix(in srgb, var(--md-outline, var(--border)) 74%, transparent);
+  --owd-polish-panel-border-strong: color-mix(in srgb, var(--md-outline, var(--border)) 92%, transparent);
+  --owd-polish-panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+  --owd-polish-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  --owd-polish-surface-hover: color-mix(in srgb, var(--md-surface-3, var(--panel-strong)) 76%, var(--md-primary, var(--accent-2)) 8%);
+  --owd-polish-empty-bg: color-mix(in srgb, var(--md-surface-2, var(--panel)) 82%, transparent);
+  --owd-polish-empty-border: color-mix(in srgb, var(--md-outline-soft, var(--border)) 82%, transparent);
+}
+
+:root[data-theme="light"] {
+  --owd-polish-panel-border: rgba(15, 23, 42, 0.12);
+  --owd-polish-panel-border-strong: rgba(15, 23, 42, 0.18);
+  --owd-polish-panel-shadow: 0 14px 30px rgba(15, 23, 42, 0.075);
+  --owd-polish-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  --owd-polish-surface-hover: rgba(15, 23, 42, 0.055);
+  --owd-polish-empty-bg: rgba(248, 250, 252, 0.92);
+  --owd-polish-empty-border: rgba(15, 23, 42, 0.12);
+}
+
+.obsidian-workspace {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--md-surface-2, var(--panel)) 16%, transparent), transparent 220px),
+    var(--md-bg, var(--bg));
+}
+
+:root[data-theme="light"] .obsidian-workspace {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(248, 250, 252, 0) 220px),
+    var(--md-bg, var(--bg));
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel,
+.settings-modal,
+.search-modal,
+.prompt-modal,
+.login-card,
+.single-view.panel {
+  border-color: var(--owd-polish-panel-border) !important;
+  box-shadow: var(--owd-polish-panel-shadow), var(--owd-polish-panel-inset) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--md-surface, var(--panel)) 96%, white 4%), var(--md-surface, var(--panel)) 42px),
+    var(--md-surface, var(--panel)) !important;
+}
+
+:root[data-theme="light"] .vault-pane,
+:root[data-theme="light"] .editor-pane,
+:root[data-theme="light"] .qa-panel,
+:root[data-theme="light"] .settings-modal,
+:root[data-theme="light"] .search-modal,
+:root[data-theme="light"] .prompt-modal,
+:root[data-theme="light"] .login-card,
+:root[data-theme="light"] .single-view.panel {
+  background-color: #ffffff !important;
+}
+
+.vault-meta,
+.editor-tabbar-status,
+.status-subline,
+.path-picker-current {
+  color: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%) !important;
+}
+
+:root[data-theme="light"] .vault-meta,
+:root[data-theme="light"] .editor-tabbar-status,
+:root[data-theme="light"] .status-subline,
+:root[data-theme="light"] .path-picker-current {
+  color: #475569 !important;
+}
+
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.settings-modal-close,
+.back-to-top,
+.mobile-section-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--owd-polish-panel-border) !important;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.pane-expand-toggle:hover:not(:disabled),
+.pane-collapse-toggle:hover:not(:disabled),
+.settings-modal-close:hover:not(:disabled),
+.back-to-top:hover:not(:disabled),
+.mobile-section-actions .icon-button:hover:not(:disabled) {
+  border-color: var(--owd-polish-panel-border-strong) !important;
+  background: var(--owd-polish-surface-hover) !important;
+}
+
+.tree-row,
+.folder-picker-label,
+.citation-source,
+.settings-nav button,
+.prompt-actions button,
+.search-form button,
+.qa-panel .query-button {
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled) {
+  background: var(--owd-polish-surface-hover) !important;
+}
+
+.tree-row:active,
+.folder-picker-label:active:not(:disabled),
+.citation-source:active:not(:disabled),
+.vault-toolbar-action:active:not(:disabled),
+.pane-expand-toggle:active:not(:disabled),
+.pane-collapse-toggle:active:not(:disabled),
+.settings-modal-close:active:not(:disabled),
+.prompt-actions button:active:not(:disabled),
+.search-form button:active:not(:disabled),
+.qa-panel .query-button:active:not(:disabled),
+.back-to-top:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.blank-editor,
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
+.tree-row-placeholder,
+.folder-picker-loading {
+  border: 1px dashed var(--owd-polish-empty-border) !important;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--owd-polish-empty-bg) 92%, white 4%), var(--owd-polish-empty-bg)),
+    var(--owd-polish-empty-bg) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+:root[data-theme="light"] .blank-editor,
+:root[data-theme="light"] .document-list .empty-state,
+:root[data-theme="light"] .qa-panel .empty-state,
+:root[data-theme="light"] .search-results .empty-state,
+:root[data-theme="light"] .tree-row-placeholder,
+:root[data-theme="light"] .folder-picker-loading {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.tree-row-placeholder,
+.folder-picker-loading {
+  color: color-mix(in srgb, var(--md-muted, var(--muted)) 86%, var(--md-text, var(--text)) 14%);
+}
+
+.tree-row-placeholder svg,
+.folder-picker-loading svg,
+button[aria-busy="true"] .spinner,
+button[aria-busy="true"] .button-spinner {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--md-primary, var(--accent-2)) 26%, transparent));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-toolbar-action,
+  .pane-expand-toggle,
+  .pane-collapse-toggle,
+  .settings-modal-close,
+  .back-to-top,
+  .mobile-section-actions .icon-button,
+  .tree-row,
+  .folder-picker-label,
+  .citation-source,
+  .settings-nav button,
+  .prompt-actions button,
+  .search-form button,
+  .qa-panel .query-button {
+    transition: none !important;
+  }
+
+  .tree-row:active,
+  .folder-picker-label:active:not(:disabled),
+  .citation-source:active:not(:disabled),
+  .vault-toolbar-action:active:not(:disabled),
+  .pane-expand-toggle:active:not(:disabled),
+  .pane-collapse-toggle:active:not(:disabled),
+  .settings-modal-close:active:not(:disabled),
+  .prompt-actions button:active:not(:disabled),
+  .search-form button:active:not(:disabled),
+  .qa-panel .query-button:active:not(:disabled),
+  .back-to-top:active:not(:disabled) {
+    transform: none !important;
+  }
+}
