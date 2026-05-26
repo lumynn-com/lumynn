@@ -6,7 +6,6 @@ import {
   AskIcon,
   BusyLabel,
   ChevronDownIcon,
-  ChevronLeftIcon,
   ChevronRightIcon,
   ChevronUpIcon,
   EyeIcon,
@@ -19,6 +18,7 @@ import {
   MinimizeIcon,
   MoonIcon,
   MoreIcon,
+  PanelToggleIcon,
   PencilIcon,
   PlusIcon,
   PrintIcon,
@@ -1912,7 +1912,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             title={t("vault.collapse")}
             onClick={() => setVaultCollapsed(true)}
           >
-            <ChevronLeftIcon />
+            <PanelToggleIcon />
           </button>
         </div>
         {/* Collapsed rail: shown only when data-vault-collapsed="true"
@@ -1936,7 +1936,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             title={t("vault.expand")}
             onClick={() => setVaultCollapsed(false)}
           >
-            <ChevronRightIcon />
+            <PanelToggleIcon />
           </button>
           <span className="pane-collapsed-icon" aria-hidden="true">
             <MenuIcon />
@@ -2739,10 +2739,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           className="zen-exit-button"
           onClick={() => setZenMode(false)}
           aria-label={t("editor.focusExit")}
-          title={`${t("editor.focusExit")} (Esc)`}
+          title={t("editor.focusExit")}
         >
           <MinimizeIcon />
-          <kbd className="zen-exit-kbd" aria-hidden="true">Esc</kbd>
+          <span>{t("editor.focusExit")}</span>
         </button>
       ) : null}
       {/* Settings / indexing overlay modal. Desktop only; mobile

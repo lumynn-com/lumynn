@@ -158,6 +158,16 @@ export function MenuIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function PanelToggleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M9 5v14" />
+      <path d="M13 9h3.5M13 12h3.5M13 15h3.5" />
+    </svg>
+  );
+}
+
 export function AskIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>

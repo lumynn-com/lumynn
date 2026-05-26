@@ -5100,14 +5100,9 @@ body[data-zen="true"] .editor-pane .preview-surface {
 /* Zen / focus mode exit button. Positioned well inside the
    editor area so the textarea's overlay scrollbar (browsers
    render that on the rightmost ~17px of the viewport in zen
-   mode) never visually clips the pill. The chrome is light:
-   one hairline border, a subtle elevation that only ever
-   lifts on hover, no transform animations.
-
-   Compact icon + "Esc" kbd hint, no verbose label. The
-   localized "Exit focus mode" text still ships through the
-   button's aria-label / title so screen readers announce it
-   and tooltips show on hover. */
+   mode) never visually clips the pill. It is intentionally
+   larger than the tabbar icon controls because it is the only
+   visible way out of focus mode. */
 .zen-exit-button {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 1.25rem);
@@ -5117,25 +5112,26 @@ body[data-zen="true"] .editor-pane .preview-surface {
   z-index: 50;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  height: 32px;
-  padding: 0 0.4rem 0 0.55rem;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 0.85rem 0 0.75rem;
   border: 1px solid var(--md-outline-soft, var(--border));
-  border-radius: 999px;
-  background: var(--md-surface, var(--panel-strong));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--md-surface, var(--panel-strong)) 96%, var(--md-primary, var(--accent-2)) 4%);
   color: var(--md-text, var(--text));
+  font-weight: 650;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  box-shadow: none;
   transition-property: background-color, border-color, color, box-shadow;
   transition-duration: 140ms;
   transition-timing-function: ease;
 }
 
 .zen-exit-button:hover {
-  background: var(--md-surface-2, color-mix(in srgb, var(--md-text, var(--text)) 6%, transparent));
+  background: color-mix(in srgb, var(--md-surface-2, var(--panel-strong)) 90%, var(--md-primary, var(--accent-2)) 10%);
   border-color: var(--md-outline, var(--border-strong));
   color: var(--md-primary, var(--accent-2));
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .zen-exit-button:focus-visible {
@@ -5145,44 +5141,20 @@ body[data-zen="true"] .editor-pane .preview-surface {
 
 .zen-exit-button > svg {
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
-}
-
-/* The "Esc" pill on the right reads as a discoverable shortcut
-   hint, not a primary action. Monospace numerals keep it
-   visually anchored without competing with the icon. */
-.zen-exit-kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  min-width: 28px;
-  padding: 0 0.35rem;
-  border: 1px solid var(--md-outline-soft, var(--border));
-  border-radius: 5px;
-  background: var(--md-surface-2, color-mix(in srgb, var(--md-text, var(--text)) 4%, transparent));
-  color: var(--md-muted, var(--muted));
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.zen-exit-button:hover .zen-exit-kbd {
-  border-color: var(--md-outline, var(--border-strong));
+  width: 16px;
+  height: 16px;
 }
 
 body[data-theme="light"] .zen-exit-button {
   background: #ffffff;
   border-color: rgba(15, 23, 42, 0.14);
   color: #0f172a;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
+  box-shadow: none;
 }
 
 body[data-theme="light"] .zen-exit-button:hover {
-  background: #f5f7fb;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14);
+  background: #f8fafc;
+  box-shadow: none;
 }
 
 /* ---- highlight.js syntax token colours (GitHub-dark) ----------- */
@@ -6428,8 +6400,8 @@ textarea:focus-visible,
 
   .pane-expand-toggle > svg,
   .pane-collapse-toggle > svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
   }
 
   /* Top row of the Q&A hero on desktop: the collapse toggle and
@@ -6469,7 +6441,7 @@ textarea:focus-visible,
 }
 
 /* ============================================================
-   19. Redesign branch visual polish guardrail.
+   19. Redesign branch flat polish guardrail.
 
    Scope:
      - no font-family or font-size changes
@@ -6477,112 +6449,121 @@ textarea:focus-visible,
      - no action-sheet or tree-context-menu changes
      - no Markdown preview typography/content styling changes
 
-   This layer tunes the workspace surfaces, light-mode contrast,
-   empty/loading states, and non-menu controls only.
+   This layer removes the boxy polish from the redesign branch.
+   State is carried by ink, hairline dividers, and selection rails
+   rather than extra panels, hover boxes, shadows, or gradients.
    ============================================================ */
 :root {
-  --owd-polish-panel-border: color-mix(in srgb, var(--md-outline, var(--border)) 74%, transparent);
-  --owd-polish-panel-border-strong: color-mix(in srgb, var(--md-outline, var(--border)) 92%, transparent);
-  --owd-polish-panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
-  --owd-polish-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  --owd-polish-surface-hover: color-mix(in srgb, var(--md-surface-3, var(--panel-strong)) 76%, var(--md-primary, var(--accent-2)) 8%);
-  --owd-polish-empty-bg: color-mix(in srgb, var(--md-surface-2, var(--panel)) 82%, transparent);
-  --owd-polish-empty-border: color-mix(in srgb, var(--md-outline-soft, var(--border)) 82%, transparent);
+  --owd-flat-divider: color-mix(in srgb, var(--md-outline-soft, var(--border)) 76%, transparent);
+  --owd-flat-divider-strong: color-mix(in srgb, var(--md-outline, var(--border)) 88%, transparent);
+  --owd-flat-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-flat-ink-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 82%, var(--md-text, var(--text)) 18%);
 }
 
 :root[data-theme="light"] {
-  --owd-polish-panel-border: rgba(15, 23, 42, 0.12);
-  --owd-polish-panel-border-strong: rgba(15, 23, 42, 0.18);
-  --owd-polish-panel-shadow: 0 14px 30px rgba(15, 23, 42, 0.075);
-  --owd-polish-panel-inset: inset 0 1px 0 rgba(255, 255, 255, 0.86);
-  --owd-polish-surface-hover: rgba(15, 23, 42, 0.055);
-  --owd-polish-empty-bg: rgba(248, 250, 252, 0.92);
-  --owd-polish-empty-border: rgba(15, 23, 42, 0.12);
+  --owd-flat-divider: rgba(15, 23, 42, 0.09);
+  --owd-flat-divider-strong: rgba(15, 23, 42, 0.16);
+  --owd-flat-muted: #475569;
+  --owd-flat-ink-hover: #1d4ed8;
 }
 
 .obsidian-workspace {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--md-surface-2, var(--panel)) 16%, transparent), transparent 220px),
-    var(--md-bg, var(--bg));
-}
-
-:root[data-theme="light"] .obsidian-workspace {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(248, 250, 252, 0) 220px),
-    var(--md-bg, var(--bg));
-}
-
-.vault-pane,
-.editor-pane,
-.qa-panel,
-.settings-modal,
-.search-modal,
-.prompt-modal,
-.login-card,
-.single-view.panel {
-  border-color: var(--owd-polish-panel-border) !important;
-  box-shadow: var(--owd-polish-panel-shadow), var(--owd-polish-panel-inset) !important;
+  background: var(--md-bg, var(--bg)) !important;
 }
 
 .vault-pane,
 .editor-pane,
 .qa-panel {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--md-surface, var(--panel)) 96%, white 4%), var(--md-surface, var(--panel)) 42px),
-    var(--md-surface, var(--panel)) !important;
+  background: var(--md-surface, var(--panel)) !important;
+  box-shadow: none !important;
 }
 
-:root[data-theme="light"] .vault-pane,
-:root[data-theme="light"] .editor-pane,
-:root[data-theme="light"] .qa-panel,
-:root[data-theme="light"] .settings-modal,
-:root[data-theme="light"] .search-modal,
-:root[data-theme="light"] .prompt-modal,
-:root[data-theme="light"] .login-card,
-:root[data-theme="light"] .single-view.panel {
-  background-color: #ffffff !important;
+.vault-pane {
+  border-color: transparent var(--owd-flat-divider) transparent transparent !important;
+}
+
+.editor-pane {
+  border-color: transparent !important;
+}
+
+.qa-panel {
+  border-color: transparent transparent transparent var(--owd-flat-divider) !important;
+}
+
+.settings-modal,
+.search-modal,
+.prompt-modal,
+.login-card,
+.single-view.panel {
+  box-shadow: none !important;
 }
 
 .vault-meta,
 .editor-tabbar-status,
 .status-subline,
-.path-picker-current {
-  color: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%) !important;
-}
-
-:root[data-theme="light"] .vault-meta,
-:root[data-theme="light"] .editor-tabbar-status,
-:root[data-theme="light"] .status-subline,
-:root[data-theme="light"] .path-picker-current {
-  color: #475569 !important;
+.path-picker-current,
+.tree-row-placeholder,
+.folder-picker-loading {
+  color: var(--owd-flat-muted) !important;
 }
 
 .vault-toolbar-action,
 .pane-expand-toggle,
 .pane-collapse-toggle,
+.editor-tabbar-actions .icon-button,
 .settings-modal-close,
 .back-to-top,
 .mobile-section-actions .icon-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-color: var(--owd-polish-panel-border) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
   transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
     color 140ms ease,
-    transform 140ms ease,
-    box-shadow 140ms ease;
+    opacity 140ms ease;
 }
 
 .vault-toolbar-action:hover:not(:disabled),
 .pane-expand-toggle:hover:not(:disabled),
 .pane-collapse-toggle:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
 .settings-modal-close:hover:not(:disabled),
 .back-to-top:hover:not(:disabled),
 .mobile-section-actions .icon-button:hover:not(:disabled) {
-  border-color: var(--owd-polish-panel-border-strong) !important;
-  background: var(--owd-polish-surface-hover) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--owd-flat-ink-hover) !important;
+}
+
+.editor-tabbar-actions .icon-button:focus-visible {
+  outline: 2px solid var(--md-primary, var(--accent-2));
+  outline-offset: 2px;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.editor-tabbar-actions .icon-button > svg {
+  pointer-events: none;
 }
 
 .tree-row,
@@ -6592,33 +6573,80 @@ textarea:focus-visible,
 .prompt-actions button,
 .search-form button,
 .qa-panel .query-button {
+  box-shadow: none !important;
   transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
     color 140ms ease,
-    transform 140ms ease,
-    box-shadow 140ms ease;
+    opacity 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.tree-row,
+.folder-picker-label,
+.citation-source {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.tree-row {
+  border-radius: 0 !important;
 }
 
 .tree-row:hover,
 .folder-picker-label:hover:not(:disabled),
 .citation-source:hover:not(:disabled),
 .settings-nav button:hover:not(:disabled) {
-  background: var(--owd-polish-surface-hover) !important;
+  background: transparent !important;
+  color: var(--owd-flat-ink-hover) !important;
 }
 
-.tree-row:active,
-.folder-picker-label:active:not(:disabled),
-.citation-source:active:not(:disabled),
-.vault-toolbar-action:active:not(:disabled),
-.pane-expand-toggle:active:not(:disabled),
-.pane-collapse-toggle:active:not(:disabled),
-.settings-modal-close:active:not(:disabled),
-.prompt-actions button:active:not(:disabled),
-.search-form button:active:not(:disabled),
-.qa-panel .query-button:active:not(:disabled),
-.back-to-top:active:not(:disabled) {
-  transform: translateY(1px);
+.tree-row.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.file-row.selected,
+.doc-item.selected {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
+}
+
+.file-row.selected .tree-file-name,
+.folder-row.selected .tree-label,
+.folder-picker-row.selected .folder-picker-name {
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.qa-panel .citation-grid {
+  gap: 0 !important;
+}
+
+.qa-panel .citation {
+  border-width: 1px 0 0 !important;
+  border-color: var(--owd-flat-divider) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.8rem 0 !important;
+}
+
+.qa-panel .citation:first-child {
+  border-top-color: transparent !important;
+  padding-top: 0 !important;
+}
+
+:root[data-theme="light"] .citation-source {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+:root[data-theme="light"] .citation-source:not(:disabled):hover {
+  background: transparent !important;
+  border-color: transparent !important;
 }
 
 .blank-editor,
@@ -6627,38 +6655,48 @@ textarea:focus-visible,
 .search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {
-  border: 1px dashed var(--owd-polish-empty-border) !important;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--owd-polish-empty-bg) 92%, white 4%), var(--owd-polish-empty-bg)),
-    var(--owd-polish-empty-bg) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-:root[data-theme="light"] .blank-editor,
-:root[data-theme="light"] .document-list .empty-state,
-:root[data-theme="light"] .qa-panel .empty-state,
-:root[data-theme="light"] .search-results .empty-state,
-:root[data-theme="light"] .tree-row-placeholder,
-:root[data-theme="light"] .folder-picker-loading {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
-}
-
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {
-  color: color-mix(in srgb, var(--md-muted, var(--muted)) 86%, var(--md-text, var(--text)) 14%);
+  border-top: 1px solid var(--owd-flat-divider) !important;
+  padding-inline: 0 !important;
 }
 
 .tree-row-placeholder svg,
 .folder-picker-loading svg,
 button[aria-busy="true"] .spinner,
 button[aria-busy="true"] .button-spinner {
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--md-primary, var(--accent-2)) 26%, transparent));
+  filter: none !important;
+}
+
+.tree-row:active,
+.folder-picker-label:active:not(:disabled),
+.citation-source:active:not(:disabled),
+.vault-toolbar-action:active:not(:disabled),
+.pane-expand-toggle:active:not(:disabled),
+.pane-collapse-toggle:active:not(:disabled),
+.editor-tabbar-actions .icon-button:active:not(:disabled),
+.settings-modal-close:active:not(:disabled),
+.prompt-actions button:active:not(:disabled),
+.search-form button:active:not(:disabled),
+.qa-panel .query-button:active:not(:disabled),
+.back-to-top:active:not(:disabled) {
+  transform: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .vault-toolbar-action,
   .pane-expand-toggle,
   .pane-collapse-toggle,
+  .editor-tabbar-actions .icon-button,
   .settings-modal-close,
   .back-to-top,
   .mobile-section-actions .icon-button,
@@ -6670,19 +6708,5 @@ button[aria-busy="true"] .button-spinner {
   .search-form button,
   .qa-panel .query-button {
     transition: none !important;
-  }
-
-  .tree-row:active,
-  .folder-picker-label:active:not(:disabled),
-  .citation-source:active:not(:disabled),
-  .vault-toolbar-action:active:not(:disabled),
-  .pane-expand-toggle:active:not(:disabled),
-  .pane-collapse-toggle:active:not(:disabled),
-  .settings-modal-close:active:not(:disabled),
-  .prompt-actions button:active:not(:disabled),
-  .search-form button:active:not(:disabled),
-  .qa-panel .query-button:active:not(:disabled),
-  .back-to-top:active:not(:disabled) {
-    transform: none !important;
   }
 }

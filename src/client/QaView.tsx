@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
-import { AskIcon, BusyLabel, ChevronLeftIcon, ChevronRightIcon } from "./icons";
+import { AskIcon, BusyLabel, PanelToggleIcon } from "./icons";
 import { useT } from "./i18n";
 
 type Citation = { path: string; title: string; snippet: string };
@@ -255,7 +255,7 @@ export function QaView(props: {
             title={t("qa.expand")}
             onClick={props.onToggleCollapsed}
           >
-            <ChevronLeftIcon />
+            <PanelToggleIcon />
           </button>
           <span className="pane-collapsed-icon" aria-hidden="true">
             <AskIcon />
@@ -278,7 +278,7 @@ export function QaView(props: {
               title={t("qa.collapse")}
               onClick={props.onToggleCollapsed}
             >
-              <ChevronRightIcon />
+              <PanelToggleIcon />
             </button>
             <p className="eyebrow">{t("qa.eyebrow")}</p>
           </div>
