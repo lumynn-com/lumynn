@@ -50,6 +50,14 @@ export function ChevronRightIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function ChevronLeftIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} width={14} height={14} {...props}>
+      <path d="M15 6l-6 6 6 6" />
+    </svg>
+  );
+}
+
 export function ChevronDownIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} width={14} height={14} {...props}>
@@ -211,6 +219,28 @@ export function SaveIcon(props: SVGProps<SVGSVGElement>) {
       <path d="M4 4h12l4 4v12H4z" />
       <path d="M8 4v6h8V4" />
       <path d="M8 14h8v6H8z" />
+    </svg>
+  );
+}
+
+export function MaximizeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M4 9V4h5" />
+      <path d="M20 9V4h-5" />
+      <path d="M4 15v5h5" />
+      <path d="M20 15v5h-5" />
+    </svg>
+  );
+}
+
+export function MinimizeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M9 4v5H4" />
+      <path d="M15 4v5h5" />
+      <path d="M9 20v-5H4" />
+      <path d="M15 20v-5h5" />
     </svg>
   );
 }

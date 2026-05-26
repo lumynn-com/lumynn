@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
-import { BusyLabel } from "./icons";
+import { AskIcon, BusyLabel, ChevronLeftIcon, ChevronRightIcon } from "./icons";
 import { useT } from "./i18n";
 
 type Citation = { path: string; title: string; snippet: string };
@@ -163,7 +163,18 @@ async function runAsk(username: string, question: string): Promise<void> {
   }
 }
 
-export function QaView(props: { compact?: boolean; username?: string; onOpenSource?: (path: string) => void }) {
+export function QaView(props: {
+  compact?: boolean;
+  username?: string;
+  onOpenSource?: (path: string) => void;
+  // Desktop side-panel collapse. When `collapsed` is true the
+  // panel CSS shrinks the qa-panel to a 44px rail; the rail
+  // surfaces an expand button so the user can bring the full
+  // panel back. The toggle is only meaningful when this view is
+  // mounted inside the workspace (compact mode).
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) {
   const t = useT();
   // The username is required for state isolation. Default to a
   // sentinel so QA still works during the brief moment between
@@ -219,9 +230,61 @@ export function QaView(props: { compact?: boolean; username?: string; onOpenSour
   }, [state.answerHtml, state.citations]);
 
   return (
-    <aside className={`qa-view ${props.compact ? "qa-panel panel" : ""}`} aria-label={t("qa.eyebrow")}>
+    <aside
+      className={`qa-view ${props.compact ? "qa-panel panel" : ""}`}
+      aria-label={t("qa.eyebrow")}
+      data-collapsed={props.compact && props.collapsed ? "true" : undefined}
+    >
+      {props.compact && props.onToggleCollapsed ? (
+        // Collapsed rail (desktop only) - 44px wide column with
+        // just an expand button + an icon hint. CSS swaps which
+        // of these is visible based on the data-collapsed
+        // attribute on the <aside>. inert keeps the rail out of
+        // the keyboard tab order and the a11y tree whenever the
+        // panel is expanded, so the active toolbar / form is the
+        // only thing reachable via Tab.
+        <div
+          className="pane-collapsed-rail desktop-only"
+          inert={!props.collapsed}
+          aria-hidden={!props.collapsed || undefined}
+        >
+          <button
+            type="button"
+            className="icon-button pane-expand-toggle"
+            aria-label={t("qa.expand")}
+            title={t("qa.expand")}
+            onClick={props.onToggleCollapsed}
+          >
+            <ChevronLeftIcon />
+          </button>
+          <span className="pane-collapsed-icon" aria-hidden="true">
+            <AskIcon />
+          </span>
+        </div>
+      ) : null}
       <section className={props.compact ? "qa-hero" : "panel hero"}>
-        <p className="eyebrow desktop-only">{t("qa.eyebrow")}</p>
+        {/* Top row: collapse toggle + eyebrow. The button shares
+            a flex row with the small eyebrow label so it doesn't
+            push the title / ask-row to the right (regression we
+            had when the button was absolutely positioned). When
+            the collapse toggle isn't applicable (full-page Q&A
+            or mobile) we just render the eyebrow alone. */}
+        {props.compact && props.onToggleCollapsed ? (
+          <div className="qa-hero-top desktop-only">
+            <button
+              type="button"
+              className="icon-button pane-collapse-toggle qa-collapse-toggle"
+              aria-label={t("qa.collapse")}
+              title={t("qa.collapse")}
+              onClick={props.onToggleCollapsed}
+            >
+              <ChevronRightIcon />
+            </button>
+            <p className="eyebrow">{t("qa.eyebrow")}</p>
+          </div>
+        ) : (
+          <p className="eyebrow desktop-only">{t("qa.eyebrow")}</p>
+        )}
         {props.compact ? <h2 className="desktop-only">{t("qa.title")}</h2> : <h1>{t("qa.title")}</h1>}
         <p className="muted desktop-only">{t("qa.description")}</p>
         <form
@@ -258,13 +321,16 @@ export function QaView(props: { compact?: boolean; username?: string; onOpenSour
       </section>
       {state.answer ? (
         <section className={props.compact ? "qa-response" : "panel"}>
-          <div className="panel-header">
-            <div className="desktop-only">
-              <p className="eyebrow">{t("qa.answerEyebrow")}</p>
-              <h2>{t("qa.answerTitle")}</h2>
+          {/* The eyebrow + h2 ("Answer / Response") panel-header was
+              removed: it duplicated the Q&A pane label at the top
+              and pushed the actual answer below the fold on the
+              compact sidebar. The source/namespace tag, when
+              present, now sits as a single inline pill. */}
+          {state.indexNamespace ? (
+            <div className="qa-response-meta">
+              <span className="status-pill">{t("qa.sourceLabel", { name: state.indexNamespace })}</span>
             </div>
-            {state.indexNamespace ? <span className="status-pill">{t("qa.sourceLabel", { name: state.indexNamespace })}</span> : null}
-          </div>
+          ) : null}
           {state.retrievalWarning ? <div className="error">{t("qa.retrievalWarning", { message: state.retrievalWarning })}</div> : null}
           {state.providerError ? <div className="error">{t("qa.providerWarning", { message: state.providerError })}</div> : null}
           {state.answerHtml ? (

@@ -2269,6 +2269,125 @@ progress::-webkit-progress-bar {
   overflow: hidden;
 }
 
+/* Settings / indexing overlay modal (desktop only). The
+   embedded SettingsView ships its own internal navigation
+   chrome (eyebrow + h1, side nav for settings); we put a
+   compact pill header on top with eyebrow + title + close
+   button so the user always has a single dismiss target. The
+   body owns the scroll so the header / close stay sticky as
+   the content overflows. */
+.settings-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1100px, 100%);
+  height: min(780px, 90dvh);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 16px;
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  border-bottom: 1px solid transparent;
+  background: var(--md-surface, var(--panel));
+  /* Animate only the divider color so the header slips quietly
+     into a state with a visible separator once the user scrolls. */
+  transition-property: border-color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.settings-modal-header[data-scrolled="true"] {
+  border-bottom-color: var(--md-outline-soft, var(--border));
+  /* Soft shadow that fades content under the header once it is
+     no longer flush with the top of the body. Layered above the
+     hairline border so the seam reads as a single edge. */
+  box-shadow: 0 1px 0 0 transparent, 0 6px 12px -10px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal-header {
+    transition: none;
+  }
+}
+
+.settings-modal-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.settings-modal-titles .eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--md-text-muted, var(--text-muted));
+}
+
+.settings-modal-titles h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--md-text, var(--text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-modal-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.settings-modal-body {
+  min-height: 0;
+  overflow: auto;
+  /* Keep wheel scroll bound to the modal so it never
+     accidentally scrolls the workspace behind the dialog. */
+  overscroll-behavior: contain;
+  /* The embedded SettingsView assumes a viewport-sized
+     container. Reset its outer padding because the modal
+     already has chrome and let the inner layout breathe. */
+  padding: 0;
+}
+
+/* SettingsView is rendered as <main className="settings-view">
+   with its own padding / hero. When embedded inside the modal
+   we want it to use up the available width with a slimmer
+   gutter and no top-of-page hero block since the modal header
+   already shows the title. */
+.settings-modal-body .settings-view {
+  padding: 1rem 1.25rem 1.5rem;
+  background: transparent;
+}
+
+.settings-modal-body .settings-view > .settings-hero {
+  display: none;
+}
+
+.settings-modal-body .settings-view > .settings-back-bar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  /* Defensive: even if the modal is briefly rendered during a
+     resize, fall back to a near-fullscreen sheet. */
+  .settings-modal {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
 .prompt-modal {
   display: grid;
   gap: 1rem;
@@ -3798,7 +3917,8 @@ button[aria-busy="true"] > .button-spinner {
   }
 
   .search-modal,
-  .prompt-modal {
+  .prompt-modal,
+  .settings-modal {
     animation: owd-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
     transform-origin: center;
   }
@@ -4863,36 +4983,15 @@ img.logo {
   background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
 }
 
-.vault-toolbar-search {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 38px;
-  padding: 0.45rem 0.85rem;
-  border-radius: 999px;
-  font-weight: 600;
-}
-
-.vault-toolbar-search > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vault-toolbar-search svg {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-}
-
+/* All vault toolbar buttons are now icon-only (the search
+   text label was dropped to avoid truncation across locales).
+   They share the .icon-button base sizing (32px square via the
+   override below) and just tweak the icon size + hover tint. */
 .vault-toolbar-action {
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: transparent;
   color: var(--md-text, var(--text));
 }
@@ -4909,12 +5008,181 @@ img.logo {
   height: 16px;
 }
 
-/* When the vault panel gets very narrow, drop the search label
-   so it doesn't get truncated; the magnifier icon is enough. */
-@media (max-width: 520px) {
-  .vault-toolbar-search > span {
-    display: none;
-  }
+/* ---- Zen / Focus mode --------------------------------------------
+   Hides the global topbar, vault sidebar and AI Q&A panel so the
+   editor takes the whole window. Triggered by the `data-zen="true"`
+   attribute set on <body> when the user toggles focus mode. A small
+   floating button lets the user leave focus mode at any time. */
+body[data-zen="true"] .workspace-topbar,
+body[data-zen="true"] .obsidian-workspace > .vault-pane,
+body[data-zen="true"] .obsidian-workspace > .qa-section-wrapper,
+body[data-zen="true"] .obsidian-workspace > .qa-panel,
+body[data-zen="true"] .editor-pane > .panel-header,
+body[data-zen="true"] .editor-pane > .editor-toolbar,
+body[data-zen="true"] .editor-pane > .editor-tabbar {
+  display: none !important;
+}
+
+body[data-zen="true"] .obsidian-workspace {
+  grid-template-columns: minmax(0, 1fr) !important;
+  /* Edge-to-edge: in zen / focus mode the editor takes the
+     entire viewport. We zero the workspace padding, gap, and
+     background so there's no inset chrome between the page
+     edge and the editor surface. The topbar is already hidden
+     by the rule above so we own the full 100dvh. */
+  gap: 0 !important;
+  padding: 0 !important;
+  min-height: 100dvh;
+  background: transparent !important;
+}
+
+body[data-zen="true"] .editor-pane {
+  /* Drop the centered max-width column from the previous
+     "reading-friendly" zen variant. The user wants the editor
+     to fill the whole webpage, so width = 100% of the workspace
+     and the panel-card chrome (border / radius / padding) is
+     flattened so the textarea / preview reaches every edge. */
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--panel) !important;
+  box-shadow: none !important;
+}
+
+/* Inner editor surfaces in zen mode go edge-to-edge too. The
+   padding shrinks to a comfortable reading inset so text isn't
+   pinned against the viewport edge, but no decorative borders /
+   radii / shadows interrupt the immersive surface. */
+body[data-zen="true"] .editor-pane .editor-field,
+body[data-zen="true"] .editor-pane .editor textarea,
+body[data-zen="true"] .editor-pane .preview-surface {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-zen="true"] .editor-pane .editor textarea {
+  padding: 1.5rem clamp(1rem, 4vw, 4rem) !important;
+}
+
+body[data-zen="true"] .editor-pane .preview-surface {
+  padding: 1.5rem clamp(1rem, 4vw, 4rem) !important;
+}
+
+/* Compact, icon-only focus toggle that sits in the editor toolbar
+   without stretching to fill at narrow widths (the surrounding
+   `.file-actions button { flex: 1 1 auto }` rule would otherwise
+   blow it up to its own row). */
+.focus-toggle {
+  flex: 0 0 auto !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+}
+
+.focus-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Zen / focus mode exit button. Positioned well inside the
+   editor area so the textarea's overlay scrollbar (browsers
+   render that on the rightmost ~17px of the viewport in zen
+   mode) never visually clips the pill. The chrome is light:
+   one hairline border, a subtle elevation that only ever
+   lifts on hover, no transform animations.
+
+   Compact icon + "Esc" kbd hint, no verbose label. The
+   localized "Exit focus mode" text still ships through the
+   button's aria-label / title so screen readers announce it
+   and tooltips show on hover. */
+.zen-exit-button {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 1.25rem);
+  /* 2.5rem keeps the pill clear of the textarea scrollbar and
+     well inside the editor text column even on small windows. */
+  right: calc(env(safe-area-inset-right, 0px) + 2.5rem);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 32px;
+  padding: 0 0.4rem 0 0.55rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-text, var(--text));
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.zen-exit-button:hover {
+  background: var(--md-surface-2, color-mix(in srgb, var(--md-text, var(--text)) 6%, transparent));
+  border-color: var(--md-outline, var(--border-strong));
+  color: var(--md-primary, var(--accent-2));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+
+.zen-exit-button:focus-visible {
+  outline: 2px solid var(--md-primary, var(--accent-2));
+  outline-offset: 2px;
+}
+
+.zen-exit-button > svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+/* The "Esc" pill on the right reads as a discoverable shortcut
+   hint, not a primary action. Monospace numerals keep it
+   visually anchored without competing with the icon. */
+.zen-exit-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 28px;
+  padding: 0 0.35rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 5px;
+  background: var(--md-surface-2, color-mix(in srgb, var(--md-text, var(--text)) 4%, transparent));
+  color: var(--md-muted, var(--muted));
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.zen-exit-button:hover .zen-exit-kbd {
+  border-color: var(--md-outline, var(--border-strong));
+}
+
+body[data-theme="light"] .zen-exit-button {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10);
+}
+
+body[data-theme="light"] .zen-exit-button:hover {
+  background: #f5f7fb;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14);
 }
 
 /* ---- highlight.js syntax token colours (GitHub-dark) ----------- */
@@ -4990,3 +5258,1212 @@ body[data-theme="light"] .hljs-section { color: #005cc5; }
 
 body[data-theme="light"] .hljs-deletion { color: #b31d28; background: rgba(255, 220, 220, 0.5); }
 body[data-theme="light"] .hljs-addition { color: #22863a; background: rgba(220, 255, 220, 0.5); }
+
+/* ============================================================
+   Toolbar flatten pass (desktop)
+
+   The vault and editor panels each had three stacked layers of
+   chrome before reaching the real content:
+     1. .panel-header  (eyebrow + h2 + count/status, ~70px)
+     2. .vault-toolbar / .editor-toolbar  (its own card with
+        border + radius + padding, "card-in-card")
+     3. .sort-row (vault) or .file-actions (editor)
+   Together these consumed ~140-150px before the tree or text
+   appeared. This section removes the panel-headers (now done
+   in JSX), flattens the toolbars to a single hairline row, and
+   restructures the editor toolbar as a 3-column grid:
+     [mode-switch]  [path \u00b7 status]  [focus / \u2026 / Save]
+   The mobile breakpoint is unaffected; mobile uses
+   .mobile-section-header which lives in a different rule scope.
+   ============================================================ */
+@media (min-width: 861px) {
+  /* Drop the inner card surface on both toolbars so they no
+     longer compete with the surrounding panel for visual weight. */
+  .vault-toolbar,
+  .editor-toolbar {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  /* Single-row vault toolbar of icon-only actions. Each button
+     uses .icon-button (28-32px) so the row stays compact and
+     accommodates all five actions even at the narrowest pane
+     width. The first button (search) gets a subtle accent
+     tint to read as the primary action without needing a
+     localized text label. */
+  .vault-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.35rem;
+  }
+
+  /* The collapse toggle floats to the right edge so it's
+     visually grouped with itself rather than the create / sort
+     actions; matches VSCode-style sidebar headers where the
+     hide-pane affordance lives at the far end. */
+  .vault-toolbar > .pane-collapse-toggle {
+    margin-left: auto;
+  }
+
+  /* Search becomes an icon-only button but keeps a tinted
+     accent surface so it's still the visually anchored primary
+     action in the row. Hover deepens the tint instead of
+     swapping to the plain icon-button hover gray. */
+  .vault-toolbar-search {
+    background: var(--md-primary-container, color-mix(in srgb, var(--md-primary, var(--accent-2)) 14%, transparent)) !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+  }
+
+  .vault-toolbar-search:hover:not(:disabled),
+  .vault-toolbar-search:focus-visible {
+    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 22%, transparent) !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+  }
+
+  /* Tiny breadcrumb-style caption that replaces the old
+     "Documents / N Markdown files" panel header. Sits flush
+     against the top of the tree so it reads as a label, not
+     chrome. */
+  .vault-meta {
+    margin: 0 0 0.45rem 0.15rem;
+    font-size: 0.74rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--md-muted, var(--muted));
+  }
+
+  /* Thin editor toolbar (~32px) with all controls grouped on the
+     right. The strip carries no inner card chrome and no bottom
+     border because the Chrome-style tab strip below it draws its
+     own hairline; stacking two borders would visually re-create
+     the heavy double-line look we just removed. */
+  .editor-toolbar.editor-toolbar-thin {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 32px;
+    margin-bottom: 0.25rem;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .editor-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .editor-toolbar-actions-right {
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  /* Compact 28px icon buttons inside the thin toolbar. Inherit
+     hover/focus chrome from .icon-button but downsize so the row
+     stays visually light and matches the Chrome-style tab height
+     directly below. */
+  .editor-toolbar-thin .icon-button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .editor-toolbar-thin .icon-button > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .editor-toolbar-thin .mode-toggle[aria-pressed="true"] {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  /* Inline status text: muted by default, animates to a brief
+     accent flash when state transitions to "saved". Truncates
+     instead of wrapping so the toolbar height stays fixed. */
+  .editor-toolbar-status-text {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.74rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+
+  .file-actions-more[aria-expanded="true"] {
+    background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 14%, transparent));
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  /* Rows inside the anchored editor menu align an icon with a
+     label so the menu reads at a glance. Inherits the surface,
+     hover, and danger styles from .tree-context-menu. */
+  .anchored-menu button {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .anchored-menu button > svg {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    opacity: 0.85;
+  }
+
+  .anchored-menu button > span {
+    flex: 1 1 auto;
+    text-align: left;
+  }
+
+  /* Save sits at the top of the overflow menu and reads as the
+     primary action: tinted background, accent label, and a
+     keyboard-shortcut hint pinned right. */
+  .anchored-menu-primary {
+    background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 14%, transparent)) !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+    font-weight: 600;
+  }
+
+  .anchored-menu-primary > svg {
+    opacity: 1;
+  }
+
+  .anchored-menu-primary:hover:not(:disabled),
+  .anchored-menu-primary:focus-visible {
+    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 22%, transparent) !important;
+  }
+
+  .anchored-menu-kbd {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--md-outline-soft, var(--border));
+    background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 60%, transparent);
+    color: var(--md-muted, var(--muted));
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* ----------------------------------------------------------
+     Combined editor tab bar (desktop)
+
+     Tabs and the trailing action cluster (mode toggle, focus,
+     "\u22ef" command sheet trigger) share a single 36px row above
+     the editor content. The previous separate .editor-toolbar
+     row collapses into this band: tabs scroll horizontally on
+     the left while the action cluster stays anchored on the
+     right. The hairline divider lives on .editor-tabbar so it
+     spans the entire band, including the action area.
+     ---------------------------------------------------------- */
+  .editor-pane > .editor-tabbar {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin: 0;
+    box-shadow: inset 0 -1px 0 var(--md-outline-soft, var(--border));
+  }
+
+  .editor-tabbar-actions {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.2rem;
+    padding-right: 0.15rem;
+  }
+
+  /* Inline status text floats just before the action buttons.
+     Truncates instead of wrapping so the bar height is fixed,
+     and keeps tabular numerals so width doesn't jitter while
+     the autosave countdown ticks. */
+  .editor-tabbar-status {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 160px;
+    margin-right: 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.74rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+
+  /* Compact 28px icon buttons match the tab height so the
+     cluster reads as part of the strip, not an extra band. */
+  .editor-tabbar-actions .icon-button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .editor-tabbar-actions .icon-button > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .editor-tabbar-actions .mode-toggle[aria-pressed="true"] {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  /* ----------------------------------------------------------
+     Flat underline tab strip (desktop)
+
+     Modern flat-UI pattern used by Linear / Stripe / Vercel /
+     GitHub: each tab is just a text label; the active tab is
+     marked by a 2px accent underline that sits on top of the
+     strip's hairline divider so the line never breaks. No
+     borders, no boxes, no surfaces \u2014 the only thing visually
+     "above" the page is the underline itself. The close glyph
+     fades in on hover or focus, matching the industry norm of
+     hiding the affordance until intent is signalled. Mobile
+     keeps its existing pill style (different media query).
+
+     All transitions list properties explicitly (per Vercel's
+     Web Interface Guidelines: never `transition: all`), and
+     `prefers-reduced-motion` is honored just below.
+     ---------------------------------------------------------- */
+  .editor-pane .tab-strip {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    /* Hairline lives on .editor-tabbar so the divider reaches
+       under the action cluster too; tab-strip itself stays clean. */
+    box-shadow: none;
+    scrollbar-width: thin;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: 36px;
+    max-width: 200px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    transition-property: color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover {
+    color: var(--md-text, var(--text));
+    background: color-mix(in srgb, var(--md-text, var(--text)) 4%, transparent);
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active {
+    color: var(--md-text, var(--text));
+    background: transparent;
+  }
+
+  /* Active underline: 2px accent bar overlapping the strip's
+     1px hairline so the divider never breaks under the tab. */
+  .editor-pane .tab-strip > .editor-tab-shell.active::after {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    right: 0.35rem;
+    bottom: 0;
+    height: 2px;
+    background: var(--md-primary, var(--accent-2));
+    border-radius: 2px 2px 0 0;
+    pointer-events: none;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab {
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    max-width: none;
+    gap: 0.35rem;
+    padding: 0 0.35rem 0 0.6rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active .editor-tab {
+    font-weight: 600;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* The full path is redundant in a flat tab; keep it in the DOM
+     for the tooltip but hide it visually. */
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > .tab-path {
+    display: none;
+  }
+
+  /* Close glyph: a 16px circular hover target that fades in on
+     tab hover, focus, or when the tab is active. Stays muted
+     unless directly hovered, then turns into a subtle danger-
+     leaning dot so destructive intent is clear. */
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0;
+    transition-property: opacity, color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell:hover .tab-close,
+  .editor-pane .tab-strip > .editor-tab-shell.active .tab-close,
+  .editor-pane .tab-strip > .editor-tab-shell:focus-within .tab-close {
+    opacity: 1;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
+    background: color-mix(in srgb, var(--md-text, var(--text)) 12%, transparent);
+    color: var(--md-text, var(--text));
+  }
+
+  /* "+" new-tab affordance: matches the tab height, ghost button,
+     muted by default, surface-2 fill on hover. */
+  .editor-pane .tab-strip > .tab-strip-add {
+    align-self: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 0.15rem 0 0.25rem;
+    border: 0;
+    border-radius: 6px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    transition-property: color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add:hover,
+  .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+    background: color-mix(in srgb, var(--md-text, var(--text)) 6%, transparent);
+    color: var(--md-text, var(--text));
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Draft (unsaved quick-note) tabs read in italics so the
+     ephemeral state is glanceable without an extra glyph. */
+  .editor-pane .tab-strip > .editor-tab-shell.draft .editor-tab > span:first-child {
+    font-style: italic;
+  }
+
+  /* Flat surfaces: drop the inset highlight + radial gradients
+     from the editor surface so the tab strip sits on a clean
+     panel. The hairline above (from the tab strip's box-shadow)
+     is the only divider in this region. */
+  .editor-pane .editor-field,
+  .editor-pane .editor textarea,
+  .editor-pane .preview-surface {
+    margin-top: 0.75rem;
+    box-shadow: none;
+  }
+
+  .editor-pane .editor textarea {
+    background: transparent;
+    border: 1px solid var(--md-outline-soft, var(--border));
+  }
+
+  .editor-pane .preview-surface {
+    background: transparent;
+    border: 1px solid var(--md-outline-soft, var(--border));
+  }
+
+  /* The vault sort sheet is now shared with desktop. Render it as
+     a centred modal (like the search modal) instead of the mobile
+     bottom sheet. The .modal-backdrop class already handles the
+     centring; we just need to override the default-hidden rules
+     that were scoped to keep mobile chrome off desktop. */
+  .modal-backdrop.sheet-backdrop {
+    display: grid !important;
+    place-items: center;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.55rem;
+    width: min(440px, 90vw);
+    max-width: 440px;
+    max-height: min(640px, 80dvh);
+    padding: 1rem 1rem 1.1rem;
+    border-radius: 18px;
+    background: var(--md-surface, var(--panel-strong));
+    box-shadow: var(--md-elevation-2, 0 12px 32px rgba(0, 0, 0, 0.32));
+    animation: owd-fade-in 140ms ease;
+    overflow: hidden;
+  }
+
+  /* Scroll the dense command sheet body so headers stay pinned
+     and we don't blow past 80dvh when every section is rendered. */
+  .modal-backdrop.sheet-backdrop .action-sheet > .action-sheet-group:first-of-type {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header button {
+    min-height: 32px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.3rem 0.65rem;
+    background: transparent;
+    color: var(--md-primary, var(--accent-2));
+    font-weight: 650;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group {
+    display: grid;
+    gap: 0.1rem;
+    border-top: 1px solid var(--md-outline-soft, var(--border));
+    padding-top: 0.45rem;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    background: transparent;
+    color: var(--md-text, var(--text));
+    text-align: left;
+    font-weight: 500;
+  }
+
+  /* Icons in the command sheet sit on a fixed-width gutter so
+     labels align in a column, like a native menu. */
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--md-muted, var(--muted));
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+    background: var(--surface-hover, color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent));
+    transform: none;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button.active {
+    color: var(--md-primary, var(--accent-2));
+    font-weight: 600;
+  }
+
+  /* Q&A response: when the eyebrow + h2 panel-header is gone the
+     section needs a tiny top breathing space so the answer body
+     doesn't slam into the question form above. */
+  .qa-response-meta {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Flat-UI pass on the three workspace panels: drop the
+     decorative radial / linear gradients on .document-list /
+     .editor / .preview so the chrome reads as one cohesive flat
+     surface. The panel base color (--panel) carries the visual
+     separation from --bg; gradients added a "glassy" depth that
+     fights with the new flat tab strip. */
+  .editor-pane.editor,
+  .document-list,
+  .preview {
+    background: var(--panel);
+  }
+}
+
+/* Honor prefers-reduced-motion across the new flat-UI components
+   added in the toolbar/tab refactor. The page already has a
+   global reduced-motion override earlier in the file; this scope
+   makes sure the explicit transition-property declarations on
+   the tab strip and toolbar buttons are also neutralised when
+   the user opts out. */
+@media (prefers-reduced-motion: reduce) {
+  .editor-pane .tab-strip > .editor-tab-shell,
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close,
+  .editor-pane .tab-strip > .tab-strip-add,
+  .editor-toolbar-thin .icon-button,
+  .anchored-menu,
+  .anchored-menu button,
+  .modal-backdrop.sheet-backdrop .action-sheet {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* ============================================================
+   Flat UI pass (site-wide, final layer)
+
+   Strips the skeuomorphic / Material-glass effects accumulated
+   over earlier design layers and replaces them with a calm flat
+   aesthetic. Per Vercel's Web Interface Guidelines:
+     - explicit transition-property (no `transition: all`)
+     - prefers-reduced-motion honored
+     - focus-visible rings preserved
+     - functional elevation kept only on floating overlays
+
+   Strategy:
+     1. Re-tokenise surfaces + elevation to solid / minimal values.
+     2. Kill backdrop-filter globally (anti-glassmorphism).
+     3. Strip ambient gradients on body + workspace panels.
+     4. Solid primary action color (no purple\u2192blue gradient).
+     5. Drop the universal hover-lift transform.
+     6. Remove inset \"white highlight\" faux-3D.
+     7. Subtle elevation only on true overlays (modals, popovers,
+        toasts, FAB, dropdown menus).
+     8. Clean focus ring using the accent color.
+   ============================================================ */
+
+/* 1. Solid surface tokens. Replace the translucent panel base
+      that required backdrop-filter blur to look correct. */
+:root {
+  --panel: #0e1521;
+  --panel-strong: #141c2c;
+  --shadow: 0 0 0 0 transparent;
+  --shadow-workspace: 0 0 0 0 transparent;
+  --md-elevation-1: 0 0 0 1px var(--md-outline-soft);
+  --md-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="light"] {
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --shadow: 0 0 0 0 transparent;
+  --shadow-workspace: 0 0 0 0 transparent;
+  --md-elevation-1: 0 0 0 1px var(--md-outline-soft);
+  --md-elevation-2: 0 6px 20px rgba(15, 23, 42, 0.10);
+}
+
+/* 2. Anti-glass: drop every backdrop-filter blur. The new tokens
+      give surfaces enough contrast that blur is no longer needed
+      to read content through a translucent layer. */
+*,
+*::before,
+*::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* 3. Remove the decorative ambient gradients that softened the
+      chrome with a faux-light effect. */
+html,
+body,
+.app-shell,
+.obsidian-shell,
+.workspace-topbar,
+.mobile-app-bar,
+.workspace-grid,
+.obsidian-workspace,
+.editor,
+.editor-pane,
+.editor-field,
+.preview,
+.preview-surface,
+.document-list,
+.qa-panel,
+.qa-view,
+.qa-section-wrapper,
+.login-shell,
+.login-card,
+.panel,
+.panel.hero,
+.hero,
+.search-modal,
+.path-picker-modal,
+.action-sheet,
+.tree-context-menu,
+.anchored-menu,
+.modal-backdrop {
+  background-image: none !important;
+}
+
+body {
+  background-color: var(--bg);
+}
+
+.workspace-topbar,
+.mobile-app-bar {
+  background-color: var(--bg);
+}
+
+.obsidian-workspace .panel,
+.vault-pane,
+.editor-pane,
+.qa-panel,
+.document-list,
+.editor,
+.preview {
+  background-color: var(--panel);
+}
+
+.login-card,
+.search-modal,
+.path-picker-modal,
+.action-sheet,
+.tree-context-menu,
+.anchored-menu {
+  background-color: var(--panel-strong);
+}
+
+/* 4. Solid primary action. Brand purple+blue gradient is
+      replaced with the accent token; hover slightly brightens.
+
+      NOTE: the legacy `body[data-theme="light"] .primary` rule
+      earlier in the file has higher specificity (0,2,1) than a
+      bare `.primary` selector (0,1,0). Without the explicit
+      !important the legacy rule's `background:` shorthand wins,
+      which resets background-color to `transparent`. Combined
+      with our `background-image: none !important` that yields a
+      see-through "Search" / "Ask" button on the white panel.
+      Forcing the colour here keeps both themes solid. */
+button.primary,
+.primary {
+  background-color: var(--md-primary, var(--accent-2)) !important;
+  background-image: none !important;
+  color: var(--md-on-primary, #ffffff) !important;
+  box-shadow: none;
+}
+
+button.primary:hover:not(:disabled),
+.primary:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--md-primary, var(--accent-2)) 88%, white) !important;
+  transform: none;
+}
+
+button.primary:active:not(:disabled),
+.primary:active:not(:disabled) {
+  background-color: color-mix(in srgb, var(--md-primary, var(--accent-2)) 78%, black) !important;
+}
+
+/* 5. Drop the universal hover lift. A flat UI signals
+      interactivity via color/contrast, not motion. */
+button:hover:not(:disabled),
+.file-button:hover,
+.tree-row:hover,
+.editor-tab-shell:hover,
+.icon-button:hover:not(:disabled),
+.lang-switch button:hover:not(:disabled),
+.mode-switch button:hover:not(:disabled),
+.action-sheet-group button:hover:not(:disabled) {
+  transform: none !important;
+}
+
+/* 6. Strip "white inset" faux-3D highlights. */
+.editor textarea,
+.preview-surface,
+.editor-field,
+.workspace-topbar,
+.mobile-app-bar,
+.panel,
+.tree-row,
+.editor-tab-shell,
+.qa-panel .citation,
+.search-result,
+.draft-pill,
+.lang-switch,
+.mode-switch,
+.status-pill,
+.editor-fab,
+.undo-toast,
+.qa-panel .ask-row input,
+.search-form input,
+input,
+textarea,
+select,
+.file-button,
+button:not(.primary):not(.danger):not(.editor-fab):not(.undo-toast-action) {
+  box-shadow: none;
+}
+
+/* 7. Subtle elevation only on floating overlays. */
+.search-modal,
+.path-picker-modal,
+.tree-context-menu,
+.anchored-menu,
+.editor-fab,
+.undo-toast,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  box-shadow: var(--md-elevation-2) !important;
+}
+
+/* 8. Modal scrim is now a solid translucent black, not blurred. */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme="light"] .modal-backdrop {
+  background: rgba(15, 23, 42, 0.32);
+}
+
+/* 9. Inputs / textareas / selects: flat hairline border + solid
+      surface, no inset highlight, no gradient. */
+input,
+textarea,
+select,
+.search-form input,
+.qa-panel .ask-row input {
+  background: var(--md-surface-2, var(--panel-strong)) !important;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  background-image: none !important;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--md-primary, var(--accent-2));
+}
+
+/* 10. Standardise text-button radii to 8px. Keep the genuine
+       pill / circular treatments where they're semantically
+       correct (segmented controls, badges, icon-only round
+       buttons, the FAB). */
+button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+.file-button {
+  border-radius: 8px;
+}
+
+/* Segmented controls keep the pill geometry (Apple HIG /
+   Material chip group); the parent pill encloses round-edge
+   children. */
+.lang-switch button,
+.mode-switch button {
+  border-radius: 999px;
+}
+
+/* 11. Cards (panels, citations, search results, message blocks):
+       12px so they read as soft containers without feeling like
+       iOS app icons. */
+.panel,
+.qa-panel .citation,
+.search-result,
+.empty-state,
+.info-box,
+.preview-surface,
+.editor-field,
+.blank-editor,
+.error,
+.success {
+  border-radius: 12px;
+}
+
+/* 12. Modal containers: 16px radius for a calmer flat dialog. */
+.search-modal,
+.path-picker-modal,
+.settings-modal,
+.prompt-modal,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  border-radius: 16px;
+}
+
+/* 13. Focus ring: a single accent ring that doesn't double-stack
+       with the previous outline + box-shadow combo. Honors the
+       prefers-reduced-motion media query (no transition flicker). */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.file-button:focus-within {
+  outline: 2px solid var(--md-primary, var(--accent-2));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary, var(--accent-2)) 24%, transparent) !important;
+}
+
+/* 14. Light-theme token corrections: the original light vars
+       relied on translucent backgrounds + heavy backdrop blur to
+       remain readable; with both removed, ensure surfaces are
+       opaque and borders strong enough to delineate panels and
+       buttons against the now-white panel background. The
+       previous values (e.g. surface-2 #f5f7fa, border opacity
+       0.10) were essentially invisible on white, so vault and
+       Q&A panel buttons read as floating glyphs without a
+       button shape. Bumped surface lightness contrast and
+       border opacity to ~14-18% so chrome is legible without
+       feeling heavy. */
+:root[data-theme="light"] {
+  --border: rgba(15, 23, 42, 0.14);
+  --border-strong: rgba(15, 23, 42, 0.22);
+  --md-outline-soft: rgba(15, 23, 42, 0.14);
+  --md-outline: rgba(15, 23, 42, 0.22);
+  --md-bg: #ffffff;
+  --md-surface: #ffffff;
+  --md-surface-2: #eef2f7;
+  --md-surface-3: #dee5ef;
+  --md-text: #0f172a;
+  --md-muted: #475569;
+  --md-primary: #2563eb;
+  --md-primary-container: rgba(37, 99, 235, 0.14);
+  --md-on-primary: #ffffff;
+  --md-danger: #dc2626;
+}
+
+/* 14b. Light-mode interaction states. The flat-UI baseline
+        uses transparent or near-white surfaces for resting
+        buttons (icon buttons, tree rows, citation cards, tab
+        strip controls) which works on dark mode but disappears
+        on white panels. These overrides give every interactive
+        element a visible hover/active surface in light mode
+        without re-introducing card-like fills at rest. */
+:root[data-theme="light"] .icon-button:hover:not(:disabled),
+:root[data-theme="light"] .icon-button:focus-visible {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .icon-button.active {
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+}
+
+:root[data-theme="light"] .tree-row:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="light"] .file-row.selected {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .citation-source {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--md-outline-soft);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .citation-source:not(:disabled):hover {
+  background: rgba(15, 23, 42, 0.08);
+  border-color: var(--md-outline);
+}
+
+/* File-button (vault tree's old flat row variant) sits on a
+   tinted surface so it doesn't blend into the white panel. */
+:root[data-theme="light"] .file-button {
+  background: var(--md-surface-2);
+  border: 1px solid var(--md-outline-soft);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .file-button:hover {
+  background: var(--md-surface-3);
+  border-color: var(--md-outline);
+}
+
+/* Loading state of the submit button on light mode: instead of
+   washing into the white panel, keep a recognisable button
+   shape with a muted surface and outline. */
+:root[data-theme="light"] .query-loading,
+:root[data-theme="light"] .query-loading:hover:not(:disabled) {
+  background: var(--md-surface-3);
+  border: 1px solid var(--md-outline-soft);
+  color: var(--md-muted);
+}
+
+/* Tab strip controls in light mode: the 4-6% text-color mix used
+   for hover surfaces is invisible on white. Use a darker tint so
+   hover and the close-glyph fade-in actually register. */
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--md-text);
+}
+
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
+  background: rgba(15, 23, 42, 0.12);
+  color: var(--md-text);
+}
+
+/* Editor tab bar action cluster on a white panel: a subtle
+   hairline divider on the left edge makes the cluster feel
+   like a separate region without needing a fill. */
+:root[data-theme="light"] .editor-pane > .editor-tabbar {
+  box-shadow: inset 0 -1px 0 var(--md-outline-soft);
+}
+
+/* 15. Print surface: also flat. */
+.tab-strip-add,
+.icon-button {
+  border-radius: 8px;
+}
+
+/* 16. The editor-fab on mobile: keep one functional shadow so it
+       reads as a floating action button (the one place flat UI
+       conventionally permits visible elevation). */
+.editor-fab {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="light"] .editor-fab {
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* 17. Heading anchors in the preview keep some breathing room
+       below the top edge of their scroll container after a jump.
+
+       Without this, clicking a TOC link, a backlink, or any
+       internal "#heading" anchor scrolls the preview so the
+       heading sits flush against the top scrollable border,
+       which reads as cramped (and on desktop, the editor
+       tabbar above the preview visually overlaps the heading
+       by a hair due to the soft hairline divider). The 28px
+       offset matches the existing top-padding rhythm used for
+       paragraphs, so the heading lands at the same visual
+       baseline as inline content scrolled into view normally.
+
+       Same treatment for the AI Q&A answer panel since the
+       same kind of internal anchor jumps can happen there
+       (citation links, reference jumps). */
+.preview-surface article :is(h1, h2, h3, h4, h5, h6),
+.qa-answer :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 28px;
+}
+
+/* ============================================================
+   18. Cheap virtualization for the vault tree.
+
+   Large vaults can render hundreds (or thousands) of <button>
+   .tree-row nodes inside a single scrollable column. Most of
+   them sit far below the viewport at any given moment, so we
+   tag every row with `content-visibility: auto`: the browser
+   skips layout, paint, and style work for off-screen rows
+   until they scroll near the viewport, and then renders them
+   on demand. `contain-intrinsic-size: auto 34px` gives the
+   browser a stable height hint so the scrollbar stays accurate
+   even when most rows haven't been rendered yet; the `auto`
+   keyword lets it cache the actual rendered size for
+   subsequent scroll passes.
+
+   The placeholder / loading row is excluded so spinners
+   continue to animate even when the row is technically out of
+   view (avoids the "spinner pauses" effect during long folder
+   loads).
+
+   Find-in-page, focus, and pointer events still work: modern
+   Chromium "force renders" content-visibility:auto subtrees
+   when they receive focus or match a find-in-page query. */
+.tree-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 34px;
+}
+
+.tree-row.tree-row-placeholder {
+  content-visibility: visible;
+}
+
+/* ============================================================
+   17. Collapsible side panels (desktop only)
+
+   Both the vault and the AI Q&A panels can be tucked away into
+   a 44px vertical rail so the editor takes the full freed
+   width. Only desktop participates: mobile already has its own
+   section switcher (see .obsidian-workspace[data-mobile-section]
+   above) and these rules are scoped to the >=861px breakpoint.
+
+   Behaviour:
+     - .obsidian-workspace[data-vault-collapsed="true"]
+       -> column 1 shrinks from minmax(260px,310px) to 44px
+     - .obsidian-workspace[data-qa-collapsed="true"]
+       -> column 3 shrinks from minmax(320px,380px) to 44px
+     - When both are collapsed the editor is the only surface
+       that grows.
+
+   Inside each pane two children cooperate: the normal panel
+   content (toolbars, tree, ask row, answer, etc.) is hidden
+   when collapsed; a sibling .pane-collapsed-rail holds the
+   single expand button + an icon hint and is hidden when the
+   pane is expanded. The collapse trigger lives inside the
+   normal toolbar area and is hidden when the pane is collapsed.
+   ============================================================ */
+@media (min-width: 861px) {
+  /* Default rail / collapse-toggle visibility. The rail is only
+     shown when the pane is collapsed; the inline collapse button
+     is only shown when the pane is expanded. */
+  .pane-collapsed-rail {
+    display: none;
+  }
+
+  /* Vault collapsed */
+  .obsidian-workspace[data-vault-collapsed="true"] {
+    grid-template-columns: 44px minmax(440px, 1fr) minmax(320px, 380px);
+  }
+
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane > *:not(.pane-collapsed-rail):not(.mobile-section-header) {
+    display: none !important;
+  }
+
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane .pane-collapsed-rail {
+    display: flex;
+  }
+
+  /* Q&A collapsed */
+  .obsidian-workspace[data-qa-collapsed="true"] {
+    grid-template-columns: minmax(260px, 310px) minmax(440px, 1fr) 44px;
+  }
+
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] > *:not(.pane-collapsed-rail) {
+    display: none !important;
+  }
+
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] .pane-collapsed-rail {
+    display: flex;
+  }
+
+  /* Both collapsed: the editor is the only thing that grows. */
+  .obsidian-workspace[data-vault-collapsed="true"][data-qa-collapsed="true"] {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  /* The collapsed rail itself: a centred column of buttons /
+     icons. Padding lifts the chevron away from the panel
+     border so it has a comfortable hit target. */
+  .pane-collapsed-rail {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0;
+    width: 100%;
+  }
+
+  /* The hint icon below the chevron is decorative; muted
+     colour keeps it from competing with the active button. */
+  .pane-collapsed-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--md-muted, var(--muted));
+  }
+
+  .pane-collapsed-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Compact buttons inside the rail / inline collapse triggers
+     match the editor-tabbar action button size so the chrome
+     reads as one consistent control language. */
+  .pane-expand-toggle,
+  .pane-collapse-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .pane-expand-toggle > svg,
+  .pane-collapse-toggle > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Top row of the Q&A hero on desktop: the collapse toggle and
+     the small eyebrow label share a single flex row. Keeping the
+     button inline (rather than absolutely positioning it over
+     the panel) means the title / description / ask-row below
+     keep their natural full width and aren't shifted by the
+     button's presence. */
+  .qa-panel .qa-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  .qa-panel .qa-hero-top > .eyebrow {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Hide the inline collapse trigger when the pane is already
+     collapsed (the rail's expand button takes its place). */
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane .pane-collapse-toggle,
+  .qa-panel[data-collapsed="true"] .pane-collapse-toggle {
+    display: none;
+  }
+
+  /* The vault pane is already a flex column; when the rail is
+     showing, centre the content and remove the wide padding
+     that was tuned for the 300px expanded width. */
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane,
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] {
+    padding: 0.35rem 0;
+    overflow: hidden;
+  }
+}

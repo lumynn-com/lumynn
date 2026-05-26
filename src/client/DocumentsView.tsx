@@ -6,6 +6,7 @@ import {
   AskIcon,
   BusyLabel,
   ChevronDownIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   ChevronUpIcon,
   EyeIcon,
@@ -13,7 +14,9 @@ import {
   GlobeIcon,
   IndexingIcon,
   LogoutIcon,
+  MaximizeIcon,
   MenuIcon,
+  MinimizeIcon,
   MoonIcon,
   MoreIcon,
   PencilIcon,
@@ -31,9 +34,12 @@ import { useLocale, useT } from "./i18n";
 import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
 import { FolderPicker } from "./FolderPicker";
+import { SettingsView } from "./SettingsView";
+import type { UserRole } from "../shared/types";
 
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
+type SettingsModalMode = "indexing" | "settings";
 
 interface DocumentsViewProps {
   currentView?: AppView;
@@ -43,6 +49,9 @@ interface DocumentsViewProps {
   // client state (e.g. cached AI Q&A answer) can be isolated
   // and not bleed between users on the same browser.
   username?: string;
+  // Account role; needed so the settings modal can hide admin-
+  // only sections for regular users.
+  role?: UserRole;
   onSwitchView?: (view: AppView) => void;
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -288,6 +297,41 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
+  // Zen / Focus mode: hides the global topbar, vault sidebar and
+  // AI Q&A panel so the editor takes the entire window. Desktop
+  // only -- the mobile UI is already editor-first.
+  const zenStorageKey = `owd_zen_mode:${props.username ?? ""}`;
+  const [zenMode, setZenMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem(zenStorageKey) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(zenStorageKey, zenMode ? "1" : "0"); } catch { /* ignore */ }
+  }, [zenMode, zenStorageKey]);
+  // On desktop, reflect zen state on <body> so CSS can hide the
+  // chrome. Always clear the attribute on mobile so the mobile
+  // layout is unaffected.
+  useEffect(() => {
+    const active = zenMode && !isMobile;
+    document.body.dataset.zen = active ? "true" : "false";
+    return () => { document.body.dataset.zen = "false"; };
+  }, [zenMode, isMobile]);
+  // Escape exits zen mode -- standard "leave fullscreen" gesture.
+  useEffect(() => {
+    if (!zenMode) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setZenMode(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zenMode]);
+  // Switching users should reset zen state to whatever the new
+  // user previously had (or off if they never enabled it).
+  useEffect(() => {
+    try {
+      setZenMode(window.localStorage.getItem(zenStorageKey) === "1");
+    } catch { /* ignore */ }
+  }, [zenStorageKey]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   // Lazy-loaded folder children keyed by vault-relative folder path
   // ("" for the vault root). A folder being absent from the map
@@ -370,6 +414,40 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
+  // Desktop settings / indexing are now rendered as overlay
+  // modals on top of the workspace instead of replacing the
+  // entire main content. That way the user can dismiss the
+  // modal and immediately return to the editor + tree without
+  // a navigation step. Mobile keeps using full-view switching
+  // because a tiny screen makes a centered modal unusable.
+  const [settingsModalMode, setSettingsModalMode] = useState<SettingsModalMode | null>(null);
+  // Desktop side-panel collapse state. Both panels can be tucked
+  // away into 44px rails so the editor takes the full width.
+  // Persisted in localStorage so the layout survives reloads. The
+  // mobile path ignores these flags entirely (mobile has its own
+  // section switcher and the panels live in drawers/sheets).
+  const [vaultCollapsed, setVaultCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("owd_vault_collapsed") === "true";
+  });
+  const [qaCollapsed, setQaCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("owd_qa_collapsed") === "true";
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("owd_vault_collapsed", String(vaultCollapsed));
+    } catch {
+      /* no-op: private mode / quota */
+    }
+  }, [vaultCollapsed]);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("owd_qa_collapsed", String(qaCollapsed));
+    } catch {
+      /* no-op */
+    }
+  }, [qaCollapsed]);
 
   // On mobile we default to the editor as the always-visible main view;
   // the vault is a left drawer and Ask is a bottom sheet.
@@ -382,13 +460,133 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
-  // Close any open mobile menus when leaving mobile.
+  // Close any open mobile-only menus when leaving mobile. The sort
+  // sheet is now shared with desktop so it stays open across the
+  // breakpoint flip; the command sheet remains mobile-only.
   useEffect(() => {
     if (!isMobile) {
-      setSortSheetOpen(false);
       setCommandSheetOpen(false);
     }
   }, [isMobile]);
+
+  // Whenever the layout flips to mobile, drop the desktop-only
+  // settings modal so we don't leave a centered floating panel
+  // sitting on top of the small-screen layout.
+  useEffect(() => {
+    if (isMobile) setSettingsModalMode(null);
+  }, [isMobile]);
+
+  // While the settings modal is open: (1) Escape dismisses, (2)
+  // we lock <body> scroll so wheel/touch on the backdrop won't
+  // pan the underlying workspace, (3) we capture the previously
+  // focused element and restore focus on close so keyboard
+  // users land back on the More button that opened the dialog,
+  // and (4) we trap Tab/Shift-Tab inside the dialog so keyboard
+  // navigation can never leak back to the workspace behind it.
+  const settingsModalRef = useRef<HTMLElement | null>(null);
+  const settingsBodyRef = useRef<HTMLDivElement | null>(null);
+  const settingsHeaderRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!settingsModalMode) return;
+    // Wire a tiny scroll listener so the header gains a hairline
+    // shadow once the body content has scrolled past the top edge.
+    // Reflects the scroll position with a single rAF-throttled
+    // attribute write so the work stays cheap even on long
+    // settings pages.
+    const body = settingsBodyRef.current;
+    const header = settingsHeaderRef.current;
+    let scrollRaf = 0;
+    function syncScrolled() {
+      if (!body || !header) return;
+      const scrolled = body.scrollTop > 1;
+      if ((header.dataset.scrolled === "true") !== scrolled) {
+        header.dataset.scrolled = scrolled ? "true" : "false";
+      }
+    }
+    function onScroll() {
+      if (scrollRaf) return;
+      scrollRaf = window.requestAnimationFrame(() => {
+        scrollRaf = 0;
+        syncScrolled();
+      });
+    }
+    body?.addEventListener("scroll", onScroll, { passive: true });
+    syncScrolled();
+    const previousActive = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Selector matches every visible, non-disabled element a
+    // sighted keyboard user can land on. The :not([tabindex="-1"])
+    // suffix lets us mark sub-trees opt-out (e.g. the collapsed
+    // pane rail buttons mirror the semantically-active one).
+    const focusableSelector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([type="hidden"]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+      '[contenteditable]:not([tabindex="-1"])'
+    ].join(",");
+
+    function getFocusable(): HTMLElement[] {
+      const node = settingsModalRef.current;
+      if (!node) return [];
+      return Array.from(node.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (el) => !el.hasAttribute("disabled") && el.offsetParent !== null
+      );
+    }
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setSettingsModalMode(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const node = settingsModalRef.current;
+      // If focus somehow escaped the dialog (rare; e.g. an
+      // iframe stole it) pull it back to the first element.
+      if (!node || !active || !node.contains(active)) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+
+    // Move keyboard focus into the modal so screen reader / tab
+    // navigation start inside the dialog, not behind it.
+    const focusTimer = window.setTimeout(() => {
+      const node = settingsModalRef.current;
+      if (!node) return;
+      const target = node.querySelector<HTMLElement>(
+        '[data-autofocus], button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+      );
+      target?.focus();
+    }, 0);
+
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.clearTimeout(focusTimer);
+      body?.removeEventListener("scroll", onScroll);
+      if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
+      document.body.style.overflow = previousOverflow;
+      previousActive?.focus?.();
+    };
+  }, [settingsModalMode]);
 
   // Escape closes the command sheet.
   useEffect(() => {
@@ -404,16 +602,35 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // button) and a keyboard shortcut (Cmd/Ctrl + Shift + N). Both spawn
   // a fresh draft tab in the editor instead of opening a separate
   // capture window.
+  //
+  // Cmd/Ctrl + S is also wired here. The desktop editor toolbar no
+  // longer has an always-visible Save button (Save lives in the file
+  // overflow menu), so the keyboard shortcut is the primary explicit
+  // save affordance for power users. Auto-save every ~5s remains the
+  // implicit safety net. We read the latest save/active/saving via
+  // a ref (kept up to date below where save() is defined) so the
+  // listener can be bound once.
+  const saveRef = useRef<{ save: () => Promise<void>; canSave: boolean }>({
+    save: async () => undefined,
+    canSave: false
+  });
   useEffect(() => {
     function open() {
       createQuickNoteDraft();
     }
     function onKey(event: KeyboardEvent) {
       if (!(event.metaKey || event.ctrlKey)) return;
-      if (!event.shiftKey) return;
-      if (event.key.toLowerCase() !== "n") return;
-      event.preventDefault();
-      createQuickNoteDraft();
+      if (event.shiftKey && event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        createQuickNoteDraft();
+        return;
+      }
+      if (!event.shiftKey && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        const current = saveRef.current;
+        if (current.canSave) void current.save();
+        return;
+      }
     }
     window.addEventListener("owd:quick-note", open);
     window.addEventListener("keydown", onKey);
@@ -1108,6 +1325,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
+  // Keep the Cmd/Ctrl+S handler pointed at the latest save() and
+  // the freshest can-save guard. The listener itself was bound
+  // once above; only the ref payload mutates here.
+  saveRef.current = { save, canSave: Boolean(active) && !saving };
+
   // Quiet save used by the 5-second autosave loop. Same on-the-wire
   // PUT but with no mode switch, no haptic, no full document list
   // refresh (sort order updates can wait for the next manual save
@@ -1541,6 +1763,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     <main
       className="workspace-grid obsidian-workspace"
       data-mobile-section={mobileSection}
+      data-vault-collapsed={!isMobile && vaultCollapsed ? "true" : undefined}
+      data-qa-collapsed={!isMobile && qaCollapsed ? "true" : undefined}
       onPointerDown={onWorkspacePointerDown}
       onPointerUp={onWorkspacePointerUp}
       onPointerCancel={() => { edgeSwipe.current = null; }}
@@ -1648,26 +1872,29 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             </button>
           </div>
         </div>
-        <div className="panel-header desktop-only">
-          <div>
-            <p className="eyebrow">{t("vault.eyebrow")}</p>
-            <h2>{t("vault.title")}</h2>
-            <p className="muted">
-              {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
-            </p>
-          </div>
-        </div>
-        {/* Single-row toolbar: a primary search button takes
-            most of the width, then two icon-only "create"
-            actions on the right keep the layout compact even
-            when the panel is narrow. */}
+        {/* Single-row toolbar: a primary search button takes most
+            of the width; the two creation actions and a sort affordance
+            sit as icon-only buttons on the right. The panel header
+            (eyebrow + h2 "Vault" + file count) was removed because
+            it duplicated the workspace tab label and pushed the tree
+            below the fold; file count now lives as a thin caption
+            directly above the tree where it doesn't compete for
+            attention. */}
+        {/* Single row of icon-only actions. Search is the visually
+            anchored primary action (kept first, with a subtle accent
+            tint) but no longer carries a localized label, so the
+            row never truncates regardless of language or pane
+            width. The full label still ships through aria-label /
+            title for assistive tech and tooltips. */}
         <div className="vault-toolbar desktop-only">
           <button
-            className="primary vault-toolbar-search"
+            type="button"
+            className="icon-button vault-toolbar-action vault-toolbar-search"
+            aria-label={t("vault.searchVault")}
+            title={t("vault.searchVault")}
             onClick={() => setSearchOpen(true)}
           >
             <SearchIcon />
-            <span>{t("vault.searchVault")}</span>
           </button>
           <button
             type="button"
@@ -1687,26 +1914,55 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           >
             <FolderPlusIcon />
           </button>
+          <button
+            type="button"
+            className="icon-button vault-toolbar-action"
+            aria-label={t("vault.sortOptions")}
+            title={t("vault.sortOptions")}
+            onClick={() => setSortSheetOpen(true)}
+          >
+            <SortIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button vault-toolbar-action pane-collapse-toggle"
+            aria-label={t("vault.collapse")}
+            title={t("vault.collapse")}
+            onClick={() => setVaultCollapsed(true)}
+          >
+            <ChevronLeftIcon />
+          </button>
         </div>
-        <div className="sort-row desktop-only">
-          <label>
-            {t("vault.sortBy")}
-            <select name="document-sort" value={sort} onChange={(event) => onSort(event.target.value as SortField, order)}>
-              <option value="name">{t("vault.sortName")}</option>
-              <option value="createdAt">{t("vault.sortCreated")}</option>
-              <option value="updatedAt">{t("vault.sortUpdated")}</option>
-              <option value="path">{t("vault.sortPath")}</option>
-              <option value="title">{t("vault.sortTitle")}</option>
-            </select>
-          </label>
-          <label>
-            {t("vault.order")}
-            <select name="document-order" value={order} onChange={(event) => onSort(sort, event.target.value as SortOrder)}>
-              <option value="asc">{t("vault.orderAsc")}</option>
-              <option value="desc">{t("vault.orderDesc")}</option>
-            </select>
-          </label>
+        {/* Collapsed rail: shown only when data-vault-collapsed="true"
+            is set on the workspace. The single button restores the
+            full panel; the icon stack underneath is a passive label
+            so a 44px sliver still reads as "the vault is here".
+            inert is the modern, browser-enforced way to make the
+            sub-tree non-interactive when the rail is not the active
+            UI (CSS hides it visually; inert keeps it out of the
+            keyboard tab order and the a11y tree even if a future
+            transition leaves it briefly visible). */}
+        <div
+          className="pane-collapsed-rail desktop-only"
+          inert={!vaultCollapsed}
+          aria-hidden={!vaultCollapsed || undefined}
+        >
+          <button
+            type="button"
+            className="icon-button pane-expand-toggle"
+            aria-label={t("vault.expand")}
+            title={t("vault.expand")}
+            onClick={() => setVaultCollapsed(false)}
+          >
+            <ChevronRightIcon />
+          </button>
+          <span className="pane-collapsed-icon" aria-hidden="true">
+            <MenuIcon />
+          </span>
         </div>
+        <p className="vault-meta muted desktop-only" aria-live="polite">
+          {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
+        </p>
         <div
           ref={vaultScrollRef}
           className="vault-scroll"
@@ -1780,68 +2036,80 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-editor" : undefined}
       >
-        <div className="panel-header desktop-only">
-          <div>
-            <p className="eyebrow" translate={active && !active.isDraft ? "no" : undefined}>
-              {active?.isDraft ? t("quick.draftEyebrow") : (active?.path ?? t("editor.noDocSelected"))}
-            </p>
-            <h2 translate={active && !active.isDraft ? "no" : undefined}>
-              {active?.isDraft ? t("quick.draftTitle") : (active?.name ?? t("editor.title"))}
-              {active?.isDraft ? <span className="draft-pill" aria-hidden="true">{t("quick.draftBadge")}</span> : null}
-            </h2>
-          </div>
-          <span className="status status-pill" aria-live="polite">
-            {status.kind === "key" ? t(status.key, status.params) : status.text}
-          </span>
-        </div>
-        <div className="editor-toolbar desktop-only" aria-label={t("editor.actionsLabel")}>
-          <div className="mode-switch" role="group" aria-label={t("editor.modeLabel")}>
-            <button className={centerMode === "edit" ? "active" : ""} aria-pressed={centerMode === "edit"} onClick={() => setActiveMode("edit")}>
-              {t("editor.modeEdit")}
-            </button>
-            <button className={centerMode === "preview" ? "active" : ""} aria-pressed={centerMode === "preview"} onClick={() => setActiveMode("preview")}>
-              {t("editor.modePreview")}
-            </button>
-          </div>
-          <div className="file-actions">
-            <button onClick={printActive} disabled={!active}>
-              {t("editor.print")}
-            </button>
-            <button onClick={() => active && openRename({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
-              {t("editor.rename")}
-            </button>
-            <button onClick={() => active && openMove({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
-              {t("editor.move")}
-            </button>
-            <button className="danger" onClick={() => active && openDelete({ type: "file", path: active.path, name: active.name })} disabled={!active || active.isDraft}>
-              {t("editor.delete")}
-            </button>
-            <button className="primary" onClick={save} disabled={!active || saving} aria-busy={saving}>
-              <BusyLabel busy={saving} busyText={t("editor.saveBusy")}>{t("editor.save")}</BusyLabel>
+        {/* Combined tab bar: tabs scroll horizontally on the left
+            while the action cluster (mode toggle / focus / "\u22ef"
+            menu) stays anchored on the right. The previous
+            separate editor-toolbar row collapses into this single
+            band so there's only one line of chrome above the
+            editor content. On desktop the "\u22ef" trigger opens
+            the same command sheet that mobile uses (file actions +
+            workspace nav + theme/lang/logout), which is why the
+            workspace-topbar can be dropped entirely. The actions
+            cluster is hidden on mobile since the mobile-app-bar
+            already exposes the same trigger. */}
+        <div className="editor-tabbar">
+          <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
+            {tabs.map((tab) => (
+              <SwipeableTab
+                key={tab.path}
+                tab={tab}
+                active={activePath === tab.path}
+                isMobile={isMobile}
+                closeAriaLabel={t("editor.closeTab", { name: tab.name })}
+                onActivate={() => setActivePath(tab.path)}
+                onClose={() => closeTab(tab.path)}
+              />
+            ))}
+            <button
+              type="button"
+              className="tab-strip-add"
+              aria-label={t("quick.trigger")}
+              title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
+              onClick={createQuickNoteDraft}
+            >
+              <PlusIcon />
             </button>
           </div>
-        </div>
-        <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
-          {tabs.map((tab) => (
-            <SwipeableTab
-              key={tab.path}
-              tab={tab}
-              active={activePath === tab.path}
-              isMobile={isMobile}
-              closeAriaLabel={t("editor.closeTab", { name: tab.name })}
-              onActivate={() => setActivePath(tab.path)}
-              onClose={() => closeTab(tab.path)}
-            />
-          ))}
-          <button
-            type="button"
-            className="tab-strip-add"
-            aria-label={t("quick.trigger")}
-            title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
-            onClick={createQuickNoteDraft}
-          >
-            <PlusIcon />
-          </button>
+          <div className="editor-tabbar-actions desktop-only" aria-label={t("editor.actionsLabel")}>
+            <span
+              className="editor-tabbar-status"
+              aria-live="polite"
+              title={statusLabel || undefined}
+            >
+              {status.kind === "key" ? t(status.key, status.params) : status.text}
+            </span>
+            <button
+              type="button"
+              className="icon-button mode-toggle"
+              onClick={() => setActiveMode(centerMode === "edit" ? "preview" : "edit")}
+              aria-pressed={centerMode === "preview"}
+              aria-label={t("editor.toggleMode")}
+              title={`${t("editor.toggleMode")} \u2014 ${centerMode === "edit" ? t("editor.modePreview") : t("editor.modeEdit")}`}
+              disabled={!active}
+            >
+              {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
+            </button>
+            <button
+              type="button"
+              className="icon-button focus-toggle"
+              onClick={() => setZenMode(true)}
+              aria-label={t("editor.focusEnter")}
+              title={t("editor.focusEnter")}
+            >
+              <MaximizeIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              aria-haspopup="menu"
+              aria-expanded={commandSheetOpen}
+              aria-label={t("editor.moreActions")}
+              title={t("editor.moreActions")}
+              onClick={() => setCommandSheetOpen(true)}
+            >
+              <MoreIcon />
+            </button>
+          </div>
         </div>
         {active && centerMode === "edit" ? (
           <label className="editor-field">
@@ -1885,7 +2153,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-ask" : undefined}
       >
-        <QaView compact username={props.username} onOpenSource={openDocument} />
+        <QaView
+          compact
+          username={props.username}
+          onOpenSource={openDocument}
+          collapsed={!isMobile && qaCollapsed}
+          onToggleCollapsed={!isMobile ? () => setQaCollapsed((open) => !open) : undefined}
+        />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
         // Mobile FAB is a single contextual button. Its role
@@ -2272,42 +2546,56 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 ) : null}
               </div>
             ) : null}
-            {/* Workspace navigation: open Ask, jump to Indexing or Settings. */}
+            {/* Workspace navigation. On mobile we expose "Ask"
+                because Q&A lives behind a section switch; on
+                desktop the Q&A panel is always rendered (or
+                visible as a 44px rail), so the Ask shortcut is
+                redundant and is hidden. Indexing / Settings now
+                open as overlay modals on desktop so dismissing
+                the panel returns the user straight to the editor;
+                on mobile they still switch the full view since a
+                centered modal would be unusable on a small screen. */}
             <div className="action-sheet-group">
+              {isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    switchSection("ask");
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><AskIcon /></span>
+                  <span>{t("section.ask")}</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
                   setCommandSheetOpen(false);
-                  switchSection("ask");
+                  if (isMobile) {
+                    props.onSwitchView?.("indexing");
+                  } else {
+                    setSettingsModalMode("indexing");
+                  }
                 }}
               >
-                <span className="action-sheet-icon" aria-hidden="true"><AskIcon /></span>
-                <span>{t("section.ask")}</span>
+                <span className="action-sheet-icon" aria-hidden="true"><IndexingIcon /></span>
+                <span>{t("nav.indexing")}</span>
               </button>
-              {props.onSwitchView ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCommandSheetOpen(false);
-                      props.onSwitchView!("indexing");
-                    }}
-                  >
-                    <span className="action-sheet-icon" aria-hidden="true"><IndexingIcon /></span>
-                    <span>{t("nav.indexing")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCommandSheetOpen(false);
-                      props.onSwitchView!("settings");
-                    }}
-                  >
-                    <span className="action-sheet-icon" aria-hidden="true"><SettingsIcon /></span>
-                    <span>{t("nav.settings")}</span>
-                  </button>
-                </>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setCommandSheetOpen(false);
+                  if (isMobile) {
+                    props.onSwitchView?.("settings");
+                  } else {
+                    setSettingsModalMode("settings");
+                  }
+                }}
+              >
+                <span className="action-sheet-icon" aria-hidden="true"><SettingsIcon /></span>
+                <span>{t("nav.settings")}</span>
+              </button>
             </div>
             {/* Preferences: theme, language, logout. */}
             <div className="action-sheet-group">
@@ -2459,6 +2747,66 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                   <strong translate="no">{result.name}</strong>
                 </button>
               ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {zenMode && !isMobile ? (
+        <button
+          type="button"
+          className="zen-exit-button"
+          onClick={() => setZenMode(false)}
+          aria-label={t("editor.focusExit")}
+          title={`${t("editor.focusExit")} (Esc)`}
+        >
+          <MinimizeIcon />
+          <kbd className="zen-exit-kbd" aria-hidden="true">Esc</kbd>
+        </button>
+      ) : null}
+      {/* Settings / indexing overlay modal. Desktop only; mobile
+          uses the full-view switch via onSwitchView. The dialog
+          loads SettingsView with no internal back-bar so the
+          modal's own close button is the single dismiss
+          affordance. Outside-click and Escape both close. */}
+      {!isMobile && settingsModalMode ? (
+        <div
+          className="modal-backdrop settings-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setSettingsModalMode(null)}
+        >
+          <section
+            ref={settingsModalRef}
+            className="settings-modal panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header ref={settingsHeaderRef} className="settings-modal-header">
+              <div className="settings-modal-titles">
+                <p className="eyebrow">
+                  {settingsModalMode === "indexing" ? t("settings.eyebrowKb") : t("settings.eyebrowConfig")}
+                </p>
+                <h2 id="settings-modal-title">
+                  {settingsModalMode === "indexing" ? t("settings.titleIndexing") : t("settings.titleSettings")}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button settings-modal-close"
+                onClick={() => setSettingsModalMode(null)}
+                aria-label={t("modal.close")}
+                title={t("modal.close")}
+                data-autofocus="true"
+              >
+                {/* Plain SVG \u00d7 close glyph. */}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 6l12 12M6 18L18 6" />
+                </svg>
+              </button>
+            </header>
+            <div ref={settingsBodyRef} className="settings-modal-body">
+              <SettingsView mode={settingsModalMode} role={props.role} />
             </div>
           </section>
         </div>
@@ -2738,7 +3086,7 @@ function TreeNodeRow(props: {
           <span className="tree-caret" aria-hidden="true">
             {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           </span>
-          <span className="tree-label">{props.node.name}</span>
+          <span className="tree-label" translate="no">{props.node.name}</span>
           {isLoading ? <span className="tree-spinner" aria-hidden="true"><SpinnerIcon /></span> : null}
         </button>
         {isExpanded

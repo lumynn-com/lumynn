@@ -230,7 +230,7 @@ function FolderRow(props: FolderRowProps) {
         title={props.path || "/"}
       >
         <FolderGlyph />
-        <span className="folder-picker-name">{props.name}</span>
+        <span className="folder-picker-name" translate="no">{props.name}</span>
       </button>
     </div>
   );
