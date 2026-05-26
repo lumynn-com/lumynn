@@ -932,6 +932,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setPullDistance(0);
     if (dist >= pullThreshold) {
       haptic(10);
+      closeOverlays();
       setSearchOpen(true);
     }
   }
@@ -1765,7 +1766,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             className="icon-button"
             aria-label={t("section.vault")}
             aria-expanded={mobileSection === "vault"}
-            onClick={() => switchSection("vault")}
+            onClick={() => {
+              if (mobileSection === "vault") closeOverlays();
+              else switchSection("vault");
+            }}
           >
             <MenuIcon />
           </button>

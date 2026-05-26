@@ -7483,4 +7483,12 @@ label,
   .editor-fab:active:not(:disabled) {
     transform: scale(0.98) !important;
   }
+
+  .desktop-only,
+  .vault-toolbar.desktop-only,
+  .pane-collapsed-rail.desktop-only,
+  .vault-meta.desktop-only,
+  .editor-tabbar-actions.desktop-only {
+    display: none !important;
+  }
 }
