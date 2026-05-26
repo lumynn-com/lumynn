@@ -6710,3 +6710,458 @@ button[aria-busy="true"] .button-spinner {
     transition: none !important;
   }
 }
+
+/* ============================================================
+   20. Minimalist UI unification layer.
+
+   Font is intentionally untouched. This layer makes the current
+   interface read as one warm, editorial workspace: monochrome
+   surfaces, scarce accent color, divider-led rows, low/no
+   elevation, and crisp radii.
+   ============================================================ */
+:root {
+  --md-bg: #11100f;
+  --md-surface: #171615;
+  --md-surface-2: #201f1d;
+  --md-surface-3: #2a2825;
+  --md-outline-soft: rgba(245, 242, 235, 0.09);
+  --md-outline: rgba(245, 242, 235, 0.16);
+  --md-text: #ebe7dd;
+  --md-muted: #a8a096;
+  --md-primary: #f4f1e8;
+  --md-primary-container: rgba(244, 241, 232, 0.09);
+  --md-on-primary: #11100f;
+  --md-danger: #f0aaa3;
+  --md-success: #9fc7a3;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(245, 242, 235, 0.055);
+  --owd-minimal-danger-bg: rgba(240, 170, 163, 0.10);
+  --owd-minimal-success-bg: rgba(159, 199, 163, 0.10);
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="light"] {
+  --md-bg: #fbfbfa;
+  --md-surface: #ffffff;
+  --md-surface-2: #f7f6f3;
+  --md-surface-3: #efede8;
+  --md-outline-soft: #eae8e2;
+  --md-outline: #d9d5ca;
+  --md-text: #2f3437;
+  --md-muted: #787774;
+  --md-primary: #111111;
+  --md-primary-container: #f1f0ed;
+  --md-on-primary: #ffffff;
+  --md-danger: #9f2f2d;
+  --md-success: #346538;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(47, 52, 55, 0.055);
+  --owd-minimal-danger-bg: #fdebec;
+  --owd-minimal-success-bg: #edf3ec;
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(47, 52, 55, 0.045);
+}
+
+html,
+body,
+.obsidian-workspace,
+.workspace-grid,
+.login-shell {
+  background: var(--owd-minimal-canvas) !important;
+  color: var(--md-text) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel,
+.settings-modal,
+.search-modal,
+.prompt-modal,
+.path-picker-modal,
+.login-card,
+.single-view.panel,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  border-color: var(--owd-minimal-divider) !important;
+  background: var(--owd-minimal-surface) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  box-shadow: none !important;
+}
+
+.vault-pane {
+  border-width: 0 1px 0 0 !important;
+}
+
+.editor-pane {
+  border-width: 0 !important;
+}
+
+.qa-panel {
+  border-width: 0 0 0 1px !important;
+}
+
+.modal-backdrop {
+  background: rgba(17, 16, 15, 0.44) !important;
+}
+
+:root[data-theme="light"] .modal-backdrop {
+  background: rgba(47, 52, 55, 0.18) !important;
+}
+
+.search-modal,
+.path-picker-modal,
+.settings-modal,
+.prompt-modal,
+.tree-context-menu,
+.anchored-menu,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  box-shadow: var(--md-elevation-2) !important;
+}
+
+.editor-fab {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+}
+
+:root[data-theme="light"] .editor-fab {
+  box-shadow: 0 2px 8px rgba(47, 52, 55, 0.08) !important;
+}
+
+button.primary,
+.primary,
+.editor-fab {
+  border: 1px solid var(--md-primary) !important;
+  background: var(--md-primary) !important;
+  background-image: none !important;
+  color: var(--md-on-primary) !important;
+  box-shadow: none !important;
+}
+
+button.primary:hover:not(:disabled),
+.primary:hover:not(:disabled),
+.editor-fab:hover:not(:disabled),
+.editor-fab:focus-visible {
+  border-color: var(--md-primary) !important;
+  background: color-mix(in srgb, var(--md-primary) 88%, var(--md-surface)) !important;
+  color: var(--md-on-primary) !important;
+}
+
+button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+.file-button,
+.search-form button,
+.qa-panel .query-button {
+  border-radius: 6px !important;
+}
+
+.icon-button,
+.tab-strip-add,
+.tab-close,
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.settings-modal-close {
+  border-radius: 8px !important;
+}
+
+.status-pill,
+.draft-pill {
+  border-color: transparent !important;
+  background: var(--md-primary-container) !important;
+  color: var(--md-muted) !important;
+  box-shadow: none !important;
+}
+
+.error {
+  border-color: color-mix(in srgb, var(--md-danger) 30%, transparent) !important;
+  background: var(--owd-minimal-danger-bg) !important;
+  color: var(--md-danger) !important;
+}
+
+.success {
+  border-color: color-mix(in srgb, var(--md-success) 30%, transparent) !important;
+  background: var(--owd-minimal-success-bg) !important;
+  color: var(--md-success) !important;
+}
+
+.vault-toolbar {
+  display: flex !important;
+  gap: 0.25rem !important;
+  padding: 0 0 0.55rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--owd-minimal-divider) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.vault-toolbar-search {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.editor-tabbar-actions .icon-button,
+.settings-modal-close,
+.back-to-top,
+.mobile-section-actions .icon-button,
+.action-sheet-header button {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-muted) !important;
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible,
+.pane-expand-toggle:hover:not(:disabled),
+.pane-expand-toggle:focus-visible,
+.pane-collapse-toggle:hover:not(:disabled),
+.pane-collapse-toggle:focus-visible,
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
+.settings-modal-close:hover:not(:disabled),
+.settings-modal-close:focus-visible,
+.back-to-top:hover:not(:disabled),
+.mobile-section-actions .icon-button:hover:not(:disabled),
+.action-sheet-header button:hover:not(:disabled),
+.action-sheet-header button:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"],
+.editor-pane .tab-strip > .editor-tab-shell.active,
+.action-sheet-group button.active {
+  color: var(--md-primary) !important;
+}
+
+.editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
+.editor-pane .tab-strip > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
+.editor-pane .tab-strip > .tab-strip-add:focus-visible,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
+.editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.tree-row:hover,
+:root[data-theme="light"] .tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled),
+.action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.tree-row.selected,
+.file-row.selected,
+.folder-row.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary) !important;
+  color: var(--md-primary) !important;
+}
+
+.tree-row.folder-row.drop-target {
+  outline: 1px solid var(--owd-minimal-divider-strong) !important;
+  outline-offset: -1px;
+  background: transparent !important;
+}
+
+.search-results {
+  gap: 0 !important;
+  padding-right: 0 !important;
+}
+
+.search-result {
+  min-height: 42px !important;
+  border-width: 1px 0 0 !important;
+  border-color: var(--owd-minimal-divider) !important;
+  border-radius: 0 !important;
+  padding: 0.72rem 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text) !important;
+}
+
+.search-result:first-child {
+  border-top-color: transparent !important;
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+  background: transparent !important;
+  border-color: var(--owd-minimal-divider) !important;
+  color: var(--md-primary) !important;
+}
+
+.qa-panel .citation,
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
+.tree-row-placeholder,
+.folder-picker-loading {
+  border-color: var(--owd-minimal-divider) !important;
+}
+
+.blank-editor,
+.empty-state,
+.info-box {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.search-form input,
+.qa-panel .ask-row input,
+input,
+select,
+textarea {
+  border-color: var(--owd-minimal-divider) !important;
+  background: var(--owd-minimal-subtle) !important;
+  color: var(--md-text) !important;
+  box-shadow: none !important;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--owd-minimal-divider-strong) !important;
+}
+
+.zen-exit-button {
+  border-color: var(--owd-minimal-divider-strong) !important;
+  background: var(--owd-minimal-surface) !important;
+  color: var(--md-text) !important;
+}
+
+.zen-exit-button:hover {
+  border-color: var(--md-primary) !important;
+  background: var(--owd-minimal-surface) !important;
+  color: var(--md-primary) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button.primary:active:not(:disabled),
+  .primary:active:not(:disabled),
+  .editor-fab:active:not(:disabled) {
+    transform: scale(0.98) !important;
+  }
+}
+
+/* ============================================================
+   21. Minimalist type-size normalization.
+
+   Font family is intentionally untouched. This only reduces the
+   number of competing UI text sizes and raises the smallest
+   labels so the flat interface stays clear.
+   ============================================================ */
+:root {
+  --owd-type-app: 15px;
+  --owd-type-readable: 16px;
+  --owd-type-row: 14px;
+  --owd-type-meta: 13px;
+  --owd-type-small: 12px;
+  --owd-line-readable: 1.68;
+  --owd-line-ui: 1.45;
+}
+
+body {
+  font-size: var(--owd-type-app) !important;
+  line-height: 1.56;
+}
+
+.editor textarea,
+.preview-surface article,
+.qa-answer {
+  font-size: var(--owd-type-readable) !important;
+  line-height: var(--owd-line-readable) !important;
+}
+
+.preview-surface article :where(p, li, blockquote, td, th),
+.qa-answer :where(p, li, blockquote, td, th) {
+  line-height: var(--owd-line-readable) !important;
+}
+
+.tree-row,
+.folder-picker-label,
+.search-result,
+.citation-source,
+.modal-backdrop.sheet-backdrop .action-sheet-group button,
+.tree-context-menu button,
+.anchored-menu button,
+button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+.file-button {
+  font-size: var(--owd-type-row) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+input,
+select,
+.search-form input,
+.qa-panel .ask-row input {
+  font-size: var(--owd-type-row) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+.editor-pane .tab-strip > .editor-tab-shell .editor-tab,
+.editor-tab,
+.tab-strip-add {
+  font-size: var(--owd-type-row) !important;
+}
+
+.editor-tabbar-status,
+.vault-meta,
+.status-subline,
+.path-picker-current,
+.tree-row-placeholder,
+.folder-picker-loading,
+.obsidian-workspace .muted,
+.qa-panel .muted,
+label,
+.path-picker-section-label {
+  font-size: var(--owd-type-meta) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+.eyebrow,
+.obsidian-workspace .eyebrow,
+.settings-modal-titles .eyebrow,
+.status-pill,
+.draft-pill,
+.anchored-menu-kbd {
+  font-size: var(--owd-type-small) !important;
+  line-height: 1.3 !important;
+}
+
+.tab-close {
+  font-size: 14px !important;
+}
+
+@media (max-width: 860px) {
+  input,
+  select,
+  textarea,
+  .search-form input,
+  .qa-panel .ask-row input {
+    font-size: 16px !important;
+  }
+}
