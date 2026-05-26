@@ -7709,3 +7709,31 @@ button:not(.draft-pill):not(.status-pill):not(.zen-exit-button),
     border-radius: 0 !important;
   }
 }
+
+/* ============================================================
+   27. Softer mobile editor FAB.
+
+   Keep the Preview/Edit/Save floating action available, but make
+   it read as a light utility control instead of a hard primary
+   button. The surface is transparent; content uses muted color.
+   ============================================================ */
+@media (max-width: 860px) {
+  .editor-fab {
+    border-color: var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    background: color-mix(in srgb, var(--owd-minimal-surface, var(--md-surface)) 50%, transparent) !important;
+    color: color-mix(in srgb, var(--md-muted, var(--muted)) 74%, transparent) !important;
+    box-shadow: none !important;
+  }
+
+  .editor-fab:hover:not(:disabled),
+  .editor-fab:focus-visible {
+    border-color: var(--owd-minimal-divider-strong, var(--md-outline)) !important;
+    background: color-mix(in srgb, var(--owd-minimal-surface, var(--md-surface)) 72%, transparent) !important;
+    color: var(--md-muted, var(--muted)) !important;
+    transform: none !important;
+  }
+
+  .editor-fab:active:not(:disabled) {
+    background: color-mix(in srgb, var(--owd-minimal-surface, var(--md-surface)) 82%, transparent) !important;
+  }
+}
