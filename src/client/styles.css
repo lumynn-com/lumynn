@@ -7591,3 +7591,121 @@ label,
   border-color: var(--owd-minimal-divider-strong, var(--md-outline)) !important;
   background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle)) !important;
 }
+
+/* ============================================================
+   26. Flat radius normalization.
+
+   Font remains untouched. Large soft corners are removed from
+   structural surfaces, tabs, and menus; only small controls keep
+   a slight radius so hit targets still feel deliberate.
+   ============================================================ */
+:root {
+  --owd-radius-control: 4px;
+  --owd-radius-overlay: 8px;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel,
+.document-list.panel,
+.editor.panel,
+.preview,
+.preview-surface,
+.editor-field,
+.blank-editor,
+.empty-state,
+.info-box,
+.qa-panel .citation,
+.search-result,
+.folder-picker-label,
+.tree-row,
+.file-row,
+.doc-item {
+  border-radius: 0 !important;
+}
+
+.editor textarea,
+input,
+select,
+textarea,
+.search-form input,
+.qa-panel .ask-row input,
+.path-picker-modal input,
+.path-picker-modal select {
+  border-radius: var(--owd-radius-control) !important;
+}
+
+button:not(.draft-pill):not(.status-pill):not(.zen-exit-button),
+.file-button,
+.search-form button,
+.qa-panel .query-button,
+.prompt-actions button,
+.settings-nav button,
+.lang-switch button,
+.mode-switch button {
+  border-radius: var(--owd-radius-control) !important;
+}
+
+.icon-button,
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.settings-modal-close,
+.mobile-section-actions .icon-button,
+.mobile-app-bar .icon-button,
+.action-sheet-header button,
+.back-to-top,
+.editor-fab,
+.zen-exit-button {
+  border-radius: var(--owd-radius-control) !important;
+}
+
+.editor-pane > .editor-tabbar,
+.editor-pane .tab-strip,
+.editor-pane .tab-strip > .editor-tab-shell,
+.editor-pane .tab-strip > .editor-tab-shell .editor-tab,
+.editor-tab-shell,
+.editor-tab,
+.tab-strip-add,
+.tab-close {
+  border-radius: 0 !important;
+}
+
+.editor-pane .tab-strip > .editor-tab-shell.active::after {
+  border-radius: 0 !important;
+}
+
+.tree-context-menu,
+.anchored-menu,
+.search-modal,
+.path-picker-modal,
+.settings-modal,
+.prompt-modal {
+  border-radius: var(--owd-radius-overlay) !important;
+}
+
+.tree-context-menu button,
+.anchored-menu button,
+.modal-backdrop.sheet-backdrop .action-sheet-group button,
+.action-sheet-group button,
+.search-result,
+.citation-source {
+  border-radius: 0 !important;
+}
+
+.modal-backdrop.sheet-backdrop .action-sheet,
+.action-sheet {
+  border-radius: var(--owd-radius-overlay) !important;
+}
+
+@media (max-width: 860px) {
+  .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .modal-backdrop.sheet-backdrop .action-sheet,
+  .action-sheet,
+  .search-modal,
+  .settings-modal,
+  .prompt-modal {
+    border-radius: 0 !important;
+  }
+}
