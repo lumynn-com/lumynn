@@ -7492,3 +7492,102 @@ label,
     display: none !important;
   }
 }
+
+/* ============================================================
+   24. Warm sand / bright black theme tint.
+
+   Palette-only override. Font, layout, tabs, menus, radii, and
+   flat component behavior stay unchanged.
+   ============================================================ */
+:root {
+  --bg: #121212;
+  --bg-soft: #181818;
+  --panel: #181818;
+  --panel-strong: #202020;
+  --border: rgba(245, 245, 247, 0.11);
+  --border-strong: rgba(245, 245, 247, 0.20);
+  --text: #f5f5f7;
+  --muted: #a1a1a6;
+  --accent: #d1d1d6;
+  --accent-2: #f5f5f7;
+  --surface-hover: rgba(245, 245, 247, 0.075);
+  --surface-selected: rgba(245, 245, 247, 0.13);
+  --md-bg: #121212;
+  --md-surface: #181818;
+  --md-surface-2: #202020;
+  --md-surface-3: #2a2a2a;
+  --md-outline-soft: rgba(245, 245, 247, 0.11);
+  --md-outline: rgba(245, 245, 247, 0.20);
+  --md-text: #f5f5f7;
+  --md-muted: #a1a1a6;
+  --md-primary: #f5f5f7;
+  --md-primary-container: rgba(245, 245, 247, 0.10);
+  --md-on-primary: #121212;
+  --md-danger: #f0aaa3;
+  --md-success: #a6caa9;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(245, 245, 247, 0.065);
+  --owd-minimal-danger-bg: rgba(240, 170, 163, 0.11);
+  --owd-minimal-success-bg: rgba(166, 202, 169, 0.11);
+  --owd-editor-focus-bg: #242424;
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.30);
+}
+
+:root[data-theme="light"] {
+  --bg: #f4ead4;
+  --bg-soft: #eee0c3;
+  --panel: #fff9ed;
+  --panel-strong: #fffaf0;
+  --border: rgba(90, 73, 43, 0.13);
+  --border-strong: rgba(90, 73, 43, 0.22);
+  --text: #302b22;
+  --muted: #756c5b;
+  --accent: #746039;
+  --accent-2: #2f2719;
+  --surface-hover: rgba(90, 73, 43, 0.07);
+  --surface-selected: rgba(90, 73, 43, 0.12);
+  --md-bg: #f4ead4;
+  --md-surface: #fff9ed;
+  --md-surface-2: #f0e3c8;
+  --md-surface-3: #e6d5b1;
+  --md-outline-soft: #dfd1b6;
+  --md-outline: #c8b68f;
+  --md-text: #302b22;
+  --md-muted: #756c5b;
+  --md-primary: #2f2719;
+  --md-primary-container: #eadcbd;
+  --md-on-primary: #fff9ed;
+  --md-danger: #9f2f2d;
+  --md-success: #346538;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(90, 73, 43, 0.065);
+  --owd-minimal-danger-bg: #f7dfd9;
+  --owd-minimal-success-bg: #e6eddc;
+  --owd-editor-focus-bg: #fff2dc;
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(90, 73, 43, 0.05);
+}
+
+/* ============================================================
+   25. Editor focus state.
+
+   The editable document area should signal "ready to type" with
+   a subtle surface change, not a black/white browser-style ring.
+   Other controls keep their normal accessible focus rings.
+   ============================================================ */
+.editor-pane .editor-field textarea:focus,
+.editor-pane .editor-field textarea:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--owd-minimal-divider-strong, var(--md-outline)) !important;
+  background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle)) !important;
+}
