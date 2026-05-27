@@ -78,9 +78,9 @@ body {
   background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle)) !important;
 }
 
-.muya-editor-shell .mu-editor *,
-.muya-editor-shell .mu-editor *::before,
-.muya-editor-shell .mu-editor *::after {
+.muya-editor-shell .mu-editor :where(*:not(.katex):not(.katex *)),
+.muya-editor-shell .mu-editor :where(*:not(.katex):not(.katex *))::before,
+.muya-editor-shell .mu-editor :where(*:not(.katex):not(.katex *))::after {
   font-family: inherit;
 }
 
