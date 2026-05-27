@@ -96,7 +96,7 @@ function createMuyaOptions(markdown: string): Partial<IMuyaOptions> {
     autoPairQuote: true,
     autoCheck: false,
     autoMoveCheckedToEnd: false,
-    preferLooseListItem: true,
+    preferLooseListItem: false,
     hideQuickInsertHint: false,
     hideLinkPopup: false,
     trimUnnecessaryCodeBlockEmptyLines: false,
@@ -340,10 +340,12 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     const muya = muyaRef.current;
     if (!muya) return;
     if (value === lastEmittedValueRef.current) return;
-    suppressChangeRef.current = true;
-    muya.setContent(renderedValue, false);
-    suppressChangeRef.current = false;
-  }, [renderedValue, value]);
+    // Diagnostic guard: file switches remount this component via
+    // `key={active.path}`, so skip in-place Muya rehydration for
+    // external value updates while we verify whether setContent()
+    // is causing scroll/caret jumps during autosave.
+    lastEmittedValueRef.current = value;
+  }, [value]);
 
   return <div ref={hostRef} className="muya-editor-shell" />;
 });

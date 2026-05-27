@@ -1282,19 +1282,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           method: "PUT",
           body: JSON.stringify({ path: savedPath, content: sentDraft, expectedHash: active.hash })
         });
-        // Never overwrite characters typed while the save request
-        // was in flight. If the draft still equals the exact bytes
-        // we sent, mark it clean with the saved server content. If
-        // the user kept typing, update the saved baseline/hash but
-        // preserve the newer draft so autosave can persist it on the
-        // next tick. This is especially important for the 5-second
-        // autosave loop where the user usually keeps writing.
+        // Never overwrite the editor buffer after a save response:
+        // changing `draft` can force Muya to rehydrate its document,
+        // which loses scroll/caret position during autosave. The
+        // server-returned content still becomes the clean baseline.
         setTabs((current) =>
           current.map((tab) => {
             if (tab.path !== saved.path) return tab;
-            const currentDraft = tab.draft;
-            const draft = currentDraft === sentDraft ? saved.content : currentDraft;
-            return { ...saved, draft, mode: tab.mode };
+            return { ...saved, draft: tab.draft, mode: tab.mode };
           })
         );
         if (options.refreshList) await refreshDocuments();

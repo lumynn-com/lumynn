@@ -24,14 +24,14 @@ body {
     #0d1117;
 }
 
-button,
-input,
-select,
-textarea {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   font: inherit;
 }
 
-button {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   padding: 0.65rem 0.9rem;
@@ -40,11 +40,11 @@ button {
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.11);
 }
 
-button:disabled {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -61,9 +61,9 @@ button:disabled {
   margin-top: auto;
 }
 
-input,
-select,
-textarea {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -72,7 +72,7 @@ textarea {
   color: #e6edf3;
 }
 
-label {
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   display: grid;
   gap: 0.45rem;
   color: #9da7b3;
@@ -810,14 +810,14 @@ body[data-theme="light"] .sidebar {
   background: rgba(246, 248, 251, 0.86);
 }
 
-body[data-theme="light"] button,
+body[data-theme="light"] button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 body[data-theme="light"] .file-button {
   border-color: rgba(23, 32, 51, 0.12);
   color: #172033;
   background: rgba(23, 32, 51, 0.04);
 }
 
-body[data-theme="light"] button:hover:not(:disabled),
+body[data-theme="light"] button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
 body[data-theme="light"] .file-button:hover {
   background: rgba(23, 32, 51, 0.08);
 }
@@ -827,9 +827,9 @@ body[data-theme="light"] .primary {
   background: linear-gradient(135deg, #7c3aed, #2563eb);
 }
 
-body[data-theme="light"] input,
-body[data-theme="light"] select,
-body[data-theme="light"] textarea {
+body[data-theme="light"] input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+body[data-theme="light"] select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+body[data-theme="light"] textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   border-color: rgba(23, 32, 51, 0.12);
   background: rgba(255, 255, 255, 0.82);
   color: #172033;
@@ -957,10 +957,10 @@ h2 {
   font-size: clamp(1.25rem, 2vw, 1.7rem);
 }
 
-button,
-input,
-select,
-textarea,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button {
   border-color: var(--border);
   color: var(--text);
@@ -971,36 +971,36 @@ textarea,
     transform 160ms ease;
 }
 
-button,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button {
   touch-action: manipulation;
 }
 
-button:hover:not(:disabled),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
 .file-button:hover {
   border-color: var(--border-strong);
   background: rgba(148, 163, 184, 0.13);
   transform: translateY(-1px);
 }
 
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
 .file-button:focus-within {
   outline: 2px solid color-mix(in srgb, var(--accent-2) 72%, white);
   outline-offset: 2px;
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-2) 18%, transparent);
 }
 
-input,
-select,
-textarea {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
   color: var(--text);
 }
 
-select {
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   color-scheme: inherit;
 }
 
@@ -1167,7 +1167,7 @@ nav .active > span:first-child {
 .status,
 .tree-file-text small,
 .citation span,
-label {
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   color: var(--muted);
 }
 
@@ -2026,7 +2026,7 @@ progress::-webkit-progress-bar {
   word-break: break-word;
 }
 
-.preview-surface article li:has(> input[type="checkbox"]) {
+.preview-surface article li:has(input[type="checkbox"]) {
   position: relative;
   display: flex;
   gap: 0.65rem;
@@ -2039,7 +2039,7 @@ progress::-webkit-progress-bar {
   background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 34%, transparent);
 }
 
-.preview-surface article li:has(> input[type="checkbox"]:checked) {
+.preview-surface article li:has(input[type="checkbox"]:checked) {
   border-color: color-mix(in srgb, var(--success, #34d399) 24%, transparent);
   background: color-mix(in srgb, var(--success, #34d399) 9%, transparent);
   color: color-mix(in srgb, var(--md-muted, var(--muted)) 72%, var(--md-text, var(--text)));
@@ -2047,8 +2047,13 @@ progress::-webkit-progress-bar {
   text-decoration-color: color-mix(in srgb, var(--success, #34d399) 58%, transparent);
 }
 
-.preview-surface article li:has(> input[type="checkbox"]:not(:checked)) {
+.preview-surface article li:has(input[type="checkbox"]:not(:checked)) {
   border-color: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+.preview-surface article li:has(input[type="checkbox"]) > p {
+  display: contents;
+  margin: 0;
 }
 
 .preview-surface article input[type="checkbox"] {
@@ -2056,7 +2061,7 @@ progress::-webkit-progress-bar {
   width: 1.05rem;
   height: 1.05rem;
   margin: 0.22rem 0 0;
-  border-radius: 0.3rem;
+  border-radius: 2px;
   accent-color: var(--success, #34d399);
   cursor: default;
 }
@@ -2871,24 +2876,24 @@ h2 {
   line-height: 1.25;
 }
 
-button,
-input,
-select,
-textarea,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button {
   border-color: var(--md-outline-soft);
   border-radius: var(--md-radius-md);
   color: var(--md-text);
 }
 
-button,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button {
   background: var(--md-surface-2);
   box-shadow: none;
   font-weight: 560;
 }
 
-button:hover:not(:disabled),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
 .file-button:hover {
   border-color: color-mix(in srgb, var(--md-primary) 38%, var(--md-outline));
   background: var(--md-surface-3);
@@ -2896,16 +2901,16 @@ button:hover:not(:disabled),
   transform: none;
 }
 
-input,
-select,
-textarea {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   border-color: var(--md-outline-soft);
   border-radius: var(--md-radius-md);
   background: var(--md-surface);
   color: var(--md-text);
 }
 
-label,
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .muted,
 .status,
 .tree-file-text small,
@@ -3208,10 +3213,10 @@ html {
 }
 
 body,
-button,
-input,
-select,
-textarea {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   font-family: var(--font-sans);
 }
 
@@ -3225,7 +3230,7 @@ h2 {
   letter-spacing: -0.01em;
 }
 
-button,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button,
 .top-nav button,
 .file-actions button,
@@ -3443,9 +3448,9 @@ button[aria-busy="true"] > .button-spinner {
 
 @media (max-width: 860px) {
   /* iOS Safari auto-zooms on focus when input font-size < 16px. */
-  input,
-  select,
-  textarea,
+  input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   .editor textarea,
   .qa-panel .ask-row input,
   .search-form input {
@@ -6009,7 +6014,7 @@ button.primary:active:not(:disabled),
 
 /* 5. Drop the universal hover lift. A flat UI signals
       interactivity via color/contrast, not motion. */
-button:hover:not(:disabled),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
 .file-button:hover,
 .tree-row:hover,
 .editor-tab-shell:hover,
@@ -6039,11 +6044,11 @@ button:hover:not(:disabled),
 .undo-toast,
 .qa-panel .ask-row input,
 .search-form input,
-input,
-textarea,
-select,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .file-button,
-button:not(.primary):not(.danger):not(.editor-fab):not(.undo-toast-action) {
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.primary):not(.danger):not(.editor-fab):not(.undo-toast-action) {
   box-shadow: none;
 }
 
@@ -6069,9 +6074,9 @@ button:not(.primary):not(.danger):not(.editor-fab):not(.undo-toast-action) {
 
 /* 9. Inputs / textareas / selects: flat hairline border + solid
       surface, no inset highlight, no gradient. */
-input,
-textarea,
-select,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .search-form input,
 .qa-panel .ask-row input {
   background: var(--md-surface-2, var(--panel-strong)) !important;
@@ -6079,9 +6084,9 @@ select,
   background-image: none !important;
 }
 
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible {
   border-color: var(--md-primary, var(--accent-2));
 }
 
@@ -6089,7 +6094,7 @@ select:focus-visible {
        pill / circular treatments where they're semantically
        correct (segmented controls, badges, icon-only round
        buttons, the FAB). */
-button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
 .file-button {
   border-radius: 8px;
 }
@@ -6130,10 +6135,10 @@ button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):no
 /* 13. Focus ring: a single accent ring that doesn't double-stack
        with the previous outline + box-shadow combo. Honors the
        prefers-reduced-motion media query (no transition flicker). */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
 .file-button:focus-within {
   outline: 2px solid var(--md-primary, var(--accent-2));
   outline-offset: 2px;
@@ -6884,7 +6889,7 @@ button.primary:hover:not(:disabled),
   color: var(--md-on-primary) !important;
 }
 
-button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
 .file-button,
 .search-form button,
 .qa-panel .query-button {
@@ -7059,18 +7064,18 @@ button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):no
 
 .search-form input,
 .qa-panel .ask-row input,
-input,
-select,
-textarea {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   border-color: var(--owd-minimal-divider) !important;
   background: var(--owd-minimal-subtle) !important;
   color: var(--md-text) !important;
   box-shadow: none !important;
 }
 
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible {
   border-color: var(--owd-minimal-divider-strong) !important;
 }
 
@@ -7135,14 +7140,14 @@ body {
 .modal-backdrop.sheet-backdrop .action-sheet-group button,
 .tree-context-menu button,
 .anchored-menu button,
-button:not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
 .file-button {
   font-size: var(--owd-type-row) !important;
   line-height: var(--owd-line-ui) !important;
 }
 
-input,
-select,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .search-form input,
 .qa-panel .ask-row input {
   font-size: var(--owd-type-row) !important;
@@ -7163,7 +7168,7 @@ select,
 .folder-picker-loading,
 .obsidian-workspace .muted,
 .qa-panel .muted,
-label,
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .path-picker-section-label {
   font-size: var(--owd-type-meta) !important;
   line-height: var(--owd-line-ui) !important;
@@ -7184,9 +7189,9 @@ label,
 }
 
 @media (max-width: 860px) {
-  input,
-  select,
-  textarea,
+  input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   .search-form input,
   .qa-panel .ask-row input {
     font-size: 16px !important;
@@ -7652,9 +7657,9 @@ label,
 }
 
 .editor textarea,
-input,
-select,
-textarea,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .search-form input,
 .qa-panel .ask-row input,
 .path-picker-modal input,
@@ -7662,7 +7667,7 @@ textarea,
   border-radius: var(--owd-radius-control) !important;
 }
 
-button:not(.draft-pill):not(.status-pill):not(.zen-exit-button),
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.draft-pill):not(.status-pill):not(.zen-exit-button),
 .file-button,
 .search-form button,
 .qa-panel .query-button,

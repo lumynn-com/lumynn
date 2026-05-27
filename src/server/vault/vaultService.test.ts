@@ -63,6 +63,14 @@ test("renderPreview keeps safe task list checkboxes", async () => {
   assert.match(html, /Done task/);
 });
 
+test("renderPreview treats empty task list items as task checkboxes", async () => {
+  const html = await renderPreview("- [ ]\n- [x]\n\n- [ ] Open task");
+
+  assert.equal((html.match(/type="checkbox"/g) ?? []).length, 3);
+  assert.doesNotMatch(html, /\[ \]|\[x\]/);
+  assert.match(html, /Open task/);
+});
+
 test("renderPreview preserves explicit ordered list numbering", async () => {
   const html = await renderPreview("7. Seventh\n9. Ninth\n\nBreak\n\n10. Tenth");
 

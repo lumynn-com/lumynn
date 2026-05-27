@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import hljs from "highlight.js";
 import katex from "katex";
-import { marked, type Tokens } from "marked";
+import { marked, type Token, type Tokens } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
@@ -1031,6 +1031,30 @@ function orderedListItemValue(item: Tokens.ListItem): number | null {
   return match ? Number(match[1]) : null;
 }
 
+const EMPTY_TASK_ITEM_REG = /^ {0,3}(?:[*+-]|\d{1,9}(?:\.|\)))\s+\[([ xX])\]\s*$/;
+
+function normalizeEmptyPreviewTaskListItem(token: Token): void {
+  if (token.type !== "list_item") return;
+
+  const item = token as Tokens.ListItem;
+  const checkedMarker = EMPTY_TASK_ITEM_REG.exec(item.raw)?.[1];
+  if (checkedMarker === undefined) return;
+
+  const checked = checkedMarker.toLowerCase() === "x";
+  const checkbox: Tokens.Checkbox = {
+    type: "checkbox",
+    raw: checked ? "[x] " : "[ ] ",
+    checked
+  };
+
+  item.task = true;
+  item.checked = checked;
+  item.text = "";
+  item.tokens = item.loose
+    ? [{ type: "paragraph", raw: checkbox.raw, text: checkbox.raw, tokens: [checkbox] }]
+    : [checkbox];
+}
+
 function previewRenderer() {
   const renderer = new marked.Renderer();
   const defaultList = renderer.list.bind(renderer);
@@ -1109,7 +1133,13 @@ export async function readVaultMedia(user: UserRecord, assetPath: string, basePa
 }
 
 export async function renderPreview(content: string, basePath?: string): Promise<string> {
-  const html = await marked.parse(prepareObsidianMarkdown(content, basePath), { async: true, gfm: true, breaks: true, renderer: previewRenderer() });
+  const html = await marked.parse(prepareObsidianMarkdown(content, basePath), {
+    async: true,
+    gfm: true,
+    breaks: true,
+    renderer: previewRenderer(),
+    walkTokens: normalizeEmptyPreviewTaskListItem
+  });
   return sanitizeHtml(html, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "input", "mark"]),
     allowedAttributes: {

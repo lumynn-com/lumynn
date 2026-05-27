@@ -6,6 +6,48 @@ function isListToken(token: Token | ListToken): token is ListToken {
 }
 
 const BULL_REG = /^ {0,3}([*+-]|\d{1,9}(?:\.|\)))/;
+const TASK_ITEM_REG = /^ {0,3}(?:[*+-]|\d{1,9}(?:\.|\)))\s+\[([ xX])\](?:\s|$)/;
+const TASK_MARKER_TEXT_REG = /^\[[ xX]\](?:\s+|$)/;
+
+type MutableToken = Token & {
+    raw?: string;
+    text?: string;
+    tokens?: (Token | ListToken | ListItemToken)[];
+};
+
+function taskCheckedFromRaw(raw: string | undefined): boolean | null {
+    const marker = TASK_ITEM_REG.exec(raw ?? '')?.[1];
+    if (!marker)
+        return null;
+    return marker.toLowerCase() === 'x';
+}
+
+function stripLeadingTaskMarker(value: string): string {
+    return value.replace(TASK_MARKER_TEXT_REG, '');
+}
+
+function normalizeTaskItemTokens(tokens: (Token | ListToken | ListItemToken)[] = []) {
+    const normalized: (Token | ListToken | ListItemToken)[] = [];
+
+    for (const token of tokens) {
+        if (token.type === 'checkbox')
+            continue;
+
+        const mutable = token as MutableToken;
+        if (token.type === 'paragraph' || token.type === 'text') {
+            if (typeof mutable.raw === 'string')
+                mutable.raw = stripLeadingTaskMarker(mutable.raw);
+            if (typeof mutable.text === 'string')
+                mutable.text = stripLeadingTaskMarker(mutable.text);
+        }
+        if (Array.isArray(mutable.tokens))
+            mutable.tokens = normalizeTaskItemTokens(mutable.tokens);
+
+        normalized.push(token);
+    }
+
+    return normalized;
+}
 
 // If bullet list contains task list items, split the bullet list into bullet lists and task lists.
 // Add `listType` to token, it's type: "order" | "bullet" | "task".
@@ -40,7 +82,14 @@ function compatibleTaskList(tokens: (Token | ListToken | ListItemToken)[] = []) 
 
                 for (const item of token.items) {
                     item.tokens = compatibleTaskList(item.tokens);
+                    const rawTaskChecked = taskCheckedFromRaw(item.raw);
+                    if (rawTaskChecked !== null) {
+                        item.task = true;
+                        item.checked = rawTaskChecked;
+                    }
                     const listItemType = item.task ? 'task' : 'bullet';
+                    if (listItemType === 'task')
+                        item.tokens = normalizeTaskItemTokens(item.tokens);
                     item.listItemType = listItemType;
                     const matches = BULL_REG.exec(item.raw);
                     item.bulletMarkerOrDelimiter = matches ? matches[1] as ListItemToken['bulletMarkerOrDelimiter'] : '';
