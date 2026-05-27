@@ -25,10 +25,21 @@
  *                                     visits and silently updates.
  */
 
-const CACHE_VERSION = "owd-v1";
+const CACHE_VERSION = "owd-v2";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 const SHELL_ENTRY = "/";
+const PWA_ASSET_PATHS = new Set([
+  "/manifest.webmanifest",
+  "/favicon.ico",
+  "/favicon-16.png",
+  "/favicon-32.png",
+  "/apple-touch-icon.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-maskable-192.png",
+  "/icon-maskable-512.png"
+]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -44,6 +55,19 @@ self.addEventListener("install", (event) => {
       } catch {
         // ignore: shell will be cached on the first successful navigation.
       }
+      const assets = await caches.open(ASSETS_CACHE);
+      await Promise.all(
+        [...PWA_ASSET_PATHS].map(async (path) => {
+          try {
+            const response = await fetch(path, { cache: "reload" });
+            if (response && response.ok) {
+              await assets.put(path, response.clone());
+            }
+          } catch {
+            // ignore: icons/manifest will be cached on the first successful fetch.
+          }
+        })
+      );
       await self.skipWaiting();
     })()
   );
@@ -76,6 +100,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // PWA install metadata should prefer the network so desktop/mobile
+  // shortcuts don't pick an old or previously failed icon from cache.
+  if (PWA_ASSET_PATHS.has(url.pathname)) {
+    event.respondWith(networkFirstAsset(request));
+    return;
+  }
+
   // Static assets (built JS/CSS, fonts, icons, manifest):
   // stale-while-revalidate.
   event.respondWith(staleWhileRevalidate(request));
@@ -92,6 +123,21 @@ async function navigationStrategy(request) {
   } catch {
     const cache = await caches.open(SHELL_CACHE);
     const cached = await cache.match(SHELL_ENTRY);
+    if (cached) return cached;
+    return Response.error();
+  }
+}
+
+async function networkFirstAsset(request) {
+  const cache = await caches.open(ASSETS_CACHE);
+  try {
+    const response = await fetch(request, { cache: "reload" });
+    if (response && response.ok) {
+      cache.put(request, response.clone()).catch(() => undefined);
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
     if (cached) return cached;
     return Response.error();
   }
