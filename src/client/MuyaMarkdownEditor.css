@@ -1,0 +1,78 @@
+.muya-editor-shell {
+  min-height: 0;
+  height: 100%;
+  background: var(--owd-minimal-surface, var(--md-surface));
+  color: var(--md-text, var(--text));
+}
+
+.muya-editor-shell .mu-editor {
+  box-sizing: border-box;
+  min-height: 100%;
+  height: 100%;
+  padding: 1.45rem 1.6rem;
+  overflow: auto;
+  background: var(--owd-minimal-surface, var(--md-surface)) !important;
+  color: var(--md-text, var(--text)) !important;
+  font-family: inherit !important;
+  font-size: 16px;
+  line-height: 1.65;
+  outline: 0;
+}
+
+.muya-editor-shell .mu-editor:focus,
+.muya-editor-shell .mu-editor:focus-visible {
+  background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle)) !important;
+}
+
+.muya-editor-shell .mu-editor *,
+.muya-editor-shell .mu-editor *::before,
+.muya-editor-shell .mu-editor *::after {
+  font-family: inherit;
+}
+
+.muya-editor-shell :where(.mu-code-block, code, pre, kbd, samp) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
+}
+
+.muya-editor-shell :where(.mu-heading, h1, h2, h3, h4, h5, h6) {
+  color: var(--md-text, var(--text));
+  letter-spacing: 0;
+}
+
+.muya-editor-shell :where(.mu-paragraph, .mu-list-item, .mu-block-quote, .mu-table) {
+  color: var(--md-text, var(--text));
+}
+
+.muya-editor-shell :where(.mu-block-quote) {
+  border-left-color: var(--owd-minimal-divider-strong, var(--md-outline));
+  color: var(--md-muted, var(--muted));
+}
+
+.muya-editor-shell :where(.mu-code-block, .mu-html-block, .mu-math-block) {
+  background: var(--owd-minimal-subtle, var(--md-surface-2));
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  border-radius: 0;
+}
+
+.muya-editor-shell :where(.mu-table table, .mu-table td, .mu-table th) {
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+}
+
+.muya-editor-shell :where(.mu-inline-image img) {
+  max-width: 100%;
+  height: auto;
+}
+
+.muya-editor-shell :where(.ag-front-menu, .ag-quick-insert, .mu-float) {
+  border-radius: 0 !important;
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+  background: var(--owd-minimal-surface, var(--md-surface)) !important;
+  color: var(--md-text, var(--text)) !important;
+  box-shadow: var(--md-elevation-1) !important;
+}
+
+@media (max-width: 860px) {
+  .muya-editor-shell .mu-editor {
+    padding: 1.1rem 1rem 5.25rem;
+  }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
@@ -34,8 +34,11 @@ import { useLocale, useT } from "./i18n";
 import type { TKey } from "./i18n";
 import { QaView } from "./QaView";
 import { FolderPicker } from "./FolderPicker";
+import type { MuyaMarkdownEditorHandle } from "./MuyaMarkdownEditor";
 import { SettingsView } from "./SettingsView";
 import type { UserRole } from "../shared/types";
+
+const MuyaMarkdownEditor = lazy(() => import("./MuyaMarkdownEditor").then((module) => ({ default: module.MuyaMarkdownEditor })));
 
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
@@ -728,43 +731,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, pendingUndo]);
 
-  // Disable iOS pinch-zoom only inside the editor textarea so users can
-  // still pinch-zoom previews, the document tree, and other content.
-  const editorTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const muyaEditorRef = useRef<MuyaMarkdownEditorHandle | null>(null);
 
-  // Paste-image-into-editor: when the user pastes an image (clipboard
-  // bytes from a screenshot or a file copy) we upload it to the
-  // server's attachments folder and insert an Obsidian-style
-  // ![[attachments/...]] reference at the textarea cursor. While the
-  // upload is in flight we insert a sentinel placeholder so the user
-  // sees feedback; the placeholder is replaced once the server returns.
-  const pendingAttachmentId = useRef(0);
-
-  function insertAtCursor(textarea: HTMLTextAreaElement, snippet: string): void {
-    const start = textarea.selectionStart ?? textarea.value.length;
-    const end = textarea.selectionEnd ?? start;
-    const before = textarea.value.slice(0, start);
-    const after = textarea.value.slice(end);
-    const next = `${before}${snippet}${after}`;
-    setActiveDraft(next);
-    // Move the caret to just after the inserted snippet on next tick.
-    requestAnimationFrame(() => {
-      const caret = (before + snippet).length;
-      textarea.focus();
-      textarea.setSelectionRange(caret, caret);
-    });
-  }
-
-  async function uploadPastedImage(file: File): Promise<void> {
-    const id = ++pendingAttachmentId.current;
-    const placeholder = `![[uploading-${id}]]`;
-    const textarea = editorTextareaRef.current;
-    if (textarea) {
-      insertAtCursor(textarea, placeholder);
-    } else {
-      // Fallback: append to draft if the ref is detached.
-      setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, draft: `${tab.draft}${placeholder}` } : tab)));
-    }
+  // Muya captures image paste events and asks this app to persist the
+  // bytes in the current user's vault. The returned Obsidian embed is
+  // inserted at Muya's current selection by the wrapper.
+  async function uploadPastedImage(file: File): Promise<string> {
     setStatusKey("status.uploading");
     try {
       const buffer = await file.arrayBuffer();
@@ -775,62 +747,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         headers: { "content-type": "application/octet-stream" },
         body: buffer
       });
-      const replacement = `![[${result.path}]]`;
-      // Replace the placeholder in whatever the active tab's draft is
-      // *now* (the user may have continued typing during the upload).
-      setTabs((current) => current.map((tab) => {
-        if (tab.path !== activePath) return tab;
-        if (!tab.draft.includes(placeholder)) return tab;
-        return { ...tab, draft: tab.draft.replace(placeholder, replacement) };
-      }));
       setStatusKey("status.attachmentSaved");
+      return `![[${result.path}]]`;
     } catch (error) {
-      // Turn the placeholder into a comment so it doesn't render in
-      // preview and the user sees what went wrong inline.
       const message = error instanceof Error ? error.message : "Upload failed";
-      const errorMarker = `<!-- attachment upload failed: ${message.replace(/-->/g, "")} -->`;
-      setTabs((current) => current.map((tab) => {
-        if (tab.path !== activePath) return tab;
-        if (!tab.draft.includes(placeholder)) return tab;
-        return { ...tab, draft: tab.draft.replace(placeholder, errorMarker) };
-      }));
       setStatusText(`${t("status.uploadFailed")}: ${message}`);
+      return `<!-- attachment upload failed: ${message.replace(/-->/g, "")} -->`;
     }
   }
-
-  function onEditorPaste(event: React.ClipboardEvent<HTMLTextAreaElement>): void {
-    if (!event.clipboardData || event.clipboardData.files.length === 0) return;
-    const images: File[] = [];
-    for (const file of Array.from(event.clipboardData.files)) {
-      if (file.type.startsWith("image/")) images.push(file);
-    }
-    if (images.length === 0) return;
-    event.preventDefault();
-    images.forEach((image) => {
-      uploadPastedImage(image);
-    });
-  }
-
-  // Pinch-zoom suppression only inside the editor textarea so users
-  // can still pinch-zoom previews, the document tree, etc.
-  useEffect(() => {
-    const node = editorTextareaRef.current;
-    if (!node) return;
-    function onTouchMove(event: TouchEvent) {
-      if (event.touches.length > 1) {
-        event.preventDefault();
-      }
-    }
-    function onGestureStart(event: Event) {
-      event.preventDefault();
-    }
-    node.addEventListener("touchmove", onTouchMove, { passive: false });
-    node.addEventListener("gesturestart", onGestureStart);
-    return () => {
-      node.removeEventListener("touchmove", onTouchMove);
-      node.removeEventListener("gesturestart", onGestureStart);
-    };
-  }, [active]);
 
   // Edge-swipe between workspace panes on mobile. A swipe that starts
   // within ~26px of either edge and travels >= 60px horizontally cycles
@@ -1174,10 +1098,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
     api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
       .then((doc) => {
-        // Opening an existing file lands in preview mode so the
-        // reader immediately sees the rendered note. Each tab
-        // tracks its own mode after this.
-        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview" }]);
+        // Opening an existing file lands directly in the WYSIWYG editor.
+        // Each tab still tracks its own mode after this.
+        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "edit" }]);
       })
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
@@ -1454,9 +1377,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setMobileSection("editor");
     }
     haptic(6);
-    // Focus the editor textarea after the draft mounts.
+    // Focus the WYSIWYG editor after the draft mounts.
     window.setTimeout(() => {
-      editorTextareaRef.current?.focus();
+      muyaEditorRef.current?.focus();
     }, 50);
   }
 
@@ -2098,17 +2021,20 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </div>
         </div>
         {active && centerMode === "edit" ? (
-          <label className="editor-field">
-            <span className="sr-only">{t("editor.contentLabel")}</span>
-            <textarea
-              ref={editorTextareaRef}
-              name="markdown-content"
-              value={active.draft}
-              onChange={(event) => setActiveDraft(event.target.value)}
-              onPaste={onEditorPaste}
-              spellCheck={false}
-            />
-          </label>
+          <div className="editor-field" aria-label={t("editor.contentLabel")}>
+            <Suspense fallback={null}>
+              <MuyaMarkdownEditor
+                key={active.path}
+                ref={muyaEditorRef}
+                value={active.draft}
+                documentPath={active.isDraft ? undefined : active.path}
+                language={locale === "zh" ? "zh-CN" : "en"}
+                autoFocus={active.isDraft}
+                onChange={setActiveDraft}
+                onPasteImage={uploadPastedImage}
+              />
+            </Suspense>
+          </div>
         ) : null}
         {active && centerMode === "preview" ? (
           <div className="preview-surface">

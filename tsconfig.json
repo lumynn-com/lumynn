@@ -17,5 +17,9 @@
     "jsx": "react-jsx"
   },
   "include": ["src", "vite.config.ts"],
+  "exclude": [
+    "src/client/vendor/muya/**/__tests__",
+    "src/client/vendor/muya/**/*.spec.ts"
+  ],
   "references": []
 }
