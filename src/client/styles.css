@@ -914,6 +914,33 @@ body {
   -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
+body[data-owd-app="true"] {
+  height: var(--owd-viewport-h, 100dvh);
+  min-height: var(--owd-viewport-h, 100dvh);
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] #root,
+body[data-owd-app="true"] .app-shell,
+body[data-owd-app="true"] .main-content {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] .app-shell[data-view="workspace"] .main-content > div:not([hidden]) {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] .app-shell[data-view="indexing"] .main-content,
+body[data-owd-app="true"] .app-shell[data-view="settings"] .main-content {
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 h1,
 h2 {
   color: var(--text);

@@ -147,6 +147,14 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [indexingMounted, setIndexingMounted] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    document.body.dataset.owdApp = "true";
+    return () => {
+      delete document.body.dataset.owdApp;
+    };
+  }, []);
+
   // Track viewport breakpoint here too: on desktop, indexing /
   // settings are rendered as overlay modals owned by
   // DocumentsView, so the legacy full-view fallback below should
@@ -275,7 +283,7 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
   }
 
   return (
-    <div className="app-shell obsidian-shell">
+    <div className="app-shell obsidian-shell" data-view={view}>
       <a className="skip-link" href="#main-content">{t("skipToMain")}</a>
       {/* Desktop no longer renders a workspace topbar. All global
           actions (workspace / indexing / settings nav, theme,
