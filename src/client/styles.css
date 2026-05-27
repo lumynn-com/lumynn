@@ -7763,3 +7763,29 @@ button:not(.draft-pill):not(.status-pill):not(.zen-exit-button),
   outline: 1px solid var(--owd-minimal-divider-strong, var(--md-outline)) !important;
   outline-offset: 2px;
 }
+
+/* ============================================================
+   29. Muya loading state.
+
+   This lives in the main stylesheet because Muya's own CSS is
+   bundled with the lazy editor chunk. A flat status state makes a
+   cold editor load visible before that chunk finishes.
+   ============================================================ */
+.muya-editor-loading {
+  display: grid;
+  min-height: 100%;
+  place-content: center;
+  gap: 0.65rem;
+  background: var(--owd-minimal-surface, var(--md-surface));
+  color: var(--md-muted, var(--muted));
+  font-size: 0.86rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.muya-editor-loading svg {
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}

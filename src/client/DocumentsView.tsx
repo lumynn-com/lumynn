@@ -38,7 +38,18 @@ import type { MuyaMarkdownEditorHandle } from "./MuyaMarkdownEditor";
 import { SettingsView } from "./SettingsView";
 import type { UserRole } from "../shared/types";
 
-const MuyaMarkdownEditor = lazy(() => import("./MuyaMarkdownEditor").then((module) => ({ default: module.MuyaMarkdownEditor })));
+function importMuyaMarkdownEditor() {
+  return import("./MuyaMarkdownEditor").then((module) => ({ default: module.MuyaMarkdownEditor }));
+}
+
+let muyaMarkdownEditorPromise: ReturnType<typeof importMuyaMarkdownEditor> | null = null;
+
+function loadMuyaMarkdownEditor() {
+  muyaMarkdownEditorPromise ??= importMuyaMarkdownEditor();
+  return muyaMarkdownEditorPromise;
+}
+
+const MuyaMarkdownEditor = lazy(loadMuyaMarkdownEditor);
 
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
@@ -261,6 +272,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
+  useEffect(() => {
+    void loadMuyaMarkdownEditor();
+  }, []);
   // Zen / Focus mode: hides the global topbar, vault sidebar and
   // AI Q&A panel so the editor takes the entire window. Desktop
   // only -- the mobile UI is already editor-first.
@@ -2022,7 +2036,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         </div>
         {active && centerMode === "edit" ? (
           <div className="editor-field" aria-label={t("editor.contentLabel")}>
-            <Suspense fallback={null}>
+            <Suspense
+              fallback={
+                <div className="muya-editor-loading" role="status" aria-live="polite">
+                  <SpinnerIcon />
+                  <span>{t("editor.loading")}</span>
+                </div>
+              }
+            >
               <MuyaMarkdownEditor
                 key={active.path}
                 ref={muyaEditorRef}

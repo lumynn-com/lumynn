@@ -112,6 +112,146 @@ function createMuyaOptions(markdown: string): Partial<IMuyaOptions> {
   };
 }
 
+const MUYA_FLOAT_TOOLTIP_SELECTOR = [
+  ".mu-float-wrapper [title]",
+  ".mu-float-wrapper [data-tooltip]",
+  ".mu-front-button-wrapper [title]",
+  ".mu-front-button-wrapper [data-tooltip]"
+].join(", ");
+
+function closestMuyaFloatTooltipTarget(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest(MUYA_FLOAT_TOOLTIP_SELECTOR) as HTMLElement | null;
+}
+
+function installMuyaFloatTooltips(): () => void {
+  let activeTarget: HTMLElement | null = null;
+  let tooltipElement: HTMLDivElement | null = null;
+  let restoreTitle: string | null = null;
+  let frameId = 0;
+
+  function positionTooltip() {
+    if (!activeTarget || !tooltipElement) return;
+
+    const rect = activeTarget.getBoundingClientRect();
+    const gap = 8;
+    const margin = 8;
+    const width = tooltipElement.offsetWidth;
+    const height = tooltipElement.offsetHeight;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    let left = rect.left + rect.width / 2 - width / 2;
+    let top = rect.top - height - gap;
+
+    if (top < margin) {
+      top = rect.bottom + gap;
+    }
+    if (top + height > viewportHeight - margin) {
+      top = Math.max(margin, viewportHeight - height - margin);
+    }
+
+    left = Math.max(margin, Math.min(left, viewportWidth - width - margin));
+    tooltipElement.style.left = `${Math.round(left)}px`;
+    tooltipElement.style.top = `${Math.round(top)}px`;
+  }
+
+  function hideTooltip() {
+    if (frameId) {
+      window.cancelAnimationFrame(frameId);
+      frameId = 0;
+    }
+    if (activeTarget && restoreTitle !== null && activeTarget.isConnected) {
+      activeTarget.setAttribute("title", restoreTitle);
+    }
+    restoreTitle = null;
+    activeTarget = null;
+    tooltipElement?.remove();
+    tooltipElement = null;
+  }
+
+  function showTooltip(target: HTMLElement) {
+    const text = target.dataset.tooltip || target.getAttribute("title") || "";
+    if (!text.trim()) return;
+    if (target === activeTarget) {
+      positionTooltip();
+      return;
+    }
+
+    hideTooltip();
+    activeTarget = target;
+    restoreTitle = target.getAttribute("title");
+    if (restoreTitle !== null) {
+      target.removeAttribute("title");
+    }
+
+    tooltipElement = document.createElement("div");
+    tooltipElement.className = "owd-muya-tooltip";
+    tooltipElement.textContent = text;
+    document.body.appendChild(tooltipElement);
+
+    frameId = window.requestAnimationFrame(() => {
+      frameId = 0;
+      positionTooltip();
+      tooltipElement?.classList.add("active");
+    });
+  }
+
+  function handleMouseOver(event: MouseEvent) {
+    const target = closestMuyaFloatTooltipTarget(event.target);
+    if (target) showTooltip(target);
+  }
+
+  function handleMouseOut(event: MouseEvent) {
+    if (!activeTarget) return;
+    if (event.relatedTarget instanceof Node && activeTarget.contains(event.relatedTarget)) return;
+    if (event.target instanceof Node && activeTarget.contains(event.target)) {
+      hideTooltip();
+      return;
+    }
+    if (!activeTarget.isConnected) hideTooltip();
+  }
+
+  function handleFocusIn(event: FocusEvent) {
+    const target = closestMuyaFloatTooltipTarget(event.target);
+    if (target) showTooltip(target);
+  }
+
+  function handleFocusOut(event: FocusEvent) {
+    if (activeTarget && event.target instanceof Node && activeTarget.contains(event.target)) {
+      hideTooltip();
+    }
+  }
+
+  function handleMouseMove() {
+    if (activeTarget && activeTarget.isConnected) {
+      positionTooltip();
+    } else {
+      hideTooltip();
+    }
+  }
+
+  document.addEventListener("mouseover", handleMouseOver, true);
+  document.addEventListener("mouseout", handleMouseOut, true);
+  document.addEventListener("focusin", handleFocusIn, true);
+  document.addEventListener("focusout", handleFocusOut, true);
+  document.addEventListener("mousemove", handleMouseMove, true);
+  document.addEventListener("click", hideTooltip, true);
+  window.addEventListener("scroll", hideTooltip, true);
+  window.addEventListener("resize", hideTooltip);
+
+  return () => {
+    document.removeEventListener("mouseover", handleMouseOver, true);
+    document.removeEventListener("mouseout", handleMouseOut, true);
+    document.removeEventListener("focusin", handleFocusIn, true);
+    document.removeEventListener("focusout", handleFocusOut, true);
+    document.removeEventListener("mousemove", handleMouseMove, true);
+    document.removeEventListener("click", hideTooltip, true);
+    window.removeEventListener("scroll", hideTooltip, true);
+    window.removeEventListener("resize", hideTooltip);
+    hideTooltip();
+  };
+}
+
 export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkdownEditorProps>(function MuyaMarkdownEditor(
   { value, documentPath, language, autoFocus = false, onChange, onPasteImage },
   ref
@@ -137,6 +277,8 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
       muyaRef.current?.focus();
     }
   }), []);
+
+  useEffect(() => installMuyaFloatTooltips(), []);
 
   useEffect(() => {
     const host = hostRef.current;
