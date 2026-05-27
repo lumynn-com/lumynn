@@ -1999,7 +1999,7 @@ progress::-webkit-progress-bar {
   word-break: break-word;
 }
 
-.preview-surface article li:has(> input[type="checkbox"]) {
+.preview-surface article li:has(input[type="checkbox"]) {
   position: relative;
   display: flex;
   gap: 0.65rem;
@@ -2012,7 +2012,7 @@ progress::-webkit-progress-bar {
   background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 34%, transparent);
 }
 
-.preview-surface article li:has(> input[type="checkbox"]:checked) {
+.preview-surface article li:has(input[type="checkbox"]:checked) {
   border-color: color-mix(in srgb, var(--success, #34d399) 24%, transparent);
   background: color-mix(in srgb, var(--success, #34d399) 9%, transparent);
   color: color-mix(in srgb, var(--md-muted, var(--muted)) 72%, var(--md-text, var(--text)));
@@ -2020,8 +2020,13 @@ progress::-webkit-progress-bar {
   text-decoration-color: color-mix(in srgb, var(--success, #34d399) 58%, transparent);
 }
 
-.preview-surface article li:has(> input[type="checkbox"]:not(:checked)) {
+.preview-surface article li:has(input[type="checkbox"]:not(:checked)) {
   border-color: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+.preview-surface article li:has(input[type="checkbox"]) > p {
+  display: contents;
+  margin: 0;
 }
 
 .preview-surface article input[type="checkbox"] {
