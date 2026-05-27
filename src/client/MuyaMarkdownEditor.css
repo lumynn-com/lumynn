@@ -1,3 +1,52 @@
+.muya-editor-shell,
+body .mu-float-wrapper,
+body .mu-front-button-wrapper,
+body .mu-tooltip,
+body .mu-transformer,
+body .mu-shadow {
+  --owd-muya-surface: var(--owd-minimal-surface, var(--md-surface));
+  --owd-muya-surface-subtle: var(--owd-minimal-subtle, var(--md-surface-2));
+  --owd-muya-text: var(--md-text, var(--text));
+  --owd-muya-muted: var(--md-muted, var(--muted));
+  --owd-muya-divider: var(--owd-minimal-divider, var(--md-outline-soft));
+  --owd-muya-divider-strong: var(--owd-minimal-divider-strong, var(--md-outline));
+  --editor-color: var(--owd-muya-text);
+  --editor-color-80: var(--owd-muya-text);
+  --editor-color-50: color-mix(in srgb, var(--owd-muya-muted) 82%, transparent);
+  --editor-color-30: color-mix(in srgb, var(--owd-muya-muted) 52%, transparent);
+  --editor-color-10: color-mix(in srgb, var(--owd-muya-muted) 18%, transparent);
+  --editor-color-04: color-mix(in srgb, var(--owd-muya-muted) 8%, transparent);
+  --editor-bg-color: var(--owd-muya-surface);
+  --icon-color: var(--owd-muya-muted);
+  --code-block-bg-color: var(--owd-muya-surface-subtle);
+  --table-border-color: var(--owd-muya-divider);
+  --input-bg-color: var(--owd-muya-surface-subtle);
+  --button-font-color: var(--owd-muya-text);
+  --button-bg-color: var(--owd-muya-surface);
+  --button-border: 1px solid var(--owd-muya-divider);
+  --button-bg-color-hover: var(--owd-minimal-hover, var(--owd-muya-surface-subtle));
+  --button-border-hover: var(--button-border);
+  --float-bg-color: var(--owd-muya-surface);
+  --float-hover-color: var(--owd-minimal-hover, var(--owd-muya-surface-subtle));
+  --float-border-color: var(--owd-muya-divider);
+  --float-shadow: var(--md-elevation-1);
+}
+
+/* Muya imports a global Open Sans body rule. Restore the app font after
+   the lazy editor chunk loads so the editor does not change the UI font. */
+html,
+body {
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+body {
+  font-size: 15.5px;
+  line-height: 1.55;
+}
+
 .muya-editor-shell {
   min-height: 0;
   height: 100%;
@@ -19,6 +68,11 @@
   outline: 0;
 }
 
+.muya-editor-shell .mu-container {
+  color: var(--editor-color) !important;
+  font-family: inherit !important;
+}
+
 .muya-editor-shell .mu-editor:focus,
 .muya-editor-shell .mu-editor:focus-visible {
   background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle)) !important;
@@ -31,7 +85,7 @@
 }
 
 .muya-editor-shell :where(.mu-code-block, code, pre, kbd, samp) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
+  font-family: var(--font-mono, "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace) !important;
 }
 
 .muya-editor-shell :where(.mu-heading, h1, h2, h3, h4, h5, h6) {
@@ -63,12 +117,36 @@
   height: auto;
 }
 
+.muya-editor-shell .mu-emoji-marked-text::before {
+  color: var(--editor-color) !important;
+}
+
 .muya-editor-shell :where(.ag-front-menu, .ag-quick-insert, .mu-float) {
   border-radius: 0 !important;
   border-color: var(--owd-minimal-divider, var(--md-outline-soft)) !important;
   background: var(--owd-minimal-surface, var(--md-surface)) !important;
   color: var(--md-text, var(--text)) !important;
   box-shadow: var(--md-elevation-1) !important;
+}
+
+body .mu-float-wrapper,
+body .mu-front-button-wrapper,
+body .mu-tooltip,
+body .mu-transformer,
+body .mu-shadow {
+  color: var(--editor-color);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
+}
+
+body .mu-float-wrapper {
+  background-color: var(--float-bg-color);
+  border-color: var(--float-border-color);
+}
+
+body .mu-float-wrapper :where(button, input, select, textarea),
+body .mu-front-button-wrapper :where(button, input, select, textarea) {
+  color: var(--editor-color);
+  font-family: inherit !important;
 }
 
 .owd-muya-tooltip {
