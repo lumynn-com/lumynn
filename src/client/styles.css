@@ -7494,35 +7494,35 @@ label,
 }
 
 /* ============================================================
-   24. Warm sand / near-black purple theme tint.
+   24. Warm sand / soft charcoal theme tint.
 
    Palette-only override. Font, layout, tabs, menus, radii, and
    flat component behavior stay unchanged.
    ============================================================ */
 :root {
-  --bg: #08060b;
-  --bg-soft: #0b0810;
-  --panel: #0b0810;
-  --panel-strong: #100c16;
-  --border: rgba(208, 198, 218, 0.055);
-  --border-strong: rgba(208, 198, 218, 0.105);
-  --text: #cec6d7;
-  --muted: #817689;
-  --accent: #9a8ea8;
-  --accent-2: #c5bdce;
-  --surface-hover: rgba(208, 198, 218, 0.032);
-  --surface-selected: rgba(208, 198, 218, 0.06);
-  --md-bg: #08060b;
-  --md-surface: #0b0810;
-  --md-surface-2: #100c16;
-  --md-surface-3: #17111f;
-  --md-outline-soft: rgba(208, 198, 218, 0.055);
-  --md-outline: rgba(208, 198, 218, 0.105);
-  --md-text: #cec6d7;
-  --md-muted: #817689;
-  --md-primary: #c5bdce;
-  --md-primary-container: rgba(208, 198, 218, 0.045);
-  --md-on-primary: #08060b;
+  --bg: #080809;
+  --bg-soft: #0c0c0e;
+  --panel: #0c0c0e;
+  --panel-strong: #121214;
+  --border: rgba(210, 210, 214, 0.055);
+  --border-strong: rgba(210, 210, 214, 0.105);
+  --text: #cdccd2;
+  --muted: #828187;
+  --accent: #9a98a1;
+  --accent-2: #c5c3ca;
+  --surface-hover: rgba(210, 210, 214, 0.032);
+  --surface-selected: rgba(210, 210, 214, 0.06);
+  --md-bg: #080809;
+  --md-surface: #0c0c0e;
+  --md-surface-2: #121214;
+  --md-surface-3: #19191d;
+  --md-outline-soft: rgba(210, 210, 214, 0.055);
+  --md-outline: rgba(210, 210, 214, 0.105);
+  --md-text: #cdccd2;
+  --md-muted: #828187;
+  --md-primary: #c5c3ca;
+  --md-primary-container: rgba(210, 210, 214, 0.045);
+  --md-on-primary: #080809;
   --md-danger: #f0aaa3;
   --md-success: #a6caa9;
   --owd-minimal-canvas: var(--md-bg);
@@ -7530,10 +7530,10 @@ label,
   --owd-minimal-subtle: var(--md-surface-2);
   --owd-minimal-divider: var(--md-outline-soft);
   --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(208, 198, 218, 0.032);
+  --owd-minimal-hover: rgba(210, 210, 214, 0.032);
   --owd-minimal-danger-bg: rgba(240, 170, 163, 0.11);
   --owd-minimal-success-bg: rgba(166, 202, 169, 0.11);
-  --owd-editor-focus-bg: #17111f;
+  --owd-editor-focus-bg: #19191d;
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
   --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.30);
 }
