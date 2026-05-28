@@ -272,6 +272,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
+  const [muyaEditorReady, setMuyaEditorReady] = useState(false);
+  const muyaEditorReadyRef = useRef(false);
   useEffect(() => {
     void loadMuyaMarkdownEditor();
   }, []);
@@ -889,6 +891,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     inFlight: new Map<string, Promise<DocumentTreeEntry[] | null>>(),
     generation: 0
   });
+  const pendingFolderWarmup = useRef<{
+    rootChildren: DocumentTreeEntry[];
+    sort: SortField;
+    order: SortOrder;
+    generation: number;
+  } | null>(null);
+  const pendingDocumentCountRefresh = useRef(false);
+
+  const handleMuyaEditorReady = useCallback(() => {
+    if (muyaEditorReadyRef.current) return;
+    muyaEditorReadyRef.current = true;
+    setMuyaEditorReady(true);
+  }, []);
 
   async function loadFolderChildren(
     folderPath: string,
@@ -1022,6 +1037,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     await Promise.all(workers);
   }
 
+  async function refreshDocumentCount() {
+    const result = await api<{ count: number }>("/api/documents/count");
+    setDocumentCount(result.count);
+  }
+
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
     // Bumping the generation cancels any in-flight prefetch from a
     // previous refresh: stale results are dropped on the floor and
@@ -1029,23 +1049,53 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     folderFetchTracker.current.generation += 1;
     folderFetchTracker.current.loaded.clear();
     folderFetchTracker.current.inFlight = new Map();
+    pendingFolderWarmup.current = null;
 
     setFolderChildren(new Map());
     // Fetch the root immediately so the sidebar appears within
     // milliseconds even on a multi-thousand-file vault.
     const rootChildren = await loadFolderChildren("", { force: true, sort: nextSort, order: nextOrder });
     // After the root renders, warm a bounded number of folders in
-    // the background. The user can keep interacting; the prefetch
-    // yields to idle time and deeper folders still load lazily.
+    // the background. On cold start this waits until Muya has
+    // mounted and painted once so editor activation is not competing
+    // with a recursive folder warmup.
     if (rootChildren && rootChildren.length > 0) {
-      void prefetchFolderTree(rootChildren, nextSort, nextOrder);
+      const warmup = {
+        rootChildren,
+        sort: nextSort,
+        order: nextOrder,
+        generation: folderFetchTracker.current.generation
+      };
+      if (muyaEditorReadyRef.current) {
+        void prefetchFolderTree(warmup.rootChildren, warmup.sort, warmup.order);
+      } else {
+        pendingFolderWarmup.current = warmup;
+      }
     }
     // Keep startup cheap: the tree already returns the visible file
     // rows, and full /api/documents parses + hashes the whole vault.
-    // For the sidebar count, use a lightweight recursive count.
-    const result = await api<{ count: number }>("/api/documents/count");
-    setDocumentCount(result.count);
+    // For the sidebar count, use a lightweight recursive count. On
+    // cold start, defer even that count until Muya is ready so the
+    // editor activation does not compete with a vault walk.
+    if (muyaEditorReadyRef.current) {
+      await refreshDocumentCount();
+    } else {
+      pendingDocumentCountRefresh.current = true;
+    }
   }
+
+  useEffect(() => {
+    if (!muyaEditorReady) return;
+    if (pendingDocumentCountRefresh.current) {
+      pendingDocumentCountRefresh.current = false;
+      refreshDocumentCount().catch((error) => setStatusText(error.message));
+    }
+    const warmup = pendingFolderWarmup.current;
+    if (!warmup) return;
+    pendingFolderWarmup.current = null;
+    if (folderFetchTracker.current.generation !== warmup.generation) return;
+    void prefetchFolderTree(warmup.rootChildren, warmup.sort, warmup.order);
+  }, [muyaEditorReady]);
 
   async function refreshFolders(paths: string[]) {
     const uniquePaths = Array.from(new Set(paths));
@@ -1054,6 +1104,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // folder listings stale, so reloading the full vault is unnecessary.
     folderFetchTracker.current.generation += 1;
     folderFetchTracker.current.inFlight = new Map();
+    pendingFolderWarmup.current = null;
     uniquePaths.forEach((folderPath) => {
       folderFetchTracker.current.loaded.delete(folderPath);
     });
@@ -1131,6 +1182,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setPreview("");
       return;
     }
+    if (centerMode === "edit" && !muyaEditorReady) {
+      previewRequestSeq.current += 1;
+      setPreview("");
+      return;
+    }
 
     const draft = active.draft;
     const isDraft = active.isDraft;
@@ -1163,7 +1219,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [active?.draft, active?.path, active?.isDraft]);
+  }, [active?.draft, active?.path, active?.isDraft, centerMode, muyaEditorReady]);
 
   // Mode is per-tab: switching Edit/Preview only affects the
   // currently active tab. Other open tabs keep whatever mode the
@@ -2048,6 +2104,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 documentPath={active.isDraft ? undefined : active.path}
                 language={locale === "zh" ? "zh-CN" : "en"}
                 autoFocus={active.isDraft}
+                onReady={handleMuyaEditorReady}
                 onChange={setActiveDraft}
                 onPasteImage={uploadPastedImage}
               />

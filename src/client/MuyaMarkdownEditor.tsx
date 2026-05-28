@@ -35,6 +35,7 @@ interface MuyaMarkdownEditorProps {
   documentPath?: string;
   language: MuyaLocale;
   autoFocus?: boolean;
+  onReady?: () => void;
   onChange: (nextMarkdown: string) => void;
   onPasteImage: (file: File) => Promise<string>;
 }
@@ -335,16 +336,21 @@ function installMuyaFloatTooltips(): () => void {
 }
 
 export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkdownEditorProps>(function MuyaMarkdownEditor(
-  { value, documentPath, language, autoFocus = false, onChange, onPasteImage },
+  { value, documentPath, language, autoFocus = false, onReady, onChange, onPasteImage },
   ref
 ) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const muyaRef = useRef<MuyaWithInsert | null>(null);
+  const onReadyRef = useRef(onReady);
   const onChangeRef = useRef(onChange);
   const onPasteImageRef = useRef(onPasteImage);
   const suppressChangeRef = useRef(false);
   const lastEmittedValueRef = useRef<string | null>(null);
   const renderedValue = useMemo(() => obsidianToMuyaMarkdown(value, documentPath), [documentPath, value]);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -376,6 +382,11 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     muya.init();
     muyaRef.current = muya;
     lastEmittedValueRef.current = value;
+    let readyTimer = 0;
+    let readyFrame = window.requestAnimationFrame(() => {
+      readyFrame = 0;
+      readyTimer = window.setTimeout(() => onReadyRef.current?.(), 0);
+    });
 
     const handleChange = () => {
       if (suppressChangeRef.current) return;
@@ -412,6 +423,8 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     }
 
     return () => {
+      if (readyFrame) window.cancelAnimationFrame(readyFrame);
+      if (readyTimer) window.clearTimeout(readyTimer);
       uninstallFrontButtonNativeMenuDismissal();
       muya.domNode.removeEventListener("paste", handlePasteCapture, true);
       muya.off("json-change", handleChange);
