@@ -119,9 +119,91 @@ const MUYA_FLOAT_TOOLTIP_SELECTOR = [
   ".mu-front-button-wrapper [data-tooltip]"
 ].join(", ");
 
+const MUYA_FRONT_BUTTON_SELECTOR = ".mu-front-button-wrapper, .mu-front-button";
+
 function closestMuyaFloatTooltipTarget(target: EventTarget | null): HTMLElement | null {
   if (!(target instanceof Element)) return null;
   return target.closest(MUYA_FLOAT_TOOLTIP_SELECTOR) as HTMLElement | null;
+}
+
+function targetElement(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Node) return target.parentElement;
+  return null;
+}
+
+function isTouchLikeInteraction(event: Event): boolean {
+  if (event.type.startsWith("touch")) return true;
+  return "pointerType" in event && (event as PointerEvent).pointerType !== "mouse";
+}
+
+function selectionIntersectsNode(root: HTMLElement): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    const range = selection.getRangeAt(index);
+    if (root.contains(range.commonAncestorContainer)) return true;
+    if (range.intersectsNode(root)) return true;
+  }
+
+  return false;
+}
+
+function focusBodyWithoutScroll(): void {
+  const body = document.body;
+  const previousTabIndex = body.getAttribute("tabindex");
+
+  if (previousTabIndex === null) {
+    body.setAttribute("tabindex", "-1");
+  }
+
+  body.focus({ preventScroll: true });
+
+  window.setTimeout(() => {
+    if (previousTabIndex === null) {
+      body.removeAttribute("tabindex");
+    } else {
+      body.setAttribute("tabindex", previousTabIndex);
+    }
+  }, 0);
+}
+
+function dismissNativeSelectionMenuLikeOutsideTap(editorNode: HTMLElement): void {
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement && editorNode.contains(activeElement)) {
+    activeElement.blur();
+  }
+
+  if (selectionIntersectsNode(editorNode)) {
+    window.getSelection()?.removeAllRanges();
+  }
+
+  focusBodyWithoutScroll();
+}
+
+function installMuyaFrontButtonNativeMenuDismissal(muya: Muya): () => void {
+  const editorNode = muya.domNode;
+
+  function isMuyaFrontButton(target: EventTarget | null): boolean {
+    const element = targetElement(target);
+    return Boolean(element?.closest(MUYA_FRONT_BUTTON_SELECTOR));
+  }
+
+  function handleFrontButtonPress(event: Event) {
+    if (!isTouchLikeInteraction(event) || !isMuyaFrontButton(event.target)) return;
+
+    dismissNativeSelectionMenuLikeOutsideTap(editorNode);
+  }
+
+  const touchOptions: AddEventListenerOptions = { capture: true, passive: true };
+  document.addEventListener("pointerdown", handleFrontButtonPress, true);
+  document.addEventListener("touchstart", handleFrontButtonPress, touchOptions);
+
+  return () => {
+    document.removeEventListener("pointerdown", handleFrontButtonPress, true);
+    document.removeEventListener("touchstart", handleFrontButtonPress, touchOptions);
+  };
 }
 
 function installMuyaFloatTooltips(): () => void {
@@ -323,12 +405,14 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
 
     muya.on("json-change", handleChange);
     muya.domNode.addEventListener("paste", handlePasteCapture, true);
+    const uninstallFrontButtonNativeMenuDismissal = installMuyaFrontButtonNativeMenuDismissal(muya);
 
     if (autoFocus) {
       window.setTimeout(() => muya.focus(), 50);
     }
 
     return () => {
+      uninstallFrontButtonNativeMenuDismissal();
       muya.domNode.removeEventListener("paste", handlePasteCapture, true);
       muya.off("json-change", handleChange);
       muya.destroy();
