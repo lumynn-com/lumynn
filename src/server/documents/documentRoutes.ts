@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { UserRecord } from "../store";
-import { backlinksFor, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
+import { backlinksFor, countDocuments, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -81,6 +81,17 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
       aliases: [],
       headings: []
     }));
+  });
+
+  app.get("/api/documents/count", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    try {
+      return { count: await countDocuments(user) };
+    } catch (error) {
+      reply.code(400);
+      return { error: error instanceof Error ? error.message : "Unable to count documents" };
+    }
   });
 
   app.post("/api/documents", async (request, reply) => {

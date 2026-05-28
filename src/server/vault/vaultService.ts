@@ -430,6 +430,12 @@ export async function listDocumentFileStats(user: UserRecord, sort: SortField = 
   });
 }
 
+export async function countDocuments(user: UserRecord): Promise<number> {
+  const vaultRoot = await ensureVault(user);
+  await fs.mkdir(vaultRoot, { recursive: true });
+  return countMarkdownFiles(vaultRoot);
+}
+
 export async function readDocument(user: UserRecord, documentPath: string): Promise<DocumentContent> {
   const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);

@@ -311,6 +311,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     } catch { /* ignore */ }
   }, [zenStorageKey]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [documentCount, setDocumentCount] = useState(0);
   // Lazy-loaded folder children keyed by vault-relative folder path
   // ("" for the vault root). A folder being absent from the map
   // means we haven't loaded its children yet; an empty array means
@@ -1039,11 +1040,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (rootChildren && rootChildren.length > 0) {
       void prefetchFolderTree(rootChildren, nextSort, nextOrder);
     }
-    // /api/documents is still fetched in parallel for the file
-    // count and any feature that needs real metadata. It does not
-    // gate the tree appearing.
-    const docs = await api<DocumentSummary[]>(`/api/documents?sort=${nextSort}&order=${nextOrder}`);
-    setDocuments(docs);
+    // Keep startup cheap: the tree already returns the visible file
+    // rows, and full /api/documents parses + hashes the whole vault.
+    // For the sidebar count, use a lightweight recursive count.
+    const result = await api<{ count: number }>("/api/documents/count");
+    setDocumentCount(result.count);
   }
 
   async function refreshFolders(paths: string[]) {
@@ -1112,9 +1113,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
     api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
       .then((doc) => {
-        // Opening an existing file lands directly in the WYSIWYG editor.
-        // Each tab still tracks its own mode after this.
-        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "edit" }]);
+        // Existing files open in preview mode by default. Newly
+        // created notes and drafts install their tabs before this
+        // effect runs, so they keep their explicit edit mode.
+        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview" }]);
       })
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
@@ -1740,7 +1742,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           <div className="mobile-section-title">
             <strong>{t("vault.title")}</strong>
             <span className="muted">
-              {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
+              {t(documentCount === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documentCount })}
             </span>
           </div>
           <div className="mobile-section-actions">
@@ -1879,7 +1881,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </span>
         </div>
         <p className="vault-meta muted desktop-only" aria-live="polite">
-          {t(documents.length === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documents.length })}
+          {t(documentCount === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documentCount })}
         </p>
         <div
           ref={vaultScrollRef}
