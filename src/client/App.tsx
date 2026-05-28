@@ -243,8 +243,6 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
     refreshSoon();
     const raf = window.requestAnimationFrame(refreshSoon);
     const timers = [100, 350, 800, 1500].map((delay) => window.setTimeout(refreshSoon, delay));
-    const mo = new MutationObserver(refreshSoon);
-    mo.observe(document.body, { childList: true, subtree: true });
     window.addEventListener("resize", setChromeHeights);
     window.addEventListener("orientationchange", refreshSoon);
     window.addEventListener("pageshow", refreshSoon);
@@ -254,7 +252,6 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
     return () => {
       window.cancelAnimationFrame(raf);
       timers.forEach((timer) => window.clearTimeout(timer));
-      mo.disconnect();
       ro.disconnect();
       window.removeEventListener("resize", setChromeHeights);
       window.removeEventListener("orientationchange", refreshSoon);
@@ -263,8 +260,10 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
       window.visualViewport?.removeEventListener("resize", setChromeHeights);
       window.visualViewport?.removeEventListener("scroll", setChromeHeights);
     };
-    // re-run when locale/theme/user/view changes might alter app bar layout
-  }, [theme, locale, props.username, props.role, view]);
+    // Re-run when layout chrome can appear/disappear or change height.
+    // ResizeObserver handles text wrapping after that, so we don't need
+    // to observe the whole document while Muya mutates the editor DOM.
+  }, [theme, locale, props.username, props.role, view, isMobile]);
 
   useEffect(() => {
     document.body.dataset.theme = theme;

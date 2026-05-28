@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { api } from "./api";
 import { AskIcon, BusyLabel, PanelToggleIcon } from "./icons";
@@ -163,7 +163,7 @@ async function runAsk(username: string, question: string): Promise<void> {
   }
 }
 
-export function QaView(props: {
+export const QaView = memo(function QaView(props: {
   compact?: boolean;
   username?: string;
   onOpenSource?: (path: string) => void;
@@ -363,4 +363,4 @@ export function QaView(props: {
       </section>
     </aside>
   );
-}
+});

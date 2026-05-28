@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
@@ -134,6 +134,13 @@ type OpenTab = DocumentContent & {
   // blank preview is useless. Switching modes only affects the
   // active tab.
   mode: "edit" | "preview";
+};
+
+type PreviewSnapshot = {
+  path: string;
+  draft: string;
+  isDraft: boolean;
+  html: string;
 };
 
 const sortStorageKey = "owd_document_sort";
@@ -325,7 +332,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
+  const tabsRef = useRef<OpenTab[]>([]);
+  const activePathRef = useRef("");
   const [preview, setPreview] = useState("");
+  const previewSnapshotRef = useRef<PreviewSnapshot | null>(null);
   const previewRequestSeq = useRef(0);
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
@@ -338,19 +348,25 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchHasRun, setSearchHasRun] = useState(false);
+  useEffect(() => {
+    tabsRef.current = tabs;
+  }, [tabs]);
+  useEffect(() => {
+    activePathRef.current = activePath;
+  }, [activePath]);
   // Tree row context menu (right-click on desktop, long-press on
   // mobile). Position is the viewport coordinate to anchor the
   // menu to; the menu component clamps itself inside the
   // viewport to avoid clipping at the edges.
   type TreeNodeTarget = { type: "file" | "folder"; path: string; name: string };
   const [nodeMenu, setNodeMenu] = useState<{ x: number; y: number; node: TreeNodeTarget } | null>(null);
-  function openNodeMenu(node: TreeNodeTarget, x: number, y: number) {
+  const openNodeMenu = useCallback((node: TreeNodeTarget, x: number, y: number) => {
     haptic(8);
     setNodeMenu({ node, x, y });
-  }
-  function closeNodeMenu() {
+  }, []);
+  const closeNodeMenu = useCallback(() => {
     setNodeMenu(null);
-  }
+  }, []);
 
   // Drop-target tracking. `dragOverPath` is the folder currently
   // hovered with a draggable file/folder; CSS uses it to
@@ -906,7 +922,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setMuyaEditorReady(true);
   }, []);
 
-  async function loadFolderChildren(
+  const loadFolderChildren = useCallback(async function loadFolderChildren(
     folderPath: string,
     options: { force?: boolean; silent?: boolean; sort?: SortField; order?: SortOrder } = {}
   ): Promise<DocumentTreeEntry[] | null> {
@@ -984,14 +1000,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     })();
     tracker.inFlight.set(folderPath, promise);
     return promise;
-  }
+  }, [folderChildren, order, sort]);
 
   // Recursive background prefetch with a small concurrency cap so
   // the foreground UI stays responsive. Yields between batches via
   // requestIdleCallback (falls back to setTimeout) so user
   // interactions get processed first. Cancelled when the
   // generation counter is bumped (refreshDocuments invalidates).
-  async function prefetchFolderTree(rootChildren: DocumentTreeEntry[], nextSort: SortField, nextOrder: SortOrder): Promise<void> {
+  const prefetchFolderTree = useCallback(async function prefetchFolderTree(rootChildren: DocumentTreeEntry[], nextSort: SortField, nextOrder: SortOrder): Promise<void> {
     const tracker = folderFetchTracker.current;
     const generation = tracker.generation;
     const queue: string[] = rootChildren
@@ -1036,7 +1052,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const workers: Promise<void>[] = [];
     for (let i = 0; i < concurrency; i++) workers.push(processOne());
     await Promise.all(workers);
-  }
+  }, [loadFolderChildren]);
 
   async function refreshDocumentCount() {
     const result = await api<{ count: number }>("/api/documents/count");
@@ -1173,6 +1189,33 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
 
+  const requestPreviewHtml = useCallback(
+    async (content: string, path: string, isDraft: boolean | undefined, signal?: AbortSignal): Promise<string> => {
+      const result = await api<{ html: string }>("/api/documents/preview", {
+        method: "POST",
+        signal,
+        body: JSON.stringify({
+          // Don't send a synthetic draft path to the server.
+          path: isDraft ? undefined : path,
+          content
+        })
+      });
+      return result.html;
+    },
+    []
+  );
+
+  function cachedPreviewFor(tab: OpenTab | null): string | null {
+    if (!tab) return null;
+    const cached = previewSnapshotRef.current;
+    if (!cached) return null;
+    return cached.path === tab.path &&
+      cached.draft === tab.draft &&
+      cached.isDraft === Boolean(tab.isDraft)
+      ? cached.html
+      : null;
+  }
+
   // Re-render the preview whenever the draft text or active document
   // changes. We depend on the primitive draft string + path rather than
   // the active object itself so React's identity comparison is stable
@@ -1180,12 +1223,16 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     if (!active) {
       previewRequestSeq.current += 1;
+      previewSnapshotRef.current = null;
       setPreview("");
       return;
     }
-    if (centerMode === "edit" && !muyaEditorReady) {
-      previewRequestSeq.current += 1;
-      setPreview("");
+
+    const cachedHtml = cachedPreviewFor(active);
+    if (cachedHtml) {
+      if (preview !== cachedHtml) {
+        setPreview(cachedHtml);
+      }
       return;
     }
 
@@ -1194,33 +1241,52 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const path = active.path;
     const requestSeq = ++previewRequestSeq.current;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      api<{ html: string }>("/api/documents/preview", {
-        method: "POST",
-        signal: controller.signal,
-        body: JSON.stringify({
-          // Don't send a synthetic draft path to the server.
-          path: isDraft ? undefined : path,
-          content: draft
-        })
-      })
-        .then((result) => {
+    const renderPreview = () => {
+      requestPreviewHtml(draft, path, isDraft, controller.signal)
+        .then((html) => {
           if (requestSeq === previewRequestSeq.current) {
-            setPreview(result.html);
+            previewSnapshotRef.current = { path, draft, isDraft: Boolean(isDraft), html };
+            setPreview(html);
           }
         })
         .catch((error) => {
           if (isAbortError(error)) return;
-          if (requestSeq === previewRequestSeq.current) {
+          if (requestSeq === previewRequestSeq.current && centerMode === "preview") {
+            previewSnapshotRef.current = null;
             setPreview("");
           }
         });
-    }, 250);
+    };
+
+    let idleId: number | null = null;
+    const win = window as typeof window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const timer = window.setTimeout(() => {
+      if (centerMode === "preview" || typeof win.requestIdleCallback !== "function") {
+        renderPreview();
+        return;
+      }
+      idleId = win.requestIdleCallback(renderPreview, { timeout: 1500 });
+    }, centerMode === "preview" ? 250 : 1000);
+
+    if (centerMode === "preview" && preview) {
+      setPreview("");
+    }
+
     return () => {
       window.clearTimeout(timer);
+      if (idleId !== null) {
+        if (typeof win.cancelIdleCallback === "function") {
+          win.cancelIdleCallback(idleId);
+        } else {
+          window.clearTimeout(idleId);
+        }
+      }
       controller.abort();
     };
-  }, [active?.draft, active?.path, active?.isDraft, centerMode, muyaEditorReady]);
+  }, [active?.draft, active?.path, active?.isDraft, centerMode, requestPreviewHtml]);
 
   // Mode is per-tab: switching Edit/Preview only affects the
   // currently active tab. Other open tabs keep whatever mode the
@@ -1235,12 +1301,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, draft: nextDraft } : tab)));
   }
 
-  function closeTab(path: string) {
-    const closed = tabs.find((tab) => tab.path === path);
+  const closeTab = useCallback((path: string) => {
+    const currentTabs = tabsRef.current;
+    const currentActivePath = activePathRef.current;
+    const closed = currentTabs.find((tab) => tab.path === path);
     setTabs((current) => current.filter((tab) => tab.path !== path));
-    const wasActive = activePath === path;
+    const wasActive = currentActivePath === path;
     if (wasActive) {
-      const remaining = tabs.filter((tab) => tab.path !== path);
+      const remaining = currentTabs.filter((tab) => tab.path !== path);
       setActivePath(remaining[remaining.length - 1]?.path ?? "");
     }
     if (closed) {
@@ -1249,7 +1317,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         : `${t("undo.closedPrefix")} ${closed.name}`;
       offerUndo({ kind: "close-tab", tab: closed, wasActive, label });
     }
-  }
+  }, [offerUndo, t]);
 
   // Print the rendered preview of the active document. Uses the
   // browser's native print dialog (so the user can choose AirPrint,
@@ -1257,9 +1325,28 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // hides app chrome and shows just the .print-surface article.
   // Drafts work too because the preview pipeline runs against the
   // draft buffer regardless of save state.
-  function printActive(): void {
+  async function printActive(): Promise<void> {
     if (!active) return;
-    if (!preview) {
+    let html = cachedPreviewFor(active);
+    if (!html) {
+      const requestSeq = ++previewRequestSeq.current;
+      try {
+        html = await requestPreviewHtml(active.draft, active.path, active.isDraft);
+        if (requestSeq === previewRequestSeq.current) {
+          previewSnapshotRef.current = {
+            path: active.path,
+            draft: active.draft,
+            isDraft: Boolean(active.isDraft),
+            html
+          };
+          setPreview(html);
+        }
+      } catch (error) {
+        setStatusText(error instanceof Error ? error.message : "Unable to render preview");
+        return;
+      }
+    }
+    if (!html) {
       setStatusKey("status.printNothing");
       return;
     }
@@ -1273,12 +1360,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     window.addEventListener("afterprint", restore);
     // Defer slightly so the title change makes it into the print
     // dialog (some browsers snapshot title at print() call time).
-    window.setTimeout(() => {
-      window.print();
-      // Safari iOS doesn't always fire afterprint, so restore
-      // proactively after a generous timeout too.
-      window.setTimeout(restore, 6000);
-    }, 30);
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        window.print();
+        // Safari iOS doesn't always fire afterprint, so restore
+        // proactively after a generous timeout too.
+        window.setTimeout(restore, 6000);
+      }, 30);
+    });
   }
 
   // 5-second autosave loop. Stash the latest autosave callback in
@@ -1772,6 +1861,43 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }
 
+  const activateTab = useCallback((path: string) => {
+    setActivePath(path);
+  }, []);
+
+  const toggleQaCollapsed = useCallback(() => {
+    setQaCollapsed((open) => !open);
+  }, []);
+
+  const toggleTreeFolder = useCallback((folderPath: string) => {
+    setExpandedFolders((current) => {
+      const wasExpanded = current[folderPath] ?? false;
+      if (!wasExpanded) {
+        // Lazy-fetch the folder's direct children on first expand.
+        // The fetch is a no-op when already loaded.
+        void loadFolderChildren(folderPath);
+      }
+      return { ...current, [folderPath]: !wasExpanded };
+    });
+    setSelectedFolder(folderPath);
+  }, [loadFolderChildren]);
+
+  const endTreeDrag = useCallback(() => {
+    setDragSource(null);
+    setDragOverPath(null);
+  }, []);
+
+  const markTreeDragOver = useCallback((folderPath: string) => {
+    setDragOverPath(folderPath);
+  }, []);
+
+  const dropTreeNodeOnFolder = useCallback((targetFolder: string) => {
+    const source = dragSource;
+    setDragSource(null);
+    setDragOverPath(null);
+    if (source) void moveNodeIntoFolder(source, targetFolder);
+  }, [dragSource]);
+
   return (
     <main
       className="workspace-grid obsidian-workspace"
@@ -2002,18 +2128,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             selectedPath={activePath}
             selectedFolder={selectedFolder}
             expandedFolders={expandedFolders}
-            onToggleFolder={(folderPath) => {
-              setExpandedFolders((current) => {
-                const wasExpanded = current[folderPath] ?? false;
-                if (!wasExpanded) {
-                  // Lazy-fetch the folder's direct children on first
-                  // expand. The fetch is a no-op when already loaded.
-                  void loadFolderChildren(folderPath);
-                }
-                return { ...current, [folderPath]: !wasExpanded };
-              });
-              setSelectedFolder(folderPath);
-            }}
+            onToggleFolder={toggleTreeFolder}
             loadingFolders={loadingFolders}
             onSelect={openDocument}
             emptyLabel={t("vault.empty")}
@@ -2021,17 +2136,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             dragSource={dragSource}
             dragOverPath={dragOverPath}
             onDragStartNode={setDragSource}
-            onDragEndNode={() => {
-              setDragSource(null);
-              setDragOverPath(null);
-            }}
-            onDragOverFolder={setDragOverPath}
-            onDropOnFolder={(targetFolder) => {
-              const source = dragSource;
-              setDragSource(null);
-              setDragOverPath(null);
-              if (source) void moveNodeIntoFolder(source, targetFolder);
-            }}
+            onDragEndNode={endTreeDrag}
+            onDragOverFolder={markTreeDragOver}
+            onDropOnFolder={dropTreeNodeOnFolder}
           />
         </div>
         {isMobile && vaultScrolled ? (
@@ -2068,12 +2175,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             {tabs.map((tab) => (
               <SwipeableTab
                 key={tab.path}
-                tab={tab}
+                path={tab.path}
+                name={tab.name}
+                isDraft={!!tab.isDraft}
                 active={activePath === tab.path}
                 isMobile={isMobile}
                 closeAriaLabel={t("editor.closeTab", { name: tab.name })}
-                onActivate={() => setActivePath(tab.path)}
-                onClose={() => closeTab(tab.path)}
+                onActivate={activateTab}
+                onClose={closeTab}
               />
             ))}
             <button
@@ -2185,7 +2294,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           username={props.username}
           onOpenSource={openDocument}
           collapsed={!isMobile && qaCollapsed}
-          onToggleCollapsed={!isMobile ? () => setQaCollapsed((open) => !open) : undefined}
+          onToggleCollapsed={!isMobile ? toggleQaCollapsed : undefined}
         />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
@@ -2842,15 +2951,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   );
 }
 
-function SwipeableTab(props: {
-  tab: OpenTab;
+const SwipeableTab = memo(function SwipeableTab(props: {
+  path: string;
+  name: string;
+  isDraft: boolean;
   active: boolean;
   isMobile: boolean;
   closeAriaLabel: string;
-  onActivate: () => void;
-  onClose: () => void;
+  onActivate: (path: string) => void;
+  onClose: (path: string) => void;
 }) {
-  const { tab, active, isMobile, closeAriaLabel, onActivate, onClose } = props;
+  const { path, name, isDraft, active, isMobile, closeAriaLabel, onActivate, onClose } = props;
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const horizontal = useRef(false);
@@ -2918,7 +3029,7 @@ function SwipeableTab(props: {
       haptic(12);
       setClosing(true);
       setDx(-260);
-      window.setTimeout(onClose, 160);
+      window.setTimeout(() => onClose(path), 160);
       return;
     }
     setDx(0);
@@ -2926,16 +3037,16 @@ function SwipeableTab(props: {
 
   return (
     <div
-      className={`editor-tab-shell ${active ? "active" : ""} ${closing ? "closing" : ""} ${tab.isDraft ? "draft" : ""}`}
+      className={`editor-tab-shell ${active ? "active" : ""} ${closing ? "closing" : ""} ${isDraft ? "draft" : ""}`}
       style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx === 0 || closing ? "transform 160ms ease" : "none" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => reset()}
     >
-      <button role="tab" aria-selected={active} className="editor-tab" onClick={onActivate}>
-        <span translate={tab.isDraft ? undefined : "no"}>{tab.name}</span>
-        {tab.isDraft ? null : <span className="tab-path" translate="no">{tab.path}</span>}
+      <button role="tab" aria-selected={active} className="editor-tab" onClick={() => onActivate(path)}>
+        <span translate={isDraft ? undefined : "no"}>{name}</span>
+        {isDraft ? null : <span className="tab-path" translate="no">{path}</span>}
       </button>
       <button
         className="tab-close"
@@ -2943,14 +3054,14 @@ function SwipeableTab(props: {
         aria-label={closeAriaLabel}
         onClick={(event) => {
           event.stopPropagation();
-          onClose();
+          onClose(path);
         }}
       >
         <span aria-hidden="true">{"\u00d7"}</span>
       </button>
     </div>
   );
-}
+});
 
 interface TreeRowExtras {
   // Right-click on desktop, long-press on mobile.
@@ -2971,7 +3082,7 @@ interface TreeRowExtras {
   onDropOnFolder?: (path: string) => void;
 }
 
-function DocumentTree(props: {
+const DocumentTree = memo(function DocumentTree(props: {
   nodes: TreeNode[];
   selectedPath: string;
   selectedFolder: string;
@@ -2994,9 +3105,9 @@ function DocumentTree(props: {
       ))}
     </div>
   );
-}
+});
 
-function TreeNodeRow(props: {
+const TreeNodeRow = memo(function TreeNodeRow(props: {
   node: TreeNode;
   depth: number;
   selectedPath: string;
@@ -3170,7 +3281,7 @@ function TreeNodeRow(props: {
       </span>
     </button>
   );
-}
+});
 
 function CheckMark() {
   return (
