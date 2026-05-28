@@ -232,6 +232,38 @@ function installMuyaFrontButtonNativeMenuDismissal(muya: Muya): () => void {
   };
 }
 
+function installMuyaHistoryShortcuts(muya: Muya): () => void {
+  const editorNode = muya.domNode;
+
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.isComposing || event.altKey) return;
+    if (!(event.metaKey || event.ctrlKey)) return;
+
+    const key = event.key.toLowerCase();
+    const isUndo = key === "z" && !event.shiftKey;
+    const isRedo =
+      (key === "z" && event.shiftKey) ||
+      (key === "y" && event.ctrlKey && !event.metaKey && !event.shiftKey);
+
+    if (!isUndo && !isRedo) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isUndo) {
+      muya.undo();
+    } else {
+      muya.redo();
+    }
+  }
+
+  editorNode.addEventListener("keydown", handleKeyDown, true);
+
+  return () => {
+    editorNode.removeEventListener("keydown", handleKeyDown, true);
+  };
+}
+
 function installMuyaFloatTooltips(): () => void {
   let activeTarget: HTMLElement | null = null;
   let tooltipElement: HTMLDivElement | null = null;
@@ -446,6 +478,7 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     muya.on("json-change", handleChange);
     muya.domNode.addEventListener("paste", handlePasteCapture, true);
     const uninstallFrontButtonNativeMenuDismissal = installMuyaFrontButtonNativeMenuDismissal(muya);
+    const uninstallHistoryShortcuts = installMuyaHistoryShortcuts(muya);
 
     if (autoFocus) {
       window.setTimeout(() => muya.focus(), 50);
@@ -456,6 +489,7 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
       if (readyTimer) window.clearTimeout(readyTimer);
       cancelAdvancedPluginLoad();
       uninstallFrontButtonNativeMenuDismissal();
+      uninstallHistoryShortcuts();
       muya.domNode.removeEventListener("paste", handlePasteCapture, true);
       muya.off("json-change", handleChange);
       muya.destroy();
