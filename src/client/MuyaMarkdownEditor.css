@@ -36,7 +36,7 @@ body .mu-shadow {
    the lazy editor chunk loads so the editor does not change the UI font. */
 html,
 body {
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
   text-rendering: auto;
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
@@ -135,7 +135,7 @@ body .mu-tooltip,
 body .mu-transformer,
 body .mu-shadow {
   color: var(--editor-color);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif) !important;
 }
 
 body .mu-float-wrapper {
