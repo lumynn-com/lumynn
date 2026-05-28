@@ -2026,6 +2026,18 @@ progress::-webkit-progress-bar {
   word-break: break-word;
 }
 
+.preview-surface article a.internal-link {
+  color: var(--md-primary, var(--accent-2));
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.preview-surface article a.internal-link:hover {
+  color: color-mix(in srgb, var(--md-primary, var(--accent-2)) 84%, var(--md-text, var(--text)));
+}
+
 .preview-surface article blockquote,
 .qa-answer blockquote {
   margin: 1rem 0;
@@ -7839,4 +7851,51 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   width: 18px;
   height: 18px;
   color: currentColor;
+}
+
+/* ============================================================
+   30. Markdown heading scale final override.
+
+   Workspace-level h2 rules are meant for panel titles, not
+   rendered Markdown. Keep preview/Q&A headings ordered by their
+   Markdown level after all app typography rules have loaded.
+   ============================================================ */
+.editor-pane .preview-surface article :is(h1, h2, h3, h4, h5, h6),
+.qa-panel .qa-answer :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.35em 0 0.55em !important;
+  color: var(--md-text, var(--text)) !important;
+  font-weight: 650 !important;
+  line-height: 1.24 !important;
+  letter-spacing: 0 !important;
+}
+
+.editor-pane .preview-surface article h1,
+.qa-panel .qa-answer h1 {
+  font-size: 1.74rem !important;
+}
+
+.editor-pane .preview-surface article h2,
+.qa-panel .qa-answer h2 {
+  font-size: 1.5rem !important;
+}
+
+.editor-pane .preview-surface article h3,
+.qa-panel .qa-answer h3 {
+  font-size: 1.22rem !important;
+}
+
+.editor-pane .preview-surface article h4,
+.qa-panel .qa-answer h4 {
+  font-size: 1.1rem !important;
+}
+
+.editor-pane .preview-surface article h5,
+.qa-panel .qa-answer h5 {
+  font-size: 1rem !important;
+}
+
+.editor-pane .preview-surface article h6,
+.qa-panel .qa-answer h6 {
+  color: var(--md-muted, var(--muted)) !important;
+  font-size: 0.94rem !important;
 }

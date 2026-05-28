@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
@@ -1732,6 +1733,45 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setSearchOpen(false);
   }
 
+  function scrollPreviewToHeading(container: HTMLElement, heading: string): boolean {
+    const normalizedHeading = heading.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+    if (!normalizedHeading) return false;
+    const headings = Array.from(container.querySelectorAll<HTMLElement>("article :is(h1, h2, h3, h4, h5, h6)"));
+    const match = headings.find((candidate) => candidate.textContent?.trim().replace(/\s+/g, " ").toLocaleLowerCase() === normalizedHeading);
+    if (!match) return false;
+    match.scrollIntoView({ block: "start", behavior: "smooth" });
+    return true;
+  }
+
+  async function openPreviewInternalLink(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest("a.internal-link");
+    if (!(anchor instanceof HTMLAnchorElement) || !event.currentTarget.contains(anchor)) return;
+
+    const rawTarget = anchor.getAttribute("title")?.trim() || anchor.textContent?.trim();
+    if (!rawTarget) return;
+
+    event.preventDefault();
+    if (rawTarget.startsWith("#")) {
+      const opened = scrollPreviewToHeading(event.currentTarget, rawTarget.slice(1));
+      if (!opened) setStatusText(`Heading not found: ${rawTarget.slice(1)}`);
+      return;
+    }
+
+    const params = new URLSearchParams({ target: rawTarget });
+    if (active && !active.isDraft) {
+      params.set("base", active.path);
+    }
+
+    try {
+      const resolved = await api<{ path: string }>(`/api/documents/resolve-link?${params.toString()}`);
+      openDocument(resolved.path);
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : "Unable to open document link");
+    }
+  }
+
   return (
     <main
       className="workspace-grid obsidian-workspace"
@@ -2112,7 +2152,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </div>
         ) : null}
         {active && centerMode === "preview" ? (
-          <div className="preview-surface">
+          <div className="preview-surface" onClick={openPreviewInternalLink}>
             {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">{t("editor.previewEmpty")}</div>}
           </div>
         ) : null}

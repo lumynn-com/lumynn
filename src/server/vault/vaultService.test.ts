@@ -34,6 +34,7 @@ test("renderPreview supports common Obsidian markdown", async () => {
   );
 
   assert.match(html, /class="internal-link"/);
+  assert.match(html, /title="Project Notes"/);
   assert.match(html, />project<\/a>/);
   assert.match(html, /<mark>important<\/mark>/);
   assert.doesNotMatch(html, /hidden comment/);
@@ -48,6 +49,14 @@ test("renderPreview supports standard Markdown blockquotes", async () => {
   assert.match(html, /<blockquote>/);
   assert.match(html, /<p>quoted text<\/p>/);
   assert.match(html, /<\/blockquote>/);
+});
+
+test("renderPreview supports Obsidian heading-only links", async () => {
+  const html = await renderPreview("# Jump Target\n\n[[#Jump Target|go there]]");
+
+  assert.match(html, /class="internal-link internal-heading-link"/);
+  assert.match(html, /title="#Jump Target"/);
+  assert.match(html, />go there<\/a>/);
 });
 
 test("renderPreview supports Obsidian math syntax", async () => {

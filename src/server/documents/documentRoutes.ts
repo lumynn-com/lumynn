@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { UserRecord } from "../store";
-import { backlinksFor, countDocuments, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
+import { backlinksFor, countDocuments, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, resolveDocumentLink, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -91,6 +91,18 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
     } catch (error) {
       reply.code(400);
       return { error: error instanceof Error ? error.message : "Unable to count documents" };
+    }
+  });
+
+  app.get("/api/documents/resolve-link", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const query = z.object({ target: z.string().min(1).max(1024), base: z.string().min(1).max(1024).optional() }).parse(request.query);
+    try {
+      return await resolveDocumentLink(user, query.target, query.base);
+    } catch (error) {
+      reply.code(404);
+      return { error: error instanceof Error ? error.message : "Unable to resolve document link" };
     }
   });
 

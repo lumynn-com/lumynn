@@ -436,6 +436,47 @@ export async function countDocuments(user: UserRecord): Promise<number> {
   return countMarkdownFiles(vaultRoot);
 }
 
+export async function resolveDocumentLink(user: UserRecord, target: string, basePath?: string): Promise<{ path: string }> {
+  const vaultRoot = await ensureVault(user);
+  const cleanTarget = target.split("#")[0].trim();
+  if (!cleanTarget) {
+    throw new Error("Invalid document link");
+  }
+
+  const exactPath = normalizeDocumentPath(cleanTarget);
+  const exactFullPath = resolveInVault(vaultRoot, exactPath);
+  if (await fs.stat(exactFullPath).then((stat) => stat.isFile()).catch(() => false)) {
+    return { path: exactPath };
+  }
+
+  if (!cleanTarget.includes("/") && basePath) {
+    const baseFolder = path.posix.dirname(normalizeDocumentPath(basePath));
+    const relativePath = normalizeDocumentPath(baseFolder === "." ? cleanTarget : `${baseFolder}/${cleanTarget}`);
+    const relativeFullPath = resolveInVault(vaultRoot, relativePath);
+    if (await fs.stat(relativeFullPath).then((stat) => stat.isFile()).catch(() => false)) {
+      return { path: relativePath };
+    }
+  }
+
+  const paths = await walkMarkdown(vaultRoot);
+  const exactLower = exactPath.toLocaleLowerCase();
+  const caseInsensitiveExact = paths.find((documentPath) => documentPath.toLocaleLowerCase() === exactLower);
+  if (caseInsensitiveExact) {
+    return { path: caseInsensitiveExact };
+  }
+
+  if (cleanTarget.includes("/")) {
+    throw new Error(`Document link not found: ${target}`);
+  }
+
+  const targetName = path.posix.basename(exactPath).toLocaleLowerCase();
+  const match = paths.find((documentPath) => path.posix.basename(documentPath).toLocaleLowerCase() === targetName);
+  if (!match) {
+    throw new Error(`Document link not found: ${target}`);
+  }
+  return { path: match };
+}
+
 export async function readDocument(user: UserRecord, documentPath: string): Promise<DocumentContent> {
   const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
@@ -990,6 +1031,11 @@ function transformObsidianSyntaxSegment(input: string, basePath?: string): strin
   return withObsidianEmbeds
     .replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)\s]+)(?:\s+"[^"]*")?\)/gi, (_match, rawAlt: string, rawPath: string) => {
       return `![${rawAlt}](${mediaUrl(rawPath, basePath)})`;
+    })
+    .replace(/\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, rawHeading: string, rawAlias: string | undefined) => {
+      const heading = rawHeading.trim();
+      const label = rawAlias?.trim() || heading;
+      return `<a class="internal-link internal-heading-link" href="#" title="#${escapeHtml(heading)}">${escapeHtml(label)}</a>`;
     })
     .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawTarget: string, rawAlias: string | undefined) => {
       const target = rawTarget.trim();
