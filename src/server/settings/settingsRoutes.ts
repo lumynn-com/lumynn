@@ -6,7 +6,7 @@ import { config } from "../config";
 import { redactSecret } from "../crypto";
 import { requireAdmin } from "../auth/authService";
 import { store, type UserRecord } from "../store";
-import { validateVaultPath } from "../vault/vaultService";
+import { invalidateVaultValidationCache, validateVaultPath } from "../vault/vaultService";
 import { endpointUrl } from "../rag/embeddingProvider";
 
 const providerSchema = z.object({
@@ -278,6 +278,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
       allowPlainMarkdownFolder: body.allowPlainMarkdownFolder,
       validation
     };
+    invalidateVaultValidationCache(user.username);
     await store.save();
     return buildUserSettings(user);
   });

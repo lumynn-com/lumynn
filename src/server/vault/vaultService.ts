@@ -1,4 +1,4 @@
-import { constants as fsConstants } from "node:fs";
+import { constants as fsConstants, type Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import hljs from "highlight.js";
@@ -11,6 +11,8 @@ import { backlinksWithObsidianCli, searchWithObsidianCli } from "../obsidian/obs
 import { store, type UserRecord } from "../store";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
+
+type ParsedMarkdown = ReturnType<typeof parseMarkdown>;
 
 const supportedMediaTypes: Record<string, string> = {
   ".apng": "image/apng",
@@ -95,6 +97,39 @@ export async function validateVaultPath(vaultPath: string): Promise<VaultValidat
   };
 }
 
+const VAULT_VALIDATION_TTL_MS = 30_000;
+const VAULT_VALIDATION_FAILURE_TTL_MS = 3_000;
+const vaultValidationCache = new Map<string, { validation: VaultValidation; resolvedPath: string; expiresAt: number }>();
+
+function vaultValidationCacheKey(user: UserRecord, resolvedPath: string): string {
+  return `${user.username}\0${resolvedPath}`;
+}
+
+function sameVaultValidation(a: VaultValidation | undefined, b: VaultValidation): boolean {
+  if (!a) return false;
+  return a.ok === b.ok &&
+    a.exists === b.exists &&
+    a.readable === b.readable &&
+    a.writable === b.writable &&
+    a.insideAllowedRoot === b.insideAllowedRoot &&
+    a.hasObsidianConfig === b.hasObsidianConfig &&
+    a.message === b.message;
+}
+
+export function invalidateVaultValidationCache(username?: string): void {
+  if (!username) {
+    vaultValidationCache.clear();
+    return;
+  }
+
+  const prefix = `${username}\0`;
+  for (const key of vaultValidationCache.keys()) {
+    if (key.startsWith(prefix)) {
+      vaultValidationCache.delete(key);
+    }
+  }
+}
+
 // Per-user: validate the user's configured vault path and return
 // its absolute form. Persists the latest validation result on the
 // user record so the Settings UI can show the current status. A
@@ -103,13 +138,33 @@ async function ensureVault(user: UserRecord): Promise<string> {
   if (!user.vault.path?.trim()) {
     throw new Error("Vault path is not configured. Open Settings → Vault to set it.");
   }
-  const validation = await validateVaultPath(user.vault.path);
+  const resolvedPath = path.resolve(user.vault.path);
+  const cacheKey = vaultValidationCacheKey(user, resolvedPath);
+  const cached = vaultValidationCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    user.vault.validation = cached.validation;
+    if (!cached.validation.ok) {
+      throw new Error(cached.validation.message);
+    }
+    return cached.resolvedPath;
+  }
+
+  const validation = await validateVaultPath(resolvedPath);
+  const now = Date.now();
+  vaultValidationCache.set(cacheKey, {
+    validation,
+    resolvedPath,
+    expiresAt: now + (validation.ok ? VAULT_VALIDATION_TTL_MS : VAULT_VALIDATION_FAILURE_TTL_MS)
+  });
+  const validationChanged = !sameVaultValidation(user.vault.validation, validation);
   user.vault.validation = validation;
-  await store.save();
+  if (validationChanged) {
+    await store.save();
+  }
   if (!validation.ok) {
     throw new Error(validation.message);
   }
-  return path.resolve(user.vault.path);
+  return resolvedPath;
 }
 
 function resolveInVault(vaultRoot: string, documentPath: string): string {
@@ -311,21 +366,27 @@ async function walkFiles(root: string, dir = root): Promise<string[]> {
   return nested.flat();
 }
 
-async function summarize(user: UserRecord, vaultRoot: string, documentPath: string): Promise<DocumentSummary> {
-  const fullPath = resolveInVault(vaultRoot, documentPath);
-  // Read mtime first so we can short-circuit on the cached metadata
-  // without paying the cost of fs.readFile + parseMarkdown + sha256
-  // for documents that haven't changed since we last summarized them.
-  const stat = await fs.stat(fullPath);
+interface SummaryResult {
+  summary: DocumentSummary;
+  metadataChanged: boolean;
+}
+
+function cachedSummary(user: UserRecord, documentPath: string, stat: Stats): SummaryResult | null {
   const name = path.basename(documentPath);
   const updatedAt = stat.mtime.toISOString();
   const cached = user.metadataByPath[documentPath];
-  if (cached && cached.updatedAt === updatedAt) {
-    const createdAt = user.createdAtByPath[documentPath] ?? cached.createdAt ?? stat.birthtime.toISOString();
-    if (!user.createdAtByPath[documentPath]) {
-      user.createdAtByPath[documentPath] = createdAt;
-    }
-    return {
+  if (!cached || cached.updatedAt !== updatedAt) {
+    return null;
+  }
+
+  const createdAt = user.createdAtByPath[documentPath] ?? cached.createdAt ?? stat.birthtime.toISOString();
+  const metadataChanged = !user.createdAtByPath[documentPath];
+  if (metadataChanged) {
+    user.createdAtByPath[documentPath] = createdAt;
+  }
+
+  return {
+    summary: {
       path: documentPath,
       name,
       title: cached.title,
@@ -335,12 +396,20 @@ async function summarize(user: UserRecord, vaultRoot: string, documentPath: stri
       tags: cached.tags,
       aliases: cached.aliases,
       headings: cached.headings
-    };
-  }
+    },
+    metadataChanged
+  };
+}
 
-  // Cache miss or stale: fall through to the full read + parse + hash.
-  const content = await fs.readFile(fullPath, "utf8");
-  const parsed = parseMarkdown(content, name);
+function summarizeParsedContent(
+  user: UserRecord,
+  documentPath: string,
+  stat: Stats,
+  content: string,
+  parsed: ParsedMarkdown
+): SummaryResult {
+  const name = path.basename(documentPath);
+  const updatedAt = stat.mtime.toISOString();
   const createdAt = user.createdAtByPath[documentPath] ?? stat.birthtime.toISOString();
   user.createdAtByPath[documentPath] = createdAt;
   const hash = sha256(content);
@@ -359,16 +428,34 @@ async function summarize(user: UserRecord, vaultRoot: string, documentPath: stri
   };
 
   return {
-    path: documentPath,
-    name,
-    title: parsed.title,
-    createdAt,
-    updatedAt,
-    hash,
-    tags: parsed.tags,
-    aliases: parsed.aliases,
-    headings: parsed.headings
+    summary: {
+      path: documentPath,
+      name,
+      title: parsed.title,
+      createdAt,
+      updatedAt,
+      hash,
+      tags: parsed.tags,
+      aliases: parsed.aliases,
+      headings: parsed.headings
+    },
+    metadataChanged: true
   };
+}
+
+async function summarize(user: UserRecord, vaultRoot: string, documentPath: string): Promise<SummaryResult> {
+  const fullPath = resolveInVault(vaultRoot, documentPath);
+  // Read mtime first so we can short-circuit on the cached metadata
+  // without paying the cost of fs.readFile + parseMarkdown + sha256
+  // for documents that haven't changed since we last summarized them.
+  const stat = await fs.stat(fullPath);
+  const cached = cachedSummary(user, documentPath, stat);
+  if (cached) return cached;
+
+  // Cache miss or stale: fall through to the full read + parse + hash.
+  const content = await fs.readFile(fullPath, "utf8");
+  const parsed = parseMarkdown(content, path.basename(documentPath));
+  return summarizeParsedContent(user, documentPath, stat, content, parsed);
 }
 
 export async function listDocuments(user: UserRecord, sort: SortField = "name", order: SortOrder = "asc"): Promise<DocumentSummary[]> {
@@ -376,24 +463,11 @@ export async function listDocuments(user: UserRecord, sort: SortField = "name", 
   await fs.mkdir(vaultRoot, { recursive: true });
   const paths = await walkMarkdown(vaultRoot);
 
-  // Snapshot the cache size before we summarize; if no fresh
-  // metadata was added (i.e. every document was cache-hit) we can
-  // skip the JSON store rewrite, saving an unconditional disk write
-  // on every list request.
-  const cachedBefore = Object.keys(user.metadataByPath).length;
-  const cacheStampsBefore = new Map(
-    Object.entries(user.metadataByPath).map(([key, value]) => [key, value.cachedAt])
-  );
-
-  const summaries = await Promise.all(paths.map((docPath) => summarize(user, vaultRoot, docPath)));
-
-  const cachedAfter = Object.keys(user.metadataByPath).length;
-  const changed =
-    cachedAfter !== cachedBefore ||
-    Array.from(cacheStampsBefore.entries()).some(([key, stamp]) => user.metadataByPath[key]?.cachedAt !== stamp);
-  if (changed) {
+  const results = await Promise.all(paths.map((docPath) => summarize(user, vaultRoot, docPath)));
+  if (results.some((result) => result.metadataChanged)) {
     await store.save();
   }
+  const summaries = results.map((result) => result.summary);
 
   const factor = order === "asc" ? 1 : -1;
   return summaries.sort((a, b) => {
@@ -481,12 +555,15 @@ export async function readDocument(user: UserRecord, documentPath: string): Prom
   const vaultRoot = await ensureVault(user);
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = resolveInVault(vaultRoot, safePath);
+  const stat = await fs.stat(fullPath);
   const content = await fs.readFile(fullPath, "utf8");
-  const summary = await summarize(user, vaultRoot, safePath);
-  const parsed = parseMarkdown(content, summary.name);
-  await store.save();
+  const parsed = parseMarkdown(content, path.basename(safePath));
+  const result = cachedSummary(user, safePath, stat) ?? summarizeParsedContent(user, safePath, stat, content, parsed);
+  if (result.metadataChanged) {
+    await store.save();
+  }
   return {
-    ...summary,
+    ...result.summary,
     content,
     frontmatter: parsed.frontmatter,
     links: parsed.links
