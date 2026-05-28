@@ -7,6 +7,7 @@ import { useLocale } from "./i18n";
 import type { UserRole } from "../shared/types";
 
 type View = "workspace" | "indexing" | "settings";
+type Theme = "dark" | "light";
 
 interface AuthState {
   authenticated: boolean;
@@ -19,6 +20,13 @@ export function App() {
   const [auth, setAuth] = useState<AuthState>({ authenticated: false, username: null, role: null, needsSetup: false });
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("owd_theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     api<AuthState>("/api/auth/me")
@@ -72,6 +80,8 @@ export function App() {
     <Workspace
       username={auth.username ?? ""}
       role={auth.role ?? "user"}
+      theme={theme}
+      onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
       onLogout={() => setAuth({ authenticated: false, username: null, role: null, needsSetup: false })}
     />
   );
@@ -140,10 +150,9 @@ function LoginPage(props: {
   );
 }
 
-function Workspace(props: { username: string; role: UserRole; onLogout: () => void }) {
+function Workspace(props: { username: string; role: UserRole; theme: Theme; onToggleTheme: () => void; onLogout: () => void }) {
   const { t, locale, setLocale } = useLocale();
   const [view, setView] = useState<View>("workspace");
-  const [theme, setTheme] = useState<"dark" | "light">(() => (localStorage.getItem("owd_theme") === "light" ? "light" : "dark"));
   const [settingsMounted, setSettingsMounted] = useState(false);
   const [indexingMounted, setIndexingMounted] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -263,13 +272,7 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
     // Re-run when layout chrome can appear/disappear or change height.
     // ResizeObserver handles text wrapping after that, so we don't need
     // to observe the whole document while Muya mutates the editor DOM.
-  }, [theme, locale, props.username, props.role, view, isMobile]);
-
-  useEffect(() => {
-    document.body.dataset.theme = theme;
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("owd_theme", theme);
-  }, [theme]);
+  }, [props.theme, locale, props.username, props.role, view, isMobile]);
 
   async function logout() {
     if (loggingOut) return;
@@ -295,12 +298,12 @@ function Workspace(props: { username: string; role: UserRole; onLogout: () => vo
         <div hidden={view !== "workspace"} style={{ display: view === "workspace" ? undefined : "none" }}>
           <DocumentsView
             currentView={view}
-            theme={theme}
+            theme={props.theme}
             loggingOut={loggingOut}
             username={props.username}
             role={props.role}
             onSwitchView={setView}
-            onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onToggleTheme={props.onToggleTheme}
             onLogout={logout}
           />
         </div>
