@@ -334,8 +334,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [tabs, setTabs] = useState<OpenTab[]>([]);
   const tabsRef = useRef<OpenTab[]>([]);
   const activePathRef = useRef("");
-  const [preview, setPreview] = useState("");
-  const previewSnapshotRef = useRef<PreviewSnapshot | null>(null);
+  const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
+  const previewCacheRef = useRef<Map<string, PreviewSnapshot>>(new Map());
   const previewRequestSeq = useRef(0);
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
@@ -1205,9 +1205,30 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     []
   );
 
+  function previewCacheKey(path: string, isDraft?: boolean): string {
+    return `${isDraft ? "draft" : "doc"}:${path}`;
+  }
+
+  function rememberPreviewSnapshot(snapshot: PreviewSnapshot): void {
+    previewCacheRef.current.set(previewCacheKey(snapshot.path, snapshot.isDraft), snapshot);
+  }
+
+  function showPreviewSnapshot(snapshot: PreviewSnapshot): void {
+    rememberPreviewSnapshot(snapshot);
+    setPreviewSnapshot(snapshot);
+  }
+
+  function clearVisiblePreview(): void {
+    setPreviewSnapshot(null);
+  }
+
+  function forgetPreviewSnapshot(path: string, isDraft?: boolean): void {
+    previewCacheRef.current.delete(previewCacheKey(path, isDraft));
+  }
+
   function cachedPreviewFor(tab: OpenTab | null): string | null {
     if (!tab) return null;
-    const cached = previewSnapshotRef.current;
+    const cached = previewCacheRef.current.get(previewCacheKey(tab.path, Boolean(tab.isDraft)));
     if (!cached) return null;
     return cached.path === tab.path &&
       cached.draft === tab.draft &&
@@ -1223,16 +1244,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     if (!active) {
       previewRequestSeq.current += 1;
-      previewSnapshotRef.current = null;
-      setPreview("");
+      clearVisiblePreview();
       return;
     }
 
     const cachedHtml = cachedPreviewFor(active);
     if (cachedHtml) {
-      if (preview !== cachedHtml) {
-        setPreview(cachedHtml);
-      }
+      setPreviewSnapshot({
+        path: active.path,
+        draft: active.draft,
+        isDraft: Boolean(active.isDraft),
+        html: cachedHtml
+      });
       return;
     }
 
@@ -1245,15 +1268,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       requestPreviewHtml(draft, path, isDraft, controller.signal)
         .then((html) => {
           if (requestSeq === previewRequestSeq.current) {
-            previewSnapshotRef.current = { path, draft, isDraft: Boolean(isDraft), html };
-            setPreview(html);
+            showPreviewSnapshot({ path, draft, isDraft: Boolean(isDraft), html });
           }
         })
         .catch((error) => {
           if (isAbortError(error)) return;
           if (requestSeq === previewRequestSeq.current && centerMode === "preview") {
-            previewSnapshotRef.current = null;
-            setPreview("");
+            forgetPreviewSnapshot(path, Boolean(isDraft));
+            clearVisiblePreview();
           }
         });
     };
@@ -1271,8 +1293,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       idleId = win.requestIdleCallback(renderPreview, { timeout: 1500 });
     }, centerMode === "preview" ? 250 : 1000);
 
-    if (centerMode === "preview" && preview) {
-      setPreview("");
+    if (centerMode === "preview") {
+      clearVisiblePreview();
     }
 
     return () => {
@@ -1333,13 +1355,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       try {
         html = await requestPreviewHtml(active.draft, active.path, active.isDraft);
         if (requestSeq === previewRequestSeq.current) {
-          previewSnapshotRef.current = {
+          showPreviewSnapshot({
             path: active.path,
             draft: active.draft,
             isDraft: Boolean(active.isDraft),
             html
-          };
-          setPreview(html);
+          });
         }
       } catch (error) {
         setStatusText(error instanceof Error ? error.message : "Unable to render preview");
@@ -1898,6 +1919,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (source) void moveNodeIntoFolder(source, targetFolder);
   }, [dragSource]);
 
+  const activePreview =
+    active &&
+    previewSnapshot?.path === active.path &&
+    previewSnapshot.draft === active.draft &&
+    previewSnapshot.isDraft === Boolean(active.isDraft)
+      ? previewSnapshot.html
+      : cachedPreviewFor(active) ?? "";
+
   return (
     <main
       className="workspace-grid obsidian-workspace"
@@ -2262,7 +2291,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         ) : null}
         {active && centerMode === "preview" ? (
           <div className="preview-surface" onClick={openPreviewInternalLink}>
-            {preview ? <article dangerouslySetInnerHTML={{ __html: preview }} /> : <div className="empty-state">{t("editor.previewEmpty")}</div>}
+            {activePreview ? <article dangerouslySetInnerHTML={{ __html: activePreview }} /> : <div className="empty-state">{t("editor.previewEmpty")}</div>}
           </div>
         ) : null}
         {!active ? (
@@ -2276,9 +2305,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             window.print() so the user can print directly from edit
             mode without flipping to preview first. Hidden in normal
             screen rendering and revealed by the @media print rules. */}
-        {active && preview ? (
+        {active && activePreview ? (
           <div className="print-surface" aria-hidden="true">
-            <article dangerouslySetInnerHTML={{ __html: preview }} />
+            <article dangerouslySetInnerHTML={{ __html: activePreview }} />
           </div>
         ) : null}
       </section>
