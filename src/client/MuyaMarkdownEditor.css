@@ -190,12 +190,12 @@ body .mu-front-button-wrapper :where(button, input, select, textarea) {
   body .mu-float-wrapper.mu-table-column-tools-container,
   body .mu-float-wrapper.mu-table-drag-container,
   body .mu-float-wrapper.mu-table-bar-tools {
-    --owd-muya-float-bg: #25242a;
-    --owd-muya-float-hover: rgba(238, 236, 244, 0.10);
-    --owd-muya-float-border: rgba(238, 236, 244, 0.28);
-    --owd-muya-float-icon: #f0eef5;
-    --owd-muya-float-text: #ebe9f0;
-    --owd-muya-float-muted: rgba(235, 233, 240, 0.68);
+    --owd-muya-float-bg: #18121f;
+    --owd-muya-float-hover: rgba(203, 198, 212, 0.10);
+    --owd-muya-float-border: rgba(169, 154, 189, 0.24);
+    --owd-muya-float-icon: #d4cedd;
+    --owd-muya-float-text: #d4cedd;
+    --owd-muya-float-muted: rgba(212, 206, 221, 0.66);
     --float-bg-color: var(--owd-muya-float-bg);
     --float-hover-color: var(--owd-muya-float-hover);
     --float-border-color: var(--owd-muya-float-border);
@@ -203,10 +203,10 @@ body .mu-front-button-wrapper :where(button, input, select, textarea) {
     --editor-color-80: var(--owd-muya-float-text);
     --editor-color-50: var(--owd-muya-float-muted);
     --editor-color-30: var(--owd-muya-float-border);
-    --editor-color-10: rgba(238, 236, 244, 0.14);
-    --editor-color-04: rgba(238, 236, 244, 0.08);
+    --editor-color-10: rgba(169, 154, 189, 0.14);
+    --editor-color-04: rgba(169, 154, 189, 0.08);
     --icon-color: var(--owd-muya-float-icon);
-    --theme-color: #b8d6ff;
+    --theme-color: #a99abd;
     --delete-color: var(--md-danger, #f0aaa3);
   }
 

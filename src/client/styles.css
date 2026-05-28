@@ -7545,46 +7545,46 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 }
 
 /* ============================================================
-   24. Warm sand / soft charcoal theme tint.
+   24. Warm sand / low-luminance black-purple theme tint.
 
    Palette-only override. Font, layout, tabs, menus, radii, and
    flat component behavior stay unchanged.
    ============================================================ */
 :root {
-  --bg: #080809;
-  --bg-soft: #0c0c0e;
-  --panel: #0c0c0e;
-  --panel-strong: #121214;
-  --border: rgba(210, 210, 214, 0.055);
-  --border-strong: rgba(210, 210, 214, 0.105);
-  --text: #cdccd2;
-  --muted: #828187;
-  --accent: #9a98a1;
-  --accent-2: #c5c3ca;
-  --surface-hover: rgba(210, 210, 214, 0.032);
-  --surface-selected: rgba(210, 210, 214, 0.06);
-  --md-bg: #080809;
-  --md-surface: #0c0c0e;
-  --md-surface-2: #121214;
-  --md-surface-3: #19191d;
-  --md-outline-soft: rgba(210, 210, 214, 0.055);
-  --md-outline: rgba(210, 210, 214, 0.105);
-  --md-text: #cdccd2;
-  --md-muted: #828187;
-  --md-primary: #c5c3ca;
-  --md-primary-container: rgba(210, 210, 214, 0.045);
-  --md-on-primary: #080809;
+  --bg: #07060a;
+  --bg-soft: #0c0911;
+  --panel: #0c0911;
+  --panel-strong: #120e19;
+  --border: rgba(177, 160, 205, 0.06);
+  --border-strong: rgba(177, 160, 205, 0.11);
+  --text: #cbc6d4;
+  --muted: #898195;
+  --accent: #76668d;
+  --accent-2: #a99abd;
+  --surface-hover: rgba(169, 154, 189, 0.032);
+  --surface-selected: rgba(169, 154, 189, 0.06);
+  --md-bg: #07060a;
+  --md-surface: #0c0911;
+  --md-surface-2: #120e19;
+  --md-surface-3: #1b1424;
+  --md-outline-soft: rgba(177, 160, 205, 0.06);
+  --md-outline: rgba(177, 160, 205, 0.11);
+  --md-text: #cbc6d4;
+  --md-muted: #898195;
+  --md-primary: #a99abd;
+  --md-primary-container: rgba(169, 154, 189, 0.055);
+  --md-on-primary: #07060a;
   --md-danger: #f0aaa3;
-  --md-success: #a6caa9;
+  --md-success: #a6c2a8;
   --owd-minimal-canvas: var(--md-bg);
   --owd-minimal-surface: var(--md-surface);
   --owd-minimal-subtle: var(--md-surface-2);
   --owd-minimal-divider: var(--md-outline-soft);
   --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(210, 210, 214, 0.032);
+  --owd-minimal-hover: rgba(169, 154, 189, 0.032);
   --owd-minimal-danger-bg: rgba(240, 170, 163, 0.11);
-  --owd-minimal-success-bg: rgba(166, 202, 169, 0.11);
-  --owd-editor-focus-bg: #19191d;
+  --owd-minimal-success-bg: rgba(166, 194, 168, 0.11);
+  --owd-editor-focus-bg: #1b1424;
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
   --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.30);
 }
