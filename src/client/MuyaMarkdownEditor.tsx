@@ -1,25 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import {
-  CodeBlockLanguageSelector,
-  EmojiSelector,
-  en,
-  FootnoteTool,
-  ImageEditTool,
-  ImageResizeBar,
-  ImageToolBar,
-  InlineFormatToolbar,
-  LinkTools,
-  Muya,
-  ParagraphFrontButton,
-  ParagraphFrontMenu,
-  ParagraphQuickInsertMenu,
-  PreviewToolBar,
-  TableColumnToolbar,
-  TableDragBar,
-  TableRowColumMenu,
-  zhCN
-} from "./vendor/muya";
-import type { IMuyaOptions } from "./vendor/muya";
+import { Muya, type IMuyaPluginConstructor } from "./vendor/muya/muya";
+import type { IMuyaOptions } from "./vendor/muya/types";
+import { en } from "./vendor/muya/locales/en";
+import { zhCN } from "./vendor/muya/locales/zh-CN";
+import { InlineFormatToolbar } from "./vendor/muya/ui/inlineFormatToolbar";
+import LinkTools from "./vendor/muya/ui/linkTools";
+import { ParagraphFrontButton } from "./vendor/muya/ui/paragraphFrontButton";
+import { ParagraphFrontMenu } from "./vendor/muya/ui/paragraphFrontMenu";
+import { ParagraphQuickInsertMenu } from "./vendor/muya/ui/paragraphQuickInsertMenu";
 import { muyaToObsidianMarkdown, obsidianToMuyaMarkdown } from "./obsidianEmbeds";
 
 import "./MuyaMarkdownEditor.css";
@@ -49,35 +37,72 @@ const LOCALES = {
   "zh-CN": zhCN
 } as const;
 
-let pluginsRegistered = false;
+let corePluginsRegistered = false;
+let advancedPluginsPromise: Promise<IMuyaPluginConstructor[]> | null = null;
 
-function ensureMuyaPlugins(): void {
-  if (pluginsRegistered) return;
-  pluginsRegistered = true;
+const linkToolsOptions = {
+  jumpClick: (linkInfo: { href?: string } | null) => {
+    const href = linkInfo?.href;
+    if (href && /^https?:\/\//.test(href)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
+  }
+};
+
+function ensureMuyaCorePlugins(): void {
+  if (corePluginsRegistered) return;
+  corePluginsRegistered = true;
   const usePlugin = Muya.use.bind(Muya) as (plugin: unknown, options?: Record<string, unknown>) => void;
 
-  usePlugin(EmojiSelector);
-  usePlugin(FootnoteTool);
   usePlugin(InlineFormatToolbar);
-  usePlugin(ImageEditTool);
-  usePlugin(ImageToolBar);
-  usePlugin(ImageResizeBar);
-  usePlugin(CodeBlockLanguageSelector);
-  usePlugin(LinkTools, {
-    jumpClick: (linkInfo: { href?: string } | null) => {
-      const href = linkInfo?.href;
-      if (href && /^https?:\/\//.test(href)) {
-        window.open(href, "_blank", "noopener,noreferrer");
-      }
-    }
-  });
+  usePlugin(LinkTools, linkToolsOptions);
   usePlugin(ParagraphFrontButton);
   usePlugin(ParagraphFrontMenu);
   usePlugin(ParagraphQuickInsertMenu);
-  usePlugin(TableColumnToolbar);
-  usePlugin(TableDragBar);
-  usePlugin(TableRowColumMenu);
-  usePlugin(PreviewToolBar);
+}
+
+function loadAdvancedMuyaPlugins(): Promise<IMuyaPluginConstructor[]> {
+  advancedPluginsPromise ??= import("./muyaAdvancedPlugins").then((module) => module.advancedMuyaPlugins);
+  return advancedPluginsPromise;
+}
+
+function scheduleAdvancedMuyaPlugins(muya: Muya, isCurrent: () => boolean): () => void {
+  const win = window as typeof window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+  let canceled = false;
+  let idleId: number | null = null;
+  let timerId: number | null = null;
+
+  const installPlugins = () => {
+    if (canceled || !isCurrent()) return;
+
+    void loadAdvancedMuyaPlugins()
+      .then((plugins) => {
+        if (canceled || !isCurrent()) return;
+        plugins.forEach((Plugin) => muya.usePlugin(Plugin));
+      })
+      .catch((error) => {
+        console.warn("Failed to load Muya advanced plugins", error);
+      });
+  };
+
+  if (typeof win.requestIdleCallback === "function") {
+    idleId = win.requestIdleCallback(installPlugins, { timeout: 1200 });
+  } else {
+    timerId = window.setTimeout(installPlugins, 120);
+  }
+
+  return () => {
+    canceled = true;
+    if (idleId !== null && typeof win.cancelIdleCallback === "function") {
+      win.cancelIdleCallback(idleId);
+    }
+    if (timerId !== null) {
+      window.clearTimeout(timerId);
+    }
+  };
 }
 
 function createMuyaOptions(markdown: string): Partial<IMuyaOptions> {
@@ -372,7 +397,7 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     const host = hostRef.current;
     if (!host) return;
 
-    ensureMuyaPlugins();
+    ensureMuyaCorePlugins();
     const mount = document.createElement("div");
     mount.className = "muya-editor-host";
     host.replaceChildren(mount);
@@ -383,9 +408,13 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     muyaRef.current = muya;
     lastEmittedValueRef.current = value;
     let readyTimer = 0;
+    let cancelAdvancedPluginLoad = () => {};
     let readyFrame = window.requestAnimationFrame(() => {
       readyFrame = 0;
-      readyTimer = window.setTimeout(() => onReadyRef.current?.(), 0);
+      readyTimer = window.setTimeout(() => {
+        onReadyRef.current?.();
+        cancelAdvancedPluginLoad = scheduleAdvancedMuyaPlugins(muya, () => muyaRef.current === muya);
+      }, 0);
     });
 
     const handleChange = () => {
@@ -425,6 +454,7 @@ export const MuyaMarkdownEditor = forwardRef<MuyaMarkdownEditorHandle, MuyaMarkd
     return () => {
       if (readyFrame) window.cancelAnimationFrame(readyFrame);
       if (readyTimer) window.clearTimeout(readyTimer);
+      cancelAdvancedPluginLoad();
       uninstallFrontButtonNativeMenuDismissal();
       muya.domNode.removeEventListener("paste", handlePasteCapture, true);
       muya.off("json-change", handleChange);

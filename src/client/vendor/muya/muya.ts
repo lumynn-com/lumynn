@@ -82,8 +82,19 @@ export class Muya {
         // UI plugins
         if (Muya.plugins.length) {
             for (const { plugin: Plugin, options: opts } of Muya.plugins)
-                this._uiPlugins[Plugin.pluginName] = new Plugin(this, opts);
+                this.usePlugin(Plugin, opts);
         }
+    }
+
+    usePlugin(plugin: IMuyaPluginConstructor, options: Record<string, unknown> = {}) {
+        const existingPlugin = this._uiPlugins[plugin.pluginName];
+        if (existingPlugin)
+            return existingPlugin;
+
+        const pluginInstance = new plugin(this, options);
+        this._uiPlugins[plugin.pluginName] = pluginInstance;
+
+        return pluginInstance;
     }
 
     locale(object: ILocale) {
@@ -201,6 +212,13 @@ export class Muya {
         // Hide all float tools.
         if (this.ui)
             this.ui.hideAllFloatTools();
+
+        for (const plugin of Object.values(this._uiPlugins)) {
+            const destroy = (plugin as { destroy?: unknown }).destroy;
+            if (typeof destroy === 'function')
+                destroy.call(plugin);
+        }
+        this._uiPlugins = {};
     }
 }
 
