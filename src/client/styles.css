@@ -5459,6 +5459,24 @@ body[data-theme="light"] .hljs-addition { color: #22863a; background: rgba(220, 
     text-align: left;
   }
 
+  .editor-command-menu {
+    width: min(248px, calc(100vw - 16px));
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.25rem;
+  }
+
+  .editor-command-menu button {
+    min-height: 34px;
+    padding: 0.38rem 0.58rem;
+    white-space: nowrap;
+  }
+
+  .editor-command-menu hr {
+    margin: 0.15rem 0;
+  }
+
   /* Save sits at the top of the overflow menu and reads as the
      primary action: tinted background, accent label, and a
      keyboard-shortcut hint pinned right. */

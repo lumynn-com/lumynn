@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
 import { api } from "./api";
@@ -413,6 +413,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [saving, setSaving] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
+  const [commandMenuAnchor, setCommandMenuAnchor] = useState<{ x: number; y: number } | null>(null);
   // Desktop settings / indexing are now rendered as overlay
   // modals on top of the workspace instead of replacing the
   // entire main content. That way the user can dismiss the
@@ -420,6 +421,22 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // a navigation step. Mobile keeps using full-view switching
   // because a tiny screen makes a centered modal unusable.
   const [settingsModalMode, setSettingsModalMode] = useState<SettingsModalMode | null>(null);
+
+  function closeCommandMenu() {
+    setCommandSheetOpen(false);
+    setCommandMenuAnchor(null);
+  }
+
+  function openCommandMenu(event: ReactMouseEvent<HTMLButtonElement>) {
+    if (isMobile) {
+      setCommandMenuAnchor(null);
+    } else {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setCommandMenuAnchor({ x: rect.right, y: rect.bottom + 6 });
+    }
+    setCommandSheetOpen(true);
+  }
+
   // Desktop side-panel collapse state. Both panels can be tucked
   // away into 44px rails so the editor takes the full width.
   // Persisted in localStorage so the layout survives reloads. The
@@ -459,13 +476,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
-  // Close any open mobile-only menus when leaving mobile. The sort
-  // sheet is now shared with desktop so it stays open across the
-  // breakpoint flip; the command sheet remains mobile-only.
+  // Close transient menus when the viewport crosses the mobile
+  // breakpoint. The sort sheet is shared with desktop so it stays
+  // open across the flip; the command menu changes presentation.
   useEffect(() => {
-    if (!isMobile) {
-      setCommandSheetOpen(false);
-    }
+    setCommandSheetOpen(false);
+    setCommandMenuAnchor(null);
   }, [isMobile]);
 
   // Whenever the layout flips to mobile, drop the desktop-only
@@ -591,7 +607,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     if (!commandSheetOpen) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setCommandSheetOpen(false);
+      if (event.key === "Escape") closeCommandMenu();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -1976,7 +1992,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             aria-label={t("editor.moreActions")}
             aria-expanded={commandSheetOpen}
             aria-haspopup="menu"
-            onClick={() => setCommandSheetOpen(true)}
+            onClick={openCommandMenu}
           >
             <MoreIcon />
           </button>
@@ -2259,7 +2275,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               aria-expanded={commandSheetOpen}
               aria-label={t("editor.moreActions")}
               title={t("editor.moreActions")}
-              onClick={() => setCommandSheetOpen(true)}
+              onClick={openCommandMenu}
             >
               <MoreIcon />
             </button>
@@ -2625,8 +2641,161 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           }}
         />
       ) : null}
-      {commandSheetOpen ? (
-        <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={() => setCommandSheetOpen(false)}>
+      {commandSheetOpen && !isMobile && commandMenuAnchor ? (
+        <AnchoredMenu
+          x={commandMenuAnchor.x}
+          y={commandMenuAnchor.y}
+          align="right"
+          className="editor-command-menu"
+          ariaLabel={t("editor.moreActions")}
+          onClose={closeCommandMenu}
+        >
+          {active ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeCommandMenu();
+                  setActiveMode(centerMode === "edit" ? "preview" : "edit");
+                }}
+              >
+                {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
+                <span>{centerMode === "edit" ? t("editor.modePreview") : t("editor.modeEdit")}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!dirty || saving}
+                onClick={() => {
+                  closeCommandMenu();
+                  save();
+                }}
+              >
+                <SaveIcon />
+                <span>{t("editor.save")}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeCommandMenu();
+                  printActive();
+                }}
+              >
+                <PrintIcon />
+                <span>{t("editor.print")}</span>
+              </button>
+              {!active.isDraft ? (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeCommandMenu();
+                      if (active) openRename({ type: "file", path: active.path, name: active.name });
+                    }}
+                  >
+                    <PencilIcon />
+                    <span>{t("editor.rename")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      closeCommandMenu();
+                      if (active) openMove({ type: "file", path: active.path, name: active.name });
+                    }}
+                  >
+                    <FolderPlusIcon />
+                    <span>{t("editor.move")}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="danger"
+                    onClick={() => {
+                      closeCommandMenu();
+                      if (active) openDelete({ type: "file", path: active.path, name: active.name });
+                    }}
+                  >
+                    <TrashIcon />
+                    <span>{t("editor.delete")}</span>
+                  </button>
+                </>
+              ) : null}
+              <hr />
+            </>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeCommandMenu();
+              setSettingsModalMode("indexing");
+            }}
+          >
+            <IndexingIcon />
+            <span>{t("nav.indexing")}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeCommandMenu();
+              setSettingsModalMode("settings");
+            }}
+          >
+            <SettingsIcon />
+            <span>{t("nav.settings")}</span>
+          </button>
+          <hr />
+          {props.onToggleTheme ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                closeCommandMenu();
+                props.onToggleTheme!();
+              }}
+            >
+              {props.theme === "dark" ? <SunIcon /> : <MoonIcon />}
+              <span>{props.theme === "dark" ? t("topbar.themeLight") : t("topbar.themeDark")}</span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              const next = locale === "en" ? "zh" : "en";
+              closeCommandMenu();
+              setLocale(next);
+            }}
+          >
+            <GlobeIcon />
+            <span>{locale === "en" ? "\u4e2d\u6587" : "English"}</span>
+          </button>
+          {props.onLogout ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="danger"
+              disabled={props.loggingOut}
+              onClick={() => {
+                closeCommandMenu();
+                props.onLogout!();
+              }}
+            >
+              <LogoutIcon />
+              <span>
+                <BusyLabel busy={!!props.loggingOut} busyText={t("topbar.logoutBusy")}>{t("topbar.logout")}</BusyLabel>
+              </span>
+            </button>
+          ) : null}
+        </AnchoredMenu>
+      ) : null}
+      {commandSheetOpen && isMobile ? (
+        <div className="modal-backdrop sheet-backdrop" role="presentation" onMouseDown={closeCommandMenu}>
           <section
             className="action-sheet panel"
             role="dialog"
@@ -3317,6 +3486,75 @@ function CheckMark() {
     <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <path d="M5 12l5 5 9-11" />
     </svg>
+  );
+}
+
+function AnchoredMenu(props: {
+  x: number;
+  y: number;
+  align?: "left" | "right";
+  className?: string;
+  ariaLabel: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const { x, y, align = "left", className, ariaLabel, onClose, children } = props;
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState({ x, y, ready: false });
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const pad = 8;
+    const desiredX = align === "right" ? x - rect.width : x;
+    const maxX = Math.max(pad, window.innerWidth - rect.width - pad);
+    const maxY = Math.max(pad, window.innerHeight - rect.height - pad);
+    setPos({
+      x: Math.max(pad, Math.min(desiredX, maxX)),
+      y: Math.max(pad, Math.min(y, maxY)),
+      ready: true
+    });
+  }, [align, x, y]);
+
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        onClose();
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    function onScroll() {
+      onClose();
+    }
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className={`tree-context-menu anchored-menu${className ? ` ${className}` : ""}`}
+      role="menu"
+      aria-label={ariaLabel}
+      style={{
+        position: "fixed",
+        left: pos.x,
+        top: pos.y,
+        visibility: pos.ready ? "visible" : "hidden",
+        zIndex: 60
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
