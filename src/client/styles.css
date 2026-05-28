@@ -7899,3 +7899,234 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   color: var(--md-muted, var(--muted)) !important;
   font-size: 0.94rem !important;
 }
+
+/* ============================================================
+   31. Tonal flat state layer.
+
+   Keep the interface flat: no new cards, shadows, gradients, or
+   rounded containers. Interactive state gets a low-opacity tonal
+   surface so selected/hovered rows are easier to scan.
+   ============================================================ */
+:root {
+  --owd-tonal-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 7%, transparent);
+  --owd-tonal-hover-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 11%, transparent);
+  --owd-tonal-selected: color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent);
+  --owd-tonal-selected-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 15%, transparent);
+  --owd-tonal-rail: color-mix(in srgb, var(--md-primary, var(--accent-2)) 72%, var(--md-text, var(--text)) 28%);
+  --owd-tonal-ink: color-mix(in srgb, var(--md-text, var(--text)) 82%, var(--md-primary, var(--accent-2)) 18%);
+}
+
+:root[data-theme="light"] {
+  --owd-tonal-hover: rgba(90, 73, 43, 0.055);
+  --owd-tonal-hover-strong: rgba(90, 73, 43, 0.085);
+  --owd-tonal-selected: rgba(90, 73, 43, 0.095);
+  --owd-tonal-selected-strong: rgba(90, 73, 43, 0.13);
+  --owd-tonal-rail: #5a492b;
+  --owd-tonal-ink: #302b22;
+}
+
+.tree-row:hover,
+:root[data-theme="light"] .tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled),
+.search-result:hover,
+.search-result:focus-visible,
+.action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+  background: var(--owd-tonal-hover) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.tree-row:focus-visible,
+.folder-picker-label:focus-visible,
+.citation-source:focus-visible,
+.settings-nav button:focus-visible,
+.action-sheet-group button:focus-visible {
+  background: var(--owd-tonal-hover-strong) !important;
+  outline: 1px solid var(--owd-minimal-divider-strong, var(--md-outline)) !important;
+  outline-offset: -1px;
+}
+
+.tree-row.selected,
+.file-row.selected,
+.folder-row.selected,
+.doc-item.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: var(--owd-tonal-selected) !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--owd-tonal-rail) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.tree-row.folder-row.drop-target {
+  background: var(--owd-tonal-selected-strong) !important;
+  outline-color: var(--owd-tonal-rail) !important;
+}
+
+.file-row.selected .tree-file-name,
+.folder-row.selected .tree-label,
+.folder-picker-row.selected .folder-picker-name {
+  color: var(--owd-tonal-ink) !important;
+}
+
+.pane-expand-toggle:hover:not(:disabled),
+.pane-expand-toggle:focus-visible,
+.pane-collapse-toggle:hover:not(:disabled),
+.pane-collapse-toggle:focus-visible,
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible,
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
+.mobile-section-actions .icon-button:hover:not(:disabled),
+.mobile-section-actions .icon-button:focus-visible {
+  color: var(--owd-tonal-ink) !important;
+}
+
+/* ============================================================
+   32. Shared Markdown document theme.
+
+   Preview, Q&A answers, and Muya editor content now share the
+   same document tokens. This only normalizes rendered Markdown
+   surfaces; app font and tab/menu structure stay untouched.
+   ============================================================ */
+:root {
+  --owd-doc-text: var(--md-text, var(--text));
+  --owd-doc-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-doc-heading: color-mix(in srgb, var(--md-text, var(--text)) 92%, var(--md-primary, var(--accent-2)) 8%);
+  --owd-doc-link: color-mix(in srgb, var(--md-primary, var(--accent-2)) 84%, var(--md-text, var(--text)) 16%);
+  --owd-doc-border: var(--owd-minimal-divider, var(--md-outline-soft));
+  --owd-doc-border-strong: var(--owd-minimal-divider-strong, var(--md-outline));
+  --owd-doc-subtle: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 84%, transparent);
+  --owd-doc-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 88%, var(--md-primary, var(--accent-2)) 4%);
+  --owd-doc-inline-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
+  --owd-doc-quote-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 44%, transparent);
+  --owd-doc-table-head-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
+  --owd-doc-table-row-alt: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 38%, transparent);
+}
+
+:root[data-theme="light"] {
+  --owd-doc-muted: #756c5b;
+  --owd-doc-heading: #302b22;
+  --owd-doc-link: #5a492b;
+  --owd-doc-subtle: rgba(240, 227, 200, 0.64);
+  --owd-doc-code-bg: rgba(240, 227, 200, 0.72);
+  --owd-doc-inline-code-bg: rgba(240, 227, 200, 0.52);
+  --owd-doc-quote-bg: rgba(240, 227, 200, 0.34);
+  --owd-doc-table-head-bg: rgba(240, 227, 200, 0.58);
+  --owd-doc-table-row-alt: rgba(240, 227, 200, 0.28);
+}
+
+.editor-pane .preview-surface article,
+.qa-panel .qa-answer {
+  color: var(--owd-doc-text) !important;
+}
+
+.editor-pane .preview-surface article :where(h1, h2, h3, h4, h5),
+.qa-panel .qa-answer :where(h1, h2, h3, h4, h5) {
+  color: var(--owd-doc-heading) !important;
+}
+
+.editor-pane .preview-surface article h6,
+.qa-panel .qa-answer h6 {
+  color: var(--owd-doc-muted) !important;
+}
+
+.editor-pane .preview-surface article :where(p, li, td, th),
+.qa-panel .qa-answer :where(p, li, td, th) {
+  color: var(--owd-doc-text) !important;
+}
+
+.editor-pane .preview-surface article :where(a, a.internal-link),
+.qa-panel .qa-answer :where(a, a.internal-link) {
+  color: var(--owd-doc-link) !important;
+  text-decoration-color: color-mix(in srgb, currentcolor 38%, transparent) !important;
+  text-decoration-thickness: 1px !important;
+  text-underline-offset: 0.18em !important;
+}
+
+.editor-pane .preview-surface article :where(a, a.internal-link):hover,
+.qa-panel .qa-answer :where(a, a.internal-link):hover {
+  color: color-mix(in srgb, var(--owd-doc-link) 78%, var(--owd-doc-text) 22%) !important;
+  text-decoration-color: currentcolor !important;
+}
+
+.editor-pane .preview-surface article blockquote,
+.qa-panel .qa-answer blockquote {
+  border-left: 2px solid var(--owd-doc-border-strong) !important;
+  background: var(--owd-doc-quote-bg) !important;
+  color: var(--owd-doc-muted) !important;
+}
+
+.editor-pane .preview-surface article code,
+.qa-panel .qa-answer code {
+  border: 1px solid var(--owd-doc-border) !important;
+  border-radius: 3px !important;
+  background: var(--owd-doc-inline-code-bg) !important;
+  color: var(--owd-doc-text) !important;
+}
+
+.editor-pane .preview-surface article :where(pre, pre.hljs),
+.qa-panel .qa-answer :where(pre, pre.hljs) {
+  border: 1px solid var(--owd-doc-border) !important;
+  border-radius: 0 !important;
+  background: var(--owd-doc-code-bg) !important;
+  box-shadow: none !important;
+  color: var(--owd-doc-text) !important;
+}
+
+.editor-pane .preview-surface article :where(pre, pre.hljs) code,
+.qa-panel .qa-answer :where(pre, pre.hljs) code {
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.editor-pane .preview-surface article table,
+.qa-panel .qa-answer table {
+  border-color: var(--owd-doc-border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.editor-pane .preview-surface article table thead,
+.qa-panel .qa-answer table thead {
+  background: var(--owd-doc-table-head-bg) !important;
+}
+
+.editor-pane .preview-surface article table :where(th, td),
+.qa-panel .qa-answer table :where(th, td) {
+  border-color: var(--owd-doc-border) !important;
+}
+
+.editor-pane .preview-surface article table tbody tr:nth-child(even),
+.qa-panel .qa-answer table tbody tr:nth-child(even) {
+  background: var(--owd-doc-table-row-alt) !important;
+}
+
+.editor-pane .preview-surface article table tbody tr:hover,
+.qa-panel .qa-answer table tbody tr:hover {
+  background: var(--owd-tonal-hover) !important;
+}
+
+.editor-pane .preview-surface article li:has(input[type="checkbox"]),
+.qa-panel .qa-answer li:has(input[type="checkbox"]) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0.1rem 0 !important;
+}
+
+.editor-pane .preview-surface article input[type="checkbox"],
+.qa-panel .qa-answer input[type="checkbox"] {
+  accent-color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.editor-pane .preview-surface article img,
+.qa-panel .qa-answer img {
+  border: 1px solid var(--owd-doc-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}

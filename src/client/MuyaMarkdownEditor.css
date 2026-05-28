@@ -6,8 +6,15 @@ body .mu-transformer,
 body .mu-shadow {
   --owd-muya-surface: var(--owd-minimal-surface, var(--md-surface));
   --owd-muya-surface-subtle: var(--owd-minimal-subtle, var(--md-surface-2));
-  --owd-muya-text: var(--md-text, var(--text));
-  --owd-muya-muted: var(--md-muted, var(--muted));
+  --owd-muya-text: var(--owd-doc-text, var(--md-text, var(--text)));
+  --owd-muya-muted: var(--owd-doc-muted, var(--md-muted, var(--muted)));
+  --owd-muya-heading: var(--owd-doc-heading, var(--md-text, var(--text)));
+  --owd-muya-link: var(--owd-doc-link, var(--md-primary, var(--accent-2)));
+  --owd-muya-code-bg: var(--owd-doc-code-bg, var(--owd-muya-surface-subtle));
+  --owd-muya-inline-code-bg: var(--owd-doc-inline-code-bg, var(--owd-muya-surface-subtle));
+  --owd-muya-quote-bg: var(--owd-doc-quote-bg, transparent);
+  --owd-muya-table-head-bg: var(--owd-doc-table-head-bg, var(--owd-muya-surface-subtle));
+  --owd-muya-table-row-alt: var(--owd-doc-table-row-alt, transparent);
   --owd-muya-divider: var(--owd-minimal-divider, var(--md-outline-soft));
   --owd-muya-divider-strong: var(--owd-minimal-divider-strong, var(--md-outline));
   --editor-color: var(--owd-muya-text);
@@ -18,9 +25,9 @@ body .mu-shadow {
   --editor-color-04: color-mix(in srgb, var(--owd-muya-muted) 8%, transparent);
   --editor-bg-color: var(--owd-muya-surface);
   --icon-color: var(--owd-muya-muted);
-  --code-block-bg-color: var(--owd-muya-surface-subtle);
+  --code-block-bg-color: var(--owd-muya-code-bg);
   --table-border-color: var(--owd-muya-divider);
-  --input-bg-color: var(--owd-muya-surface-subtle);
+  --input-bg-color: var(--owd-muya-inline-code-bg);
   --button-font-color: var(--owd-muya-text);
   --button-bg-color: var(--owd-muya-surface);
   --button-border: 1px solid var(--owd-muya-divider);
@@ -61,7 +68,7 @@ body {
   padding: 1.45rem 1.6rem;
   overflow: auto;
   background: var(--owd-minimal-surface, var(--md-surface)) !important;
-  color: var(--md-text, var(--text)) !important;
+  color: var(--owd-muya-text) !important;
   font-family: inherit !important;
   font-size: 16px;
   line-height: 1.65;
@@ -89,27 +96,50 @@ body {
 }
 
 .muya-editor-shell :where(.mu-heading, h1, h2, h3, h4, h5, h6) {
-  color: var(--md-text, var(--text));
+  color: var(--owd-muya-heading);
   letter-spacing: 0;
 }
 
 .muya-editor-shell :where(.mu-paragraph, .mu-list-item, .mu-block-quote, .mu-table) {
-  color: var(--md-text, var(--text));
+  color: var(--owd-muya-text);
+}
+
+.muya-editor-shell :where(a) {
+  color: var(--owd-muya-link);
+  text-decoration-color: color-mix(in srgb, currentcolor 38%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 .muya-editor-shell :where(.mu-block-quote) {
-  border-left-color: var(--owd-minimal-divider-strong, var(--md-outline));
-  color: var(--md-muted, var(--muted));
+  border-left: 2px solid var(--owd-muya-divider-strong);
+  background: var(--owd-muya-quote-bg);
+  color: var(--owd-muya-muted);
 }
 
 .muya-editor-shell :where(.mu-code-block, .mu-html-block, .mu-math-block) {
-  background: var(--owd-minimal-subtle, var(--md-surface-2));
-  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  background: var(--owd-muya-code-bg);
+  border: 1px solid var(--owd-muya-divider);
   border-radius: 0;
 }
 
-.muya-editor-shell :where(.mu-table table, .mu-table td, .mu-table th) {
-  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+.muya-editor-shell :where(.mu-table table) {
+  background: transparent;
+  border-color: var(--owd-muya-divider);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.muya-editor-shell :where(.mu-table td, .mu-table th) {
+  border-color: var(--owd-muya-divider);
+}
+
+.muya-editor-shell :where(.mu-table th) {
+  background: var(--owd-muya-table-head-bg);
+}
+
+.muya-editor-shell :where(.mu-table tr:nth-child(even)) {
+  background: var(--owd-muya-table-row-alt);
 }
 
 .muya-editor-shell :where(.mu-inline-image img) {
