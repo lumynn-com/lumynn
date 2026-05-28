@@ -42,6 +42,14 @@ test("renderPreview supports common Obsidian markdown", async () => {
   assert.match(html, /width="320"/);
 });
 
+test("renderPreview supports standard Markdown blockquotes", async () => {
+  const html = await renderPreview("> quoted text");
+
+  assert.match(html, /<blockquote>/);
+  assert.match(html, /<p>quoted text<\/p>/);
+  assert.match(html, /<\/blockquote>/);
+});
+
 test("renderPreview supports Obsidian math syntax", async () => {
   const html = await renderPreview("Inline $\\angle ABC = 90^\\circ$ and $\\square + \\dots$.\n\n$$\na^2 + b^2 = c^2\n$$\n\n`$\\angle$ stays code`");
 

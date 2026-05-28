@@ -2026,6 +2026,25 @@ progress::-webkit-progress-bar {
   word-break: break-word;
 }
 
+.preview-surface article blockquote,
+.qa-answer blockquote {
+  margin: 1rem 0;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 46%, var(--border));
+  color: var(--muted);
+  background: transparent;
+}
+
+.preview-surface article blockquote > :first-child,
+.qa-answer blockquote > :first-child {
+  margin-top: 0;
+}
+
+.preview-surface article blockquote > :last-child,
+.qa-answer blockquote > :last-child {
+  margin-bottom: 0;
+}
+
 .preview-surface article li:has(input[type="checkbox"]) {
   position: relative;
   display: flex;
