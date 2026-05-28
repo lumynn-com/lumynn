@@ -3,8 +3,8 @@
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0d1117;
-  color: #e6edf3;
+  background: #121212;
+  color: #e0e0e0;
 }
 
 * {
@@ -21,7 +21,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(111, 66, 193, 0.28), transparent 32rem),
     radial-gradient(circle at bottom right, rgba(47, 129, 247, 0.18), transparent 30rem),
-    #0d1117;
+    #121212;
 }
 
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
@@ -7557,48 +7557,50 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 }
 
 /* ============================================================
-   24. Warm sand / low-luminance black-purple theme tint.
+   24. Material dark gray theme tint.
 
    Palette-only override. Font, layout, tabs, menus, radii, and
    flat component behavior stay unchanged.
    ============================================================ */
 :root {
-  --bg: #07060a;
-  --bg-soft: #0c0911;
-  --panel: #0c0911;
-  --panel-strong: #120e19;
-  --border: rgba(177, 160, 205, 0.06);
-  --border-strong: rgba(177, 160, 205, 0.11);
-  --text: #cbc6d4;
-  --muted: #898195;
-  --accent: #76668d;
-  --accent-2: #a99abd;
-  --surface-hover: rgba(169, 154, 189, 0.032);
-  --surface-selected: rgba(169, 154, 189, 0.06);
-  --md-bg: #07060a;
-  --md-surface: #0c0911;
-  --md-surface-2: #120e19;
-  --md-surface-3: #1b1424;
-  --md-outline-soft: rgba(177, 160, 205, 0.06);
-  --md-outline: rgba(177, 160, 205, 0.11);
-  --md-text: #cbc6d4;
-  --md-muted: #898195;
-  --md-primary: #a99abd;
-  --md-primary-container: rgba(169, 154, 189, 0.055);
-  --md-on-primary: #07060a;
-  --md-danger: #f0aaa3;
-  --md-success: #a6c2a8;
+  --bg: #121212;
+  --bg-soft: #1e1e1e;
+  --panel: #1e1e1e;
+  --panel-strong: #242424;
+  --border: rgba(224, 224, 224, 0.10);
+  --border-strong: rgba(224, 224, 224, 0.18);
+  --text: #e0e0e0;
+  --muted: #a8a8a8;
+  --accent: #bb86fc;
+  --accent-2: #80cbc4;
+  --surface-hover: rgba(187, 134, 252, 0.08);
+  --surface-selected: rgba(128, 203, 196, 0.12);
+  --md-bg: #121212;
+  --md-surface: #1e1e1e;
+  --md-surface-2: #242424;
+  --md-surface-3: #2a2a2a;
+  --md-outline-soft: rgba(224, 224, 224, 0.10);
+  --md-outline: rgba(224, 224, 224, 0.18);
+  --md-text: #e0e0e0;
+  --md-muted: #a8a8a8;
+  --md-primary: #bb86fc;
+  --md-primary-container: rgba(187, 134, 252, 0.13);
+  --md-on-primary: #121212;
+  --md-secondary: #80cbc4;
+  --md-on-secondary: #121212;
+  --md-danger: #cf6679;
+  --md-success: #80cbc4;
   --owd-minimal-canvas: var(--md-bg);
   --owd-minimal-surface: var(--md-surface);
   --owd-minimal-subtle: var(--md-surface-2);
   --owd-minimal-divider: var(--md-outline-soft);
   --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(169, 154, 189, 0.032);
-  --owd-minimal-danger-bg: rgba(240, 170, 163, 0.11);
-  --owd-minimal-success-bg: rgba(166, 194, 168, 0.11);
-  --owd-editor-focus-bg: #1b1424;
+  --owd-minimal-hover: rgba(187, 134, 252, 0.08);
+  --owd-minimal-danger-bg: rgba(207, 102, 121, 0.12);
+  --owd-minimal-success-bg: rgba(128, 203, 196, 0.12);
+  --owd-editor-focus-bg: #242424;
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.30);
+  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36);
 }
 
 :root[data-theme="light"] {
@@ -7995,7 +7997,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   --owd-doc-text: var(--md-text, var(--text));
   --owd-doc-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
   --owd-doc-heading: color-mix(in srgb, var(--md-text, var(--text)) 92%, var(--md-primary, var(--accent-2)) 8%);
-  --owd-doc-link: color-mix(in srgb, var(--md-primary, var(--accent-2)) 84%, var(--md-text, var(--text)) 16%);
+  --owd-doc-link: color-mix(in srgb, var(--accent-2, var(--md-primary)) 88%, var(--md-text, var(--text)) 12%);
   --owd-doc-border: var(--owd-minimal-divider, var(--md-outline-soft));
   --owd-doc-border-strong: var(--owd-minimal-divider-strong, var(--md-outline));
   --owd-doc-subtle: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 84%, transparent);
