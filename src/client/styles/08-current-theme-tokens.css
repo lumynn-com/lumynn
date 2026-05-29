@@ -1,0 +1,164 @@
+/* ============================================================
+   Current theme tokens.
+
+   This is the canonical source for the active light/dark palette.
+   Older partials still define compatibility tokens, but this file
+   is imported after them and maps those legacy names to the current
+   design-token values.
+   ============================================================ */
+:root {
+  --owd-theme-bg: #121212;
+  --owd-theme-bg-soft: #1e1e1e;
+  --owd-theme-surface: #1e1e1e;
+  --owd-theme-surface-strong: #242424;
+  --owd-theme-surface-2: #242424;
+  --owd-theme-surface-3: #2a2a2a;
+  --owd-theme-legacy-border-soft: rgba(224, 224, 224, 0.10);
+  --owd-theme-legacy-border: rgba(224, 224, 224, 0.18);
+  --owd-theme-outline-soft: rgba(224, 224, 224, 0.10);
+  --owd-theme-outline: rgba(224, 224, 224, 0.18);
+  --owd-theme-text: #e0e0e0;
+  --owd-theme-muted: #a8a8a8;
+  --owd-theme-accent: #bb86fc;
+  --owd-theme-accent-secondary: #80cbc4;
+  --owd-theme-md-primary: #bb86fc;
+  --owd-theme-md-secondary: #80cbc4;
+  --owd-theme-primary-container: rgba(187, 134, 252, 0.13);
+  --owd-theme-on-primary: #121212;
+  --owd-theme-on-secondary: #121212;
+  --owd-theme-danger: #cf6679;
+  --owd-theme-success: #80cbc4;
+  --owd-theme-state-hover: rgba(187, 134, 252, 0.08);
+  --owd-theme-state-selected: rgba(128, 203, 196, 0.12);
+  --owd-theme-danger-bg: rgba(207, 102, 121, 0.12);
+  --owd-theme-success-bg: rgba(128, 203, 196, 0.12);
+  --owd-theme-editor-focus-bg: #242424;
+  --owd-theme-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36);
+}
+
+:root[data-theme="light"] {
+  --owd-theme-bg: #f4f1ea;
+  --owd-theme-bg-soft: #eae4d9;
+  --owd-theme-surface: #f7f4ec;
+  --owd-theme-surface-strong: #faf7f1;
+  --owd-theme-surface-2: #eae4d9;
+  --owd-theme-surface-3: #ded6c7;
+  --owd-theme-legacy-border-soft: rgba(80, 67, 48, 0.13);
+  --owd-theme-legacy-border: rgba(80, 67, 48, 0.22);
+  --owd-theme-outline-soft: #ddd4c5;
+  --owd-theme-outline: #cfc3b3;
+  --owd-theme-text: #1c1c1c;
+  --owd-theme-muted: #706e6b;
+  --owd-theme-accent: #800020;
+  --owd-theme-accent-secondary: #2e4f4f;
+  --owd-theme-md-primary: #2e4f4f;
+  --owd-theme-md-secondary: #800020;
+  --owd-theme-primary-container: rgba(46, 79, 79, 0.13);
+  --owd-theme-on-primary: #f4f1ea;
+  --owd-theme-on-secondary: #f4f1ea;
+  --owd-theme-danger: #9f2f2d;
+  --owd-theme-success: #346538;
+  --owd-theme-state-hover: rgba(46, 79, 79, 0.06);
+  --owd-theme-state-selected: rgba(46, 79, 79, 0.11);
+  --owd-theme-danger-bg: #f1ddd7;
+  --owd-theme-success-bg: #e2eadc;
+  --owd-theme-editor-focus-bg: #fbf8f1;
+  --owd-theme-elevation-2: 0 4px 10px rgba(28, 28, 28, 0.045);
+}
+
+/* Legacy application tokens mapped to the current theme. */
+:root {
+  --bg: var(--owd-theme-bg);
+  --bg-soft: var(--owd-theme-bg-soft);
+  --panel: var(--owd-theme-surface);
+  --panel-strong: var(--owd-theme-surface-strong);
+  --border: var(--owd-theme-legacy-border-soft);
+  --border-strong: var(--owd-theme-legacy-border);
+  --text: var(--owd-theme-text);
+  --muted: var(--owd-theme-muted);
+  --accent: var(--owd-theme-accent);
+  --accent-2: var(--owd-theme-accent-secondary);
+  --surface-hover: var(--owd-theme-state-hover);
+  --surface-selected: var(--owd-theme-state-selected);
+
+  --md-bg: var(--owd-theme-bg);
+  --md-surface: var(--owd-theme-surface);
+  --md-surface-2: var(--owd-theme-surface-2);
+  --md-surface-3: var(--owd-theme-surface-3);
+  --md-outline-soft: var(--owd-theme-outline-soft);
+  --md-outline: var(--owd-theme-outline);
+  --md-text: var(--owd-theme-text);
+  --md-muted: var(--owd-theme-muted);
+  --md-primary: var(--owd-theme-md-primary);
+  --md-primary-container: var(--owd-theme-primary-container);
+  --md-on-primary: var(--owd-theme-on-primary);
+  --md-secondary: var(--owd-theme-md-secondary);
+  --md-on-secondary: var(--owd-theme-on-secondary);
+  --md-danger: var(--owd-theme-danger);
+  --md-success: var(--owd-theme-success);
+
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: var(--owd-theme-state-hover);
+  --owd-minimal-danger-bg: var(--owd-theme-danger-bg);
+  --owd-minimal-success-bg: var(--owd-theme-success-bg);
+  --owd-editor-focus-bg: var(--owd-theme-editor-focus-bg);
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: var(--owd-theme-elevation-2);
+}
+
+/* Shape tokens used by the flat UI pass. */
+:root {
+  --owd-radius-control: 4px;
+  --owd-radius-overlay: 8px;
+}
+
+/* Tonal state layer tokens. */
+:root {
+  --owd-tonal-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 7%, transparent);
+  --owd-tonal-hover-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 11%, transparent);
+  --owd-tonal-selected: color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent);
+  --owd-tonal-selected-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 15%, transparent);
+  --owd-tonal-rail: color-mix(in srgb, var(--md-primary, var(--accent-2)) 72%, var(--md-text, var(--text)) 28%);
+  --owd-tonal-ink: color-mix(in srgb, var(--md-text, var(--text)) 82%, var(--md-primary, var(--accent-2)) 18%);
+}
+
+:root[data-theme="light"] {
+  --owd-tonal-hover: rgba(46, 79, 79, 0.052);
+  --owd-tonal-hover-strong: rgba(46, 79, 79, 0.082);
+  --owd-tonal-selected: rgba(46, 79, 79, 0.09);
+  --owd-tonal-selected-strong: rgba(46, 79, 79, 0.125);
+  --owd-tonal-rail: #2e4f4f;
+  --owd-tonal-ink: #1c1c1c;
+}
+
+/* Shared Markdown document tokens. */
+:root {
+  --owd-doc-text: var(--md-text, var(--text));
+  --owd-doc-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-doc-heading: color-mix(in srgb, var(--md-text, var(--text)) 92%, var(--md-primary, var(--accent-2)) 8%);
+  --owd-doc-link: color-mix(in srgb, var(--accent-2, var(--md-primary)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-doc-border: var(--owd-minimal-divider, var(--md-outline-soft));
+  --owd-doc-border-strong: var(--owd-minimal-divider-strong, var(--md-outline));
+  --owd-doc-subtle: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 84%, transparent);
+  --owd-doc-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 88%, var(--md-primary, var(--accent-2)) 4%);
+  --owd-doc-inline-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
+  --owd-doc-quote-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 44%, transparent);
+  --owd-doc-table-head-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
+  --owd-doc-table-row-alt: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 38%, transparent);
+}
+
+:root[data-theme="light"] {
+  --owd-doc-muted: #706e6b;
+  --owd-doc-heading: #1c1c1c;
+  --owd-doc-link: #800020;
+  --owd-doc-subtle: rgba(234, 228, 217, 0.72);
+  --owd-doc-code-bg: rgba(234, 228, 217, 0.82);
+  --owd-doc-inline-code-bg: rgba(234, 228, 217, 0.62);
+  --owd-doc-quote-bg: rgba(234, 228, 217, 0.58);
+  --owd-doc-table-head-bg: rgba(234, 228, 217, 0.7);
+  --owd-doc-table-row-alt: rgba(234, 228, 217, 0.34);
+}

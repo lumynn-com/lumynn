@@ -1,92 +1,4 @@
 /* ============================================================
-   24. Material dark gray theme tint.
-
-   Palette-only override. Font, layout, tabs, menus, radii, and
-   flat component behavior stay unchanged.
-   ============================================================ */
-:root {
-  --bg: #121212;
-  --bg-soft: #1e1e1e;
-  --panel: #1e1e1e;
-  --panel-strong: #242424;
-  --border: rgba(224, 224, 224, 0.10);
-  --border-strong: rgba(224, 224, 224, 0.18);
-  --text: #e0e0e0;
-  --muted: #a8a8a8;
-  --accent: #bb86fc;
-  --accent-2: #80cbc4;
-  --surface-hover: rgba(187, 134, 252, 0.08);
-  --surface-selected: rgba(128, 203, 196, 0.12);
-  --md-bg: #121212;
-  --md-surface: #1e1e1e;
-  --md-surface-2: #242424;
-  --md-surface-3: #2a2a2a;
-  --md-outline-soft: rgba(224, 224, 224, 0.10);
-  --md-outline: rgba(224, 224, 224, 0.18);
-  --md-text: #e0e0e0;
-  --md-muted: #a8a8a8;
-  --md-primary: #bb86fc;
-  --md-primary-container: rgba(187, 134, 252, 0.13);
-  --md-on-primary: #121212;
-  --md-secondary: #80cbc4;
-  --md-on-secondary: #121212;
-  --md-danger: #cf6679;
-  --md-success: #80cbc4;
-  --owd-minimal-canvas: var(--md-bg);
-  --owd-minimal-surface: var(--md-surface);
-  --owd-minimal-subtle: var(--md-surface-2);
-  --owd-minimal-divider: var(--md-outline-soft);
-  --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(187, 134, 252, 0.08);
-  --owd-minimal-danger-bg: rgba(207, 102, 121, 0.12);
-  --owd-minimal-success-bg: rgba(128, 203, 196, 0.12);
-  --owd-editor-focus-bg: #242424;
-  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36);
-}
-
-:root[data-theme="light"] {
-  --bg: #f4f1ea;
-  --bg-soft: #eae4d9;
-  --panel: #f7f4ec;
-  --panel-strong: #faf7f1;
-  --border: rgba(80, 67, 48, 0.13);
-  --border-strong: rgba(80, 67, 48, 0.22);
-  --text: #1c1c1c;
-  --muted: #706e6b;
-  --accent: #800020;
-  --accent-2: #2e4f4f;
-  --surface-hover: rgba(46, 79, 79, 0.06);
-  --surface-selected: rgba(46, 79, 79, 0.11);
-  --md-bg: #f4f1ea;
-  --md-surface: #f7f4ec;
-  --md-surface-2: #eae4d9;
-  --md-surface-3: #ded6c7;
-  --md-outline-soft: #ddd4c5;
-  --md-outline: #cfc3b3;
-  --md-text: #1c1c1c;
-  --md-muted: #706e6b;
-  --md-primary: #2e4f4f;
-  --md-primary-container: rgba(46, 79, 79, 0.13);
-  --md-on-primary: #f4f1ea;
-  --md-secondary: #800020;
-  --md-on-secondary: #f4f1ea;
-  --md-danger: #9f2f2d;
-  --md-success: #346538;
-  --owd-minimal-canvas: var(--md-bg);
-  --owd-minimal-surface: var(--md-surface);
-  --owd-minimal-subtle: var(--md-surface-2);
-  --owd-minimal-divider: var(--md-outline-soft);
-  --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(46, 79, 79, 0.06);
-  --owd-minimal-danger-bg: #f1ddd7;
-  --owd-minimal-success-bg: #e2eadc;
-  --owd-editor-focus-bg: #fbf8f1;
-  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 4px 10px rgba(28, 28, 28, 0.045);
-}
-
-/* ============================================================
    25. Editor focus state.
 
    The editable document area should signal "ready to type" with
@@ -108,11 +20,6 @@
    structural surfaces, tabs, and menus; only small controls keep
    a slight radius so hit targets still feel deliberate.
    ============================================================ */
-:root {
-  --owd-radius-control: 4px;
-  --owd-radius-overlay: 8px;
-}
-
 .vault-pane,
 .editor-pane,
 .qa-panel,
@@ -353,24 +260,6 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
    rounded containers. Interactive state gets a low-opacity tonal
    surface so selected/hovered rows are easier to scan.
    ============================================================ */
-:root {
-  --owd-tonal-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 7%, transparent);
-  --owd-tonal-hover-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 11%, transparent);
-  --owd-tonal-selected: color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent);
-  --owd-tonal-selected-strong: color-mix(in srgb, var(--md-primary, var(--accent-2)) 15%, transparent);
-  --owd-tonal-rail: color-mix(in srgb, var(--md-primary, var(--accent-2)) 72%, var(--md-text, var(--text)) 28%);
-  --owd-tonal-ink: color-mix(in srgb, var(--md-text, var(--text)) 82%, var(--md-primary, var(--accent-2)) 18%);
-}
-
-:root[data-theme="light"] {
-  --owd-tonal-hover: rgba(46, 79, 79, 0.052);
-  --owd-tonal-hover-strong: rgba(46, 79, 79, 0.082);
-  --owd-tonal-selected: rgba(46, 79, 79, 0.09);
-  --owd-tonal-selected-strong: rgba(46, 79, 79, 0.125);
-  --owd-tonal-rail: #2e4f4f;
-  --owd-tonal-ink: #1c1c1c;
-}
-
 .tree-row:hover,
 :root[data-theme="light"] .tree-row:hover,
 .folder-picker-label:hover:not(:disabled),
@@ -437,33 +326,6 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
    same document tokens. This only normalizes rendered Markdown
    surfaces; app font and tab/menu structure stay untouched.
    ============================================================ */
-:root {
-  --owd-doc-text: var(--md-text, var(--text));
-  --owd-doc-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
-  --owd-doc-heading: color-mix(in srgb, var(--md-text, var(--text)) 92%, var(--md-primary, var(--accent-2)) 8%);
-  --owd-doc-link: color-mix(in srgb, var(--accent-2, var(--md-primary)) 88%, var(--md-text, var(--text)) 12%);
-  --owd-doc-border: var(--owd-minimal-divider, var(--md-outline-soft));
-  --owd-doc-border-strong: var(--owd-minimal-divider-strong, var(--md-outline));
-  --owd-doc-subtle: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 84%, transparent);
-  --owd-doc-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 88%, var(--md-primary, var(--accent-2)) 4%);
-  --owd-doc-inline-code-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
-  --owd-doc-quote-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 44%, transparent);
-  --owd-doc-table-head-bg: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 72%, transparent);
-  --owd-doc-table-row-alt: color-mix(in srgb, var(--owd-minimal-subtle, var(--md-surface-2)) 38%, transparent);
-}
-
-:root[data-theme="light"] {
-  --owd-doc-muted: #706e6b;
-  --owd-doc-heading: #1c1c1c;
-  --owd-doc-link: #800020;
-  --owd-doc-subtle: rgba(234, 228, 217, 0.72);
-  --owd-doc-code-bg: rgba(234, 228, 217, 0.82);
-  --owd-doc-inline-code-bg: rgba(234, 228, 217, 0.62);
-  --owd-doc-quote-bg: rgba(234, 228, 217, 0.58);
-  --owd-doc-table-head-bg: rgba(234, 228, 217, 0.7);
-  --owd-doc-table-row-alt: rgba(234, 228, 217, 0.34);
-}
-
 .editor-pane .preview-surface article,
 .qa-panel .qa-answer {
   color: var(--owd-doc-text) !important;
