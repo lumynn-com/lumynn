@@ -6542,10 +6542,10 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .m
 }
 
 :root[data-theme="light"] {
-  --owd-flat-divider: rgba(15, 23, 42, 0.09);
-  --owd-flat-divider-strong: rgba(15, 23, 42, 0.16);
-  --owd-flat-muted: #475569;
-  --owd-flat-ink-hover: #1d4ed8;
+  --owd-flat-divider: rgba(80, 67, 48, 0.10);
+  --owd-flat-divider-strong: rgba(80, 67, 48, 0.18);
+  --owd-flat-muted: #706e6b;
+  --owd-flat-ink-hover: #2e4f4f;
 }
 
 .obsidian-workspace {
@@ -7622,29 +7622,31 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 }
 
 :root[data-theme="light"] {
-  --bg: #f4ead4;
-  --bg-soft: #eee0c3;
-  --panel: #fff9ed;
-  --panel-strong: #fffaf0;
-  --border: rgba(90, 73, 43, 0.13);
-  --border-strong: rgba(90, 73, 43, 0.22);
-  --text: #302b22;
-  --muted: #756c5b;
-  --accent: #746039;
-  --accent-2: #2f2719;
-  --surface-hover: rgba(90, 73, 43, 0.07);
-  --surface-selected: rgba(90, 73, 43, 0.12);
-  --md-bg: #f4ead4;
-  --md-surface: #fff9ed;
-  --md-surface-2: #f0e3c8;
-  --md-surface-3: #e6d5b1;
-  --md-outline-soft: #dfd1b6;
-  --md-outline: #c8b68f;
-  --md-text: #302b22;
-  --md-muted: #756c5b;
-  --md-primary: #2f2719;
-  --md-primary-container: #eadcbd;
-  --md-on-primary: #fff9ed;
+  --bg: #f4f1ea;
+  --bg-soft: #eae4d9;
+  --panel: #f7f4ec;
+  --panel-strong: #faf7f1;
+  --border: rgba(80, 67, 48, 0.13);
+  --border-strong: rgba(80, 67, 48, 0.22);
+  --text: #1c1c1c;
+  --muted: #706e6b;
+  --accent: #800020;
+  --accent-2: #2e4f4f;
+  --surface-hover: rgba(46, 79, 79, 0.06);
+  --surface-selected: rgba(46, 79, 79, 0.11);
+  --md-bg: #f4f1ea;
+  --md-surface: #f7f4ec;
+  --md-surface-2: #eae4d9;
+  --md-surface-3: #ded6c7;
+  --md-outline-soft: #ddd4c5;
+  --md-outline: #cfc3b3;
+  --md-text: #1c1c1c;
+  --md-muted: #706e6b;
+  --md-primary: #2e4f4f;
+  --md-primary-container: rgba(46, 79, 79, 0.13);
+  --md-on-primary: #f4f1ea;
+  --md-secondary: #800020;
+  --md-on-secondary: #f4f1ea;
   --md-danger: #9f2f2d;
   --md-success: #346538;
   --owd-minimal-canvas: var(--md-bg);
@@ -7652,12 +7654,12 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   --owd-minimal-subtle: var(--md-surface-2);
   --owd-minimal-divider: var(--md-outline-soft);
   --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(90, 73, 43, 0.065);
-  --owd-minimal-danger-bg: #f7dfd9;
-  --owd-minimal-success-bg: #e6eddc;
-  --owd-editor-focus-bg: #fff2dc;
+  --owd-minimal-hover: rgba(46, 79, 79, 0.06);
+  --owd-minimal-danger-bg: #f1ddd7;
+  --owd-minimal-success-bg: #e2eadc;
+  --owd-editor-focus-bg: #fbf8f1;
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 2px 8px rgba(90, 73, 43, 0.05);
+  --md-elevation-2: 0 4px 10px rgba(28, 28, 28, 0.045);
 }
 
 /* ============================================================
@@ -7937,12 +7939,12 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 :root[data-theme="light"] {
-  --owd-tonal-hover: rgba(90, 73, 43, 0.055);
-  --owd-tonal-hover-strong: rgba(90, 73, 43, 0.085);
-  --owd-tonal-selected: rgba(90, 73, 43, 0.095);
-  --owd-tonal-selected-strong: rgba(90, 73, 43, 0.13);
-  --owd-tonal-rail: #5a492b;
-  --owd-tonal-ink: #302b22;
+  --owd-tonal-hover: rgba(46, 79, 79, 0.052);
+  --owd-tonal-hover-strong: rgba(46, 79, 79, 0.082);
+  --owd-tonal-selected: rgba(46, 79, 79, 0.09);
+  --owd-tonal-selected-strong: rgba(46, 79, 79, 0.125);
+  --owd-tonal-rail: #2e4f4f;
+  --owd-tonal-ink: #1c1c1c;
 }
 
 .tree-row:hover,
@@ -8027,15 +8029,15 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 :root[data-theme="light"] {
-  --owd-doc-muted: #756c5b;
-  --owd-doc-heading: #302b22;
-  --owd-doc-link: #5a492b;
-  --owd-doc-subtle: rgba(240, 227, 200, 0.64);
-  --owd-doc-code-bg: rgba(240, 227, 200, 0.72);
-  --owd-doc-inline-code-bg: rgba(240, 227, 200, 0.52);
-  --owd-doc-quote-bg: rgba(240, 227, 200, 0.34);
-  --owd-doc-table-head-bg: rgba(240, 227, 200, 0.58);
-  --owd-doc-table-row-alt: rgba(240, 227, 200, 0.28);
+  --owd-doc-muted: #706e6b;
+  --owd-doc-heading: #1c1c1c;
+  --owd-doc-link: #800020;
+  --owd-doc-subtle: rgba(234, 228, 217, 0.72);
+  --owd-doc-code-bg: rgba(234, 228, 217, 0.82);
+  --owd-doc-inline-code-bg: rgba(234, 228, 217, 0.62);
+  --owd-doc-quote-bg: rgba(234, 228, 217, 0.58);
+  --owd-doc-table-head-bg: rgba(234, 228, 217, 0.7);
+  --owd-doc-table-row-alt: rgba(234, 228, 217, 0.34);
 }
 
 .editor-pane .preview-surface article,
@@ -8149,4 +8151,38 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   border: 1px solid var(--owd-doc-border) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+/* Reading light mode: remove old cool-blue interaction remnants so
+   the whole light theme stays in the ivory / linen / ink palette. */
+:root[data-theme="light"] .icon-button:hover:not(:disabled),
+:root[data-theme="light"] .icon-button:focus-visible,
+:root[data-theme="light"] .tree-row:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
+:root[data-theme="light"] .citation-source:not(:disabled):hover {
+  background: var(--owd-tonal-hover) !important;
+  color: var(--md-text) !important;
+}
+
+:root[data-theme="light"] .icon-button.active,
+:root[data-theme="light"] .file-row.selected {
+  background: var(--owd-tonal-selected) !important;
+  color: var(--md-text) !important;
+}
+
+:root[data-theme="light"] .citation-source,
+:root[data-theme="light"] .file-button,
+:root[data-theme="light"] .query-loading,
+:root[data-theme="light"] .query-loading:hover:not(:disabled) {
+  border-color: var(--owd-minimal-divider) !important;
+  background: var(--owd-minimal-subtle) !important;
+  color: var(--md-text) !important;
+}
+
+:root[data-theme="light"] .file-button:hover {
+  border-color: var(--owd-minimal-divider-strong) !important;
+  background: var(--md-surface-3) !important;
 }
