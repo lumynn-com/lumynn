@@ -192,13 +192,6 @@
   --owd-flat-ink-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 82%, var(--md-text, var(--text)) 18%);
 }
 
-:root[data-theme="light"] {
-  --owd-flat-divider: rgba(80, 67, 48, 0.10);
-  --owd-flat-divider-strong: rgba(80, 67, 48, 0.18);
-  --owd-flat-muted: #706e6b;
-  --owd-flat-ink-hover: #2e4f4f;
-}
-
 .obsidian-workspace {
   background: var(--md-bg, var(--bg)) !important;
 }
@@ -475,32 +468,6 @@ button[aria-busy="true"] .button-spinner {
   --owd-minimal-success-bg: rgba(159, 199, 163, 0.10);
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
   --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.28);
-}
-
-:root[data-theme="light"] {
-  --md-bg: #fbfbfa;
-  --md-surface: #ffffff;
-  --md-surface-2: #f7f6f3;
-  --md-surface-3: #efede8;
-  --md-outline-soft: #eae8e2;
-  --md-outline: #d9d5ca;
-  --md-text: #2f3437;
-  --md-muted: #787774;
-  --md-primary: #111111;
-  --md-primary-container: #f1f0ed;
-  --md-on-primary: #ffffff;
-  --md-danger: #9f2f2d;
-  --md-success: #346538;
-  --owd-minimal-canvas: var(--md-bg);
-  --owd-minimal-surface: var(--md-surface);
-  --owd-minimal-subtle: var(--md-surface-2);
-  --owd-minimal-divider: var(--md-outline-soft);
-  --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(47, 52, 55, 0.055);
-  --owd-minimal-danger-bg: #fdebec;
-  --owd-minimal-success-bg: #edf3ec;
-  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 2px 8px rgba(47, 52, 55, 0.045);
 }
 
 html,

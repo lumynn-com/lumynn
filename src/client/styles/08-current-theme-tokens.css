@@ -7,6 +7,8 @@
    design-token values.
    ============================================================ */
 :root {
+  color-scheme: dark;
+
   --owd-theme-bg: #121212;
   --owd-theme-bg-soft: #1e1e1e;
   --owd-theme-surface: #1e1e1e;
@@ -37,6 +39,8 @@
 }
 
 :root[data-theme="light"] {
+  color-scheme: light;
+
   --owd-theme-bg: #f4f1ea;
   --owd-theme-bg-soft: #eae4d9;
   --owd-theme-surface: #f7f4ec;
@@ -80,6 +84,8 @@
   --accent-2: var(--owd-theme-accent-secondary);
   --surface-hover: var(--owd-theme-state-hover);
   --surface-selected: var(--owd-theme-state-selected);
+  --shadow: 0 0 0 0 transparent;
+  --shadow-workspace: 0 0 0 0 transparent;
 
   --md-bg: var(--owd-theme-bg);
   --md-surface: var(--owd-theme-surface);
@@ -105,9 +111,20 @@
   --owd-minimal-hover: var(--owd-theme-state-hover);
   --owd-minimal-danger-bg: var(--owd-theme-danger-bg);
   --owd-minimal-success-bg: var(--owd-theme-success-bg);
+  --owd-flat-divider: color-mix(in srgb, var(--md-outline-soft, var(--border)) 76%, transparent);
+  --owd-flat-divider-strong: color-mix(in srgb, var(--md-outline, var(--border)) 88%, transparent);
+  --owd-flat-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-flat-ink-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 82%, var(--md-text, var(--text)) 18%);
   --owd-editor-focus-bg: var(--owd-theme-editor-focus-bg);
   --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
   --md-elevation-2: var(--owd-theme-elevation-2);
+}
+
+:root[data-theme="light"] {
+  --owd-flat-divider: rgba(80, 67, 48, 0.10);
+  --owd-flat-divider-strong: rgba(80, 67, 48, 0.18);
+  --owd-flat-muted: #706e6b;
+  --owd-flat-ink-hover: #2e4f4f;
 }
 
 /* Shape tokens used by the flat UI pass. */

@@ -19,5 +19,6 @@ Guidelines:
 
 - Add new current-theme tokens in `08-current-theme-tokens.css` unless a token clearly belongs to an older compatibility layer.
 - Prefer token changes over adding more raw color values.
+- Do not add new `:root[data-theme="light"]` token blocks to legacy partials; put active theme values in `08-current-theme-tokens.css`.
 - Avoid adding new `!important` rules unless they are overriding an existing compatibility layer.
 - Keep Muya-specific rules in `../MuyaMarkdownEditor.css` when they only target the embedded editor.

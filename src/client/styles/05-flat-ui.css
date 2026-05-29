@@ -655,15 +655,6 @@
   --md-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.22);
 }
 
-:root[data-theme="light"] {
-  --panel: #ffffff;
-  --panel-strong: #ffffff;
-  --shadow: 0 0 0 0 transparent;
-  --shadow-workspace: 0 0 0 0 transparent;
-  --md-elevation-1: 0 0 0 1px var(--md-outline-soft);
-  --md-elevation-2: 0 6px 20px rgba(15, 23, 42, 0.10);
-}
-
 /* 2. Anti-glass: drop every backdrop-filter blur. The new tokens
       give surfaces enough contrast that blur is no longer needed
       to read content through a translucent layer. */
@@ -898,35 +889,7 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .m
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--md-primary, var(--accent-2)) 24%, transparent) !important;
 }
 
-/* 14. Light-theme token corrections: the original light vars
-       relied on translucent backgrounds + heavy backdrop blur to
-       remain readable; with both removed, ensure surfaces are
-       opaque and borders strong enough to delineate panels and
-       buttons against the now-white panel background. The
-       previous values (e.g. surface-2 #f5f7fa, border opacity
-       0.10) were essentially invisible on white, so vault and
-       Q&A panel buttons read as floating glyphs without a
-       button shape. Bumped surface lightness contrast and
-       border opacity to ~14-18% so chrome is legible without
-       feeling heavy. */
-:root[data-theme="light"] {
-  --border: rgba(15, 23, 42, 0.14);
-  --border-strong: rgba(15, 23, 42, 0.22);
-  --md-outline-soft: rgba(15, 23, 42, 0.14);
-  --md-outline: rgba(15, 23, 42, 0.22);
-  --md-bg: #ffffff;
-  --md-surface: #ffffff;
-  --md-surface-2: #eef2f7;
-  --md-surface-3: #dee5ef;
-  --md-text: #0f172a;
-  --md-muted: #475569;
-  --md-primary: #2563eb;
-  --md-primary-container: rgba(37, 99, 235, 0.14);
-  --md-on-primary: #ffffff;
-  --md-danger: #dc2626;
-}
-
-/* 14b. Light-mode interaction states. The flat-UI baseline
+/* 14. Light-mode interaction states. The flat-UI baseline
         uses transparent or near-white surfaces for resting
         buttons (icon buttons, tree rows, citation cards, tab
         strip controls) which works on dark mode but disappears
