@@ -319,6 +319,19 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   color: var(--owd-tonal-ink) !important;
 }
 
+.settings-nav button.active,
+.settings-nav button.active:hover:not(:disabled),
+.settings-nav button.active:focus-visible {
+  border-color: transparent !important;
+  background: var(--owd-tonal-selected) !important;
+  box-shadow: inset 2px 0 0 var(--owd-tonal-rail) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.settings-nav button.active::after {
+  background: var(--owd-tonal-rail) !important;
+}
+
 /* ============================================================
    32. Shared Markdown document theme.
 
