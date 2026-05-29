@@ -1,13 +1,15 @@
+import { spawn } from "node:child_process";
 import { constants as fsConstants, type Stats } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { StringDecoder } from "node:string_decoder";
 import hljs from "highlight.js";
 import katex from "katex";
 import { marked, type Token, type Tokens } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { config } from "../config";
 import { sha256 } from "../crypto";
-import { backlinksWithObsidianCli, searchWithObsidianCli } from "../obsidian/obsidianCli";
+import { backlinksWithObsidianCli } from "../obsidian/obsidianCli";
 import { store, type UserRecord } from "../store";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder, VaultValidation } from "../../shared/types";
 import { parseMarkdown } from "./markdownParser";
@@ -570,36 +572,169 @@ export async function readDocument(user: UserRecord, documentPath: string): Prom
   };
 }
 
-function normalizeCliSearchPath(line: string, vaultRoot: string, documents: DocumentSummary[]): string | null {
-  const normalizedLine = line.trim().replaceAll("\\", "/");
-  if (!normalizedLine) {
+const SEARCH_RESULT_LIMIT = 100;
+const RIPGREP_SEARCH_TIMEOUT_MS = 8_000;
+const FILESYSTEM_SEARCH_BATCH_SIZE = 32;
+
+interface RipgrepJsonMatch {
+  type?: string;
+  data?: {
+    path?: { text?: string };
+    lines?: { text?: string };
+    line_number?: number;
+  };
+}
+
+function documentSearchResult(documentPath: string, snippet: string, source: DocumentSearchResult["source"]): DocumentSearchResult {
+  const name = path.posix.basename(documentPath);
+  return {
+    path: documentPath,
+    name,
+    title: name.replace(/\.md$/i, ""),
+    snippet,
+    source
+  };
+}
+
+function vaultRelativeMarkdownPath(vaultRoot: string, filePath: string): string | null {
+  const candidate = path.isAbsolute(filePath) ? path.relative(vaultRoot, filePath) : filePath;
+  const normalized = candidate.replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!normalized || !normalized.endsWith(".md") || normalized.includes("\0") || normalized.split("/").some((part) => part === "..")) {
+    return null;
+  }
+  if (!isInside(vaultRoot, path.resolve(vaultRoot, normalized))) {
+    return null;
+  }
+  return normalized;
+}
+
+function compactSnippet(value: string, fallback: string): string {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return (compact || fallback).slice(0, 220);
+}
+
+function parseRipgrepJsonLine(line: string, vaultRoot: string): { path: string; snippet: string } | null {
+  let parsed: RipgrepJsonMatch;
+  try {
+    parsed = JSON.parse(line) as RipgrepJsonMatch;
+  } catch {
+    return null;
+  }
+  if (parsed.type !== "match" || !parsed.data?.path?.text) {
     return null;
   }
 
-  const withoutVault = normalizedLine.startsWith(vaultRoot.replaceAll("\\", "/"))
-    ? path.relative(vaultRoot, normalizedLine.split(/:(?:\d+:)?/)[0]).replaceAll("\\", "/")
-    : normalizedLine;
-  const candidates = [
-    withoutVault,
-    withoutVault.split(/:(?:\d+:)?/)[0],
-    withoutVault.replace(/^["']|["']$/g, "")
-  ].map((candidate) => candidate.replace(/^\/+/, ""));
-
-  for (const candidate of candidates) {
-    const normalized = candidate.endsWith(".md") ? candidate : `${candidate}.md`;
-    const match = documents.find((doc) => doc.path === normalized || doc.path.endsWith(`/${normalized}`));
-    if (match) {
-      return match.path;
-    }
+  const documentPath = vaultRelativeMarkdownPath(vaultRoot, parsed.data.path.text);
+  if (!documentPath) {
+    return null;
   }
-
-  const contained = documents.find((doc) => normalizedLine.includes(doc.path) || normalizedLine.includes(doc.name));
-  return contained?.path ?? null;
+  const prefix = parsed.data.line_number ? `Line ${parsed.data.line_number}: ` : "";
+  return {
+    path: documentPath,
+    snippet: compactSnippet(`${prefix}${parsed.data.lines?.text ?? ""}`, documentPath)
+  };
 }
 
-function makeSnippet(content: string, query: string, fallback: string): string {
+async function searchWithRipgrep(vaultRoot: string, query: string): Promise<DocumentSearchResult[] | null> {
+  return new Promise((resolve) => {
+    const args = [
+      "--json",
+      "--ignore-case",
+      "--fixed-strings",
+      "--glob",
+      "*.md",
+      "--glob",
+      "!.obsidian/**",
+      "--max-count",
+      "1",
+      "--",
+      query,
+      vaultRoot
+    ];
+    const child = spawn("rg", args, { stdio: ["ignore", "pipe", "pipe"], shell: false });
+    const decoder = new StringDecoder("utf8");
+    const results = new Map<string, DocumentSearchResult>();
+    let buffer = "";
+    let stderr = "";
+    let settled = false;
+    let reachedLimit = false;
+
+    const settle = (value: DocumentSearchResult[] | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+
+    const parseBufferedLine = (line: string) => {
+      if (!line.trim() || results.size >= SEARCH_RESULT_LIMIT) return;
+      const match = parseRipgrepJsonLine(line, vaultRoot);
+      if (!match || results.has(match.path)) return;
+      results.set(match.path, documentSearchResult(match.path, match.snippet, "ripgrep"));
+      if (results.size >= SEARCH_RESULT_LIMIT) {
+        reachedLimit = true;
+        child.kill("SIGTERM");
+      }
+    };
+
+    const consume = (chunk: string) => {
+      buffer += chunk;
+      let newlineIndex = buffer.indexOf("\n");
+      while (newlineIndex !== -1) {
+        parseBufferedLine(buffer.slice(0, newlineIndex));
+        buffer = buffer.slice(newlineIndex + 1);
+        newlineIndex = buffer.indexOf("\n");
+      }
+    };
+
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      settle(results.size > 0 ? Array.from(results.values()) : null);
+    }, RIPGREP_SEARCH_TIMEOUT_MS);
+
+    child.stdout.on("data", (chunk) => {
+      consume(decoder.write(chunk as Buffer));
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr = `${stderr}${String(chunk)}`.slice(-2000);
+    });
+    child.on("error", () => {
+      settle(null);
+    });
+    child.on("close", (code, signal) => {
+      consume(decoder.end());
+      if (buffer.trim()) {
+        parseBufferedLine(buffer);
+      }
+      if (code === 0 || code === 1 || reachedLimit || signal === "SIGTERM") {
+        settle(Array.from(results.values()));
+        return;
+      }
+      console.warn(`ripgrep search failed: ${stderr || `exit ${code ?? signal ?? "unknown"}`}`);
+      settle(null);
+    });
+  });
+}
+
+function metadataMatches(doc: DocumentSummary, needle: string): boolean {
+  return `${doc.path}\n${doc.title}\n${doc.name}\n${doc.tags.join(" ")}\n${doc.aliases.join(" ")}\n${doc.headings.join(" ")}`
+    .toLocaleLowerCase()
+    .includes(needle);
+}
+
+function metadataResult(doc: DocumentSummary): DocumentSearchResult {
+  return {
+    path: doc.path,
+    name: doc.name,
+    title: doc.title,
+    snippet: doc.headings[0] ?? doc.path,
+    source: "filesystem"
+  };
+}
+
+function makeSnippet(content: string, query: string, fallback: string, needle = query.toLocaleLowerCase()): string {
   const normalized = content.replace(/\s+/g, " ").trim();
-  const offset = normalized.toLowerCase().indexOf(query.toLowerCase());
+  const offset = normalized.toLocaleLowerCase().indexOf(needle);
   if (offset === -1) {
     return fallback || normalized.slice(0, 180);
   }
@@ -614,46 +749,52 @@ export async function searchDocuments(user: UserRecord, query: string): Promise<
   }
 
   const vaultRoot = await ensureVault(user);
-  const documents = await listDocuments(user, "updatedAt", "desc");
-  const byPath = new Map(documents.map((doc) => [doc.path, doc]));
-  const results = new Map<string, DocumentSearchResult>();
-  const cliLines = await searchWithObsidianCli(vaultRoot, trimmedQuery);
-
-  for (const line of cliLines) {
-    const matchedPath = normalizeCliSearchPath(line, vaultRoot, documents);
-    const doc = matchedPath ? byPath.get(matchedPath) : undefined;
-    if (!doc || results.has(doc.path)) {
-      continue;
-    }
-    results.set(doc.path, {
-      path: doc.path,
-      name: doc.name,
-      title: doc.title,
-      snippet: line,
-      source: "obsidian-cli"
-    });
+  const ripgrepResults = await searchWithRipgrep(vaultRoot, trimmedQuery);
+  if (ripgrepResults && ripgrepResults.length > 0) {
+    return ripgrepResults;
   }
 
-  if (results.size > 0) {
+  const documents = await listDocuments(user, "updatedAt", "desc");
+  const results = new Map<string, DocumentSearchResult>();
+  const needle = trimmedQuery.toLocaleLowerCase();
+
+  for (const doc of documents) {
+    if (!metadataMatches(doc, needle)) continue;
+    results.set(doc.path, metadataResult(doc));
+    if (results.size >= SEARCH_RESULT_LIMIT) {
+      return Array.from(results.values());
+    }
+  }
+
+  if (ripgrepResults) {
     return Array.from(results.values());
   }
 
-  for (const doc of documents) {
-    const content = await fs.readFile(resolveInVault(vaultRoot, doc.path), "utf8").catch(() => "");
-    const haystack = `${doc.path}\n${doc.title}\n${doc.name}\n${doc.tags.join(" ")}\n${doc.aliases.join(" ")}\n${content}`.toLowerCase();
-    if (!haystack.includes(trimmedQuery.toLowerCase())) {
-      continue;
+  const remaining = documents.filter((doc) => !results.has(doc.path));
+  for (let index = 0; index < remaining.length && results.size < SEARCH_RESULT_LIMIT; index += FILESYSTEM_SEARCH_BATCH_SIZE) {
+    const batch = remaining.slice(index, index + FILESYSTEM_SEARCH_BATCH_SIZE);
+    const matches = await Promise.all(
+      batch.map(async (doc) => {
+        const content = await fs.readFile(resolveInVault(vaultRoot, doc.path), "utf8").catch(() => "");
+        if (!content.toLocaleLowerCase().includes(needle)) {
+          return null;
+        }
+        return {
+          path: doc.path,
+          name: doc.name,
+          title: doc.title,
+          snippet: makeSnippet(content, trimmedQuery, doc.headings[0] ?? doc.path, needle),
+          source: "filesystem" as const
+        };
+      })
+    );
+    for (const match of matches) {
+      if (!match || results.size >= SEARCH_RESULT_LIMIT) continue;
+      results.set(match.path, match);
     }
-    results.set(doc.path, {
-      path: doc.path,
-      name: doc.name,
-      title: doc.title,
-      snippet: makeSnippet(content, trimmedQuery, doc.headings[0] ?? doc.path),
-      source: "filesystem"
-    });
   }
 
-  return Array.from(results.values()).slice(0, 100);
+  return Array.from(results.values());
 }
 
 export async function writeDocument(user: UserRecord, documentPath: string, content: string, expectedHash?: string): Promise<DocumentContent> {

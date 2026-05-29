@@ -158,7 +158,7 @@ const dictionaries = {
     // Search modal
     "search.eyebrow": "Vault Search",
     "search.title": "Search Documents",
-    "search.description": "Uses obsidian-cli first, with filesystem search as fallback.",
+    "search.description": "Uses ripgrep for fast vault search, with filesystem search as fallback.",
     "search.close": "Close",
     "search.queryLabel": "Search query",
     "search.placeholder": "Search file names, tags, headings, or content\u2026",
@@ -602,7 +602,7 @@ const dictionaries = {
 
     "search.eyebrow": "\u77e5\u8bc6\u5e93\u641c\u7d22",
     "search.title": "\u641c\u7d22\u6587\u6863",
-    "search.description": "\u4f18\u5148\u4f7f\u7528 obsidian-cli\uff0c\u672a\u542f\u7528\u65f6\u56de\u9000\u5230\u6587\u4ef6\u7cfb\u7edf\u641c\u7d22\u3002",
+    "search.description": "\u4f18\u5148\u4f7f\u7528 ripgrep \u5feb\u901f\u641c\u7d22\uff0c\u672a\u53ef\u7528\u65f6\u56de\u9000\u5230\u6587\u4ef6\u7cfb\u7edf\u641c\u7d22\u3002",
     "search.close": "\u5173\u95ed",
     "search.queryLabel": "\u641c\u7d22\u5173\u952e\u5b57",
     "search.placeholder": "\u641c\u7d22\u6587\u4ef6\u540d\u3001\u6807\u7b7e\u3001\u6807\u9898\u6216\u6b63\u6587\u2026",

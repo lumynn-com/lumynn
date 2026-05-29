@@ -46,7 +46,7 @@ export interface DocumentSearchResult {
   name: string;
   title: string;
   snippet: string;
-  source: "obsidian-cli" | "filesystem";
+  source: "ripgrep" | "filesystem";
 }
 
 export interface RagSettings {
