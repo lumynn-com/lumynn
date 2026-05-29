@@ -1,0 +1,1729 @@
+/* Redesign layer: clearer hierarchy, accessible focus, and denser doc workflows. */
+:root {
+  --bg: #070b12;
+  --bg-soft: #0d1422;
+  --panel: rgba(13, 20, 34, 0.86);
+  --panel-strong: rgba(18, 27, 44, 0.94);
+  --border: rgba(148, 163, 184, 0.16);
+  --border-strong: rgba(148, 163, 184, 0.28);
+  --text: #edf2f7;
+  --muted: #94a3b8;
+  --accent: #8b5cf6;
+  --accent-2: #38bdf8;
+  --danger: #fb7185;
+  --success: #34d399;
+  --shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f7f9fd;
+  --bg-soft: #eef3fb;
+  --panel: rgba(255, 255, 255, 0.88);
+  --panel-strong: rgba(255, 255, 255, 0.96);
+  --border: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.2);
+  --text: #111827;
+  --muted: #64748b;
+  --shadow: 0 24px 70px rgba(15, 23, 42, 0.11);
+  color-scheme: light;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 28rem),
+    radial-gradient(circle at 90% 90%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 30rem),
+    var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+body[data-owd-app="true"] {
+  height: var(--owd-viewport-h, 100dvh);
+  min-height: var(--owd-viewport-h, 100dvh);
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] #root,
+body[data-owd-app="true"] .app-shell,
+body[data-owd-app="true"] .main-content {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] .app-shell[data-view="workspace"] .main-content > div:not([hidden]) {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body[data-owd-app="true"] .app-shell[data-view="indexing"] .main-content,
+body[data-owd-app="true"] .app-shell[data-view="settings"] .main-content {
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+h1,
+h2 {
+  color: var(--text);
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.8rem);
+}
+
+h2 {
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.file-button {
+  border-color: var(--border);
+  color: var(--text);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.file-button {
+  touch-action: manipulation;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
+.file-button:hover {
+  border-color: var(--border-strong);
+  background: rgba(148, 163, 184, 0.13);
+  transform: translateY(-1px);
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+.file-button:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--accent-2) 72%, white);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+  color: var(--text);
+}
+
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  color-scheme: inherit;
+}
+
+.primary {
+  border: 0;
+  background: linear-gradient(135deg, #8b5cf6, #2563eb 58%, #0891b2);
+  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.28);
+}
+
+.primary:hover:not(:disabled) {
+  box-shadow: 0 18px 46px rgba(37, 99, 235, 0.36);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10;
+  transform: translateY(-160%);
+  border-radius: 999px;
+  padding: 0.65rem 0.9rem;
+  background: var(--panel-strong);
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.app-shell {
+  grid-template-columns: 280px minmax(0, 1fr);
+  background: transparent;
+}
+
+.main-content {
+  min-width: 0;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  padding: 1.1rem;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(22px);
+}
+
+.brand {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+
+.brand strong,
+.brand span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logo {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+nav button {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  align-items: center;
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+nav button > span:first-child {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+nav .active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 52%, transparent);
+}
+
+nav .active > span:first-child {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: #fff;
+}
+
+.sidebar-actions {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: auto;
+}
+
+.ghost {
+  width: 100%;
+  margin-top: 0;
+}
+
+.panel,
+.login-card {
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.workspace-grid {
+  grid-template-columns: minmax(260px, 330px) minmax(380px, 1fr) minmax(340px, 0.9fr);
+  gap: 1.1rem;
+  /* The grid sits below a sticky topbar inside the obsidian shell.
+     If we said min-height: 100vh here we'd push the page
+     scrollHeight to topbar + 100vh and produce a permanent
+     scrollbar with only a few px of useful range. Instead we
+     just let it fill whatever space is left below the topbar. */
+  min-height: 0;
+  padding: 1.1rem;
+}
+
+.document-list,
+.editor,
+.preview {
+  /* Same reasoning as .workspace-grid: don't pin to viewport
+     height; let the grid row track size them. The internal
+     scrolling for tall content is handled inside each pane
+     (.tree-scroll, editor textarea, .preview). */
+  min-height: 0;
+}
+
+.panel-header {
+  align-items: flex-start;
+}
+
+.panel-header > div {
+  min-width: 0;
+}
+
+.panel-header .muted {
+  margin: 0.4rem 0 0;
+}
+
+.muted,
+.status,
+.tree-file-text small,
+.citation span,
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  color: var(--muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sort-row {
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.doc-tree {
+  padding-right: 0.25rem;
+}
+
+.tree-row {
+  min-width: 0;
+  min-height: 42px;
+  /* Skip layout and paint for rows that are not in the viewport.
+     With thousands of files in the tree this is the difference
+     between rendering all rows up-front (laggy) and rendering
+     just what the user can see. The intrinsic-size hint keeps
+     the scroll height stable. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 36px;
+}
+
+.tree-spinner {
+  display: inline-grid;
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  color: var(--md-muted, var(--muted));
+}
+
+.tree-spinner svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tree-row-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 28px;
+  color: var(--md-muted, var(--muted));
+  pointer-events: none;
+}
+
+.tree-row-placeholder svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tree-label,
+.tree-file-text strong,
+.tree-file-name,
+.tree-file-text small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-file-name {
+  font-weight: 400;
+}
+
+.folder-row {
+  color: var(--text);
+}
+
+.tree-count {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-row.selected {
+  border-color: color-mix(in srgb, var(--accent-2) 56%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 16%, transparent);
+}
+
+.tree-file-dot {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.editor-field {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor textarea {
+  min-height: 0;
+  height: 100%;
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px) 0 0 / 100% 2rem,
+    color-mix(in srgb, var(--bg-soft) 72%, transparent);
+}
+
+.tab-strip {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.editor-tab-shell {
+  display: inline-flex;
+  align-items: center;
+  max-width: 260px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.editor-tab-shell.active {
+  border-color: color-mix(in srgb, var(--accent-2) 56%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 14%, transparent);
+}
+
+.editor-tab {
+  display: grid;
+  min-width: 0;
+  max-width: 210px;
+  gap: 0.05rem;
+  border: 0;
+  padding: 0.45rem 0.4rem 0.45rem 0.8rem;
+  background: transparent;
+  text-align: left;
+}
+
+.editor-tab:hover:not(:disabled) {
+  transform: none;
+  background: transparent;
+}
+
+.editor-tab span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-path {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.tab-close {
+  width: 28px;
+  height: 28px;
+  margin-right: 0.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.preview article,
+.qa-answer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.preview article :where(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 1rem;
+}
+
+.qa-view,
+.settings-view {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.2rem;
+}
+
+.hero {
+  padding: clamp(1.4rem, 3vw, 2.4rem);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+    var(--panel);
+}
+
+.ask-row {
+  align-items: center;
+}
+
+.citation {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.citation strong,
+.citation span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-layout {
+  grid-template-columns: minmax(210px, 260px) minmax(0, 1fr);
+}
+
+.settings-nav {
+  border-radius: 20px;
+}
+
+.settings-nav button {
+  min-height: 42px;
+  border-radius: 12px;
+}
+
+.field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.provider-grid,
+.import-export-grid {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.message {
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.error {
+  border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  color: color-mix(in srgb, var(--danger) 72%, white);
+}
+
+.index-progress {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--panel-strong) 70%, transparent);
+}
+
+.index-status-card {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--panel-strong) 62%, transparent);
+}
+
+.index-status-card.ready {
+  border-color: color-mix(in srgb, var(--success) 32%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+}
+
+.index-status-card small {
+  color: var(--muted);
+}
+
+.index-status-metrics span {
+  border-color: var(--border);
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-soft) 64%, transparent);
+}
+
+.index-progress.running {
+  border-color: color-mix(in srgb, var(--accent-2) 42%, transparent);
+}
+
+.index-progress.cancelled {
+  border-color: color-mix(in srgb, var(--muted) 42%, transparent);
+}
+
+progress,
+progress::-webkit-progress-bar {
+  background: rgba(148, 163, 184, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .workspace-grid {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  }
+
+  .preview {
+    grid-column: 1 / -1;
+    min-height: 420px;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: sticky;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: none;
+  }
+
+  nav {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  nav button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .sidebar-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .workspace-grid,
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .document-list,
+  .editor,
+  .preview {
+    min-height: auto;
+  }
+}
+
+/* Task-first IA refinements. */
+.settings-hero {
+  display: grid;
+  gap: 0.45rem;
+  padding: clamp(1.35rem, 2.4vw, 2rem);
+}
+
+.settings-hero .muted {
+  max-width: 72ch;
+  margin: 0;
+}
+
+.indexing-view {
+  max-width: 1080px;
+}
+
+.indexing-view .settings-layout {
+  grid-template-columns: 1fr;
+}
+
+.indexing-view .settings-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.indexing-view .form-panel {
+  gap: 1.1rem;
+}
+
+.indexing-view .field-grid {
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+.indexing-view .button-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.indexing-view .button-row button {
+  min-height: 48px;
+}
+
+.settings-nav {
+  align-self: start;
+}
+
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-nav button::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.settings-nav button.active::after {
+  background: currentColor;
+}
+
+.qa-view .hero {
+  min-height: 280px;
+  align-content: center;
+}
+
+.qa-view .ask-row {
+  margin-top: 0.4rem;
+}
+
+.qa-view .ask-row input {
+  min-height: 54px;
+  border-radius: 18px;
+  font-size: 1rem;
+}
+
+.qa-view .ask-row button {
+  min-height: 54px;
+  padding-inline: 1.2rem;
+}
+
+.document-list .panel-header,
+.editor .panel-header,
+.preview .panel-header {
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.document-list {
+  background:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.06), transparent 15rem),
+    var(--panel);
+}
+
+.editor {
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 22rem),
+    var(--panel);
+}
+
+.preview {
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 22rem),
+    var(--panel);
+}
+
+.blank-editor,
+.empty-state {
+  text-wrap: pretty;
+}
+
+.citation-grid {
+  align-items: start;
+}
+
+.citation {
+  border-radius: 20px;
+}
+
+.citation p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .indexing-view .field-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .indexing-view .button-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .indexing-view .field-grid,
+  .indexing-view .button-row,
+  .ask-row {
+    grid-template-columns: 1fr;
+  }
+
+  .qa-view .hero {
+    min-height: auto;
+  }
+}
+
+/* Obsidian-style workbench layout. */
+.obsidian-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100dvh;
+}
+
+.workspace-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(22px);
+}
+
+.topbar-brand {
+  width: auto;
+  min-width: 0;
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+}
+
+.topbar-brand:hover:not(:disabled) {
+  transform: none;
+}
+
+.top-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.top-nav button {
+  display: grid;
+  grid-template-columns: 1.75rem auto;
+  align-items: center;
+  min-height: 44px;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem 0.45rem 0.5rem;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: end;
+}
+
+/* Compact "you are signed in as foo (admin)" indicator placed
+   between the language switch and the theme/logout buttons. */
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  background: color-mix(in srgb, var(--md-surface, var(--panel)) 88%, transparent);
+  font-size: 0.85rem;
+  color: var(--md-text, var(--text));
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Admin "Users" page: simple stacked list of accounts. */
+.users-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.users-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--md-surface, var(--panel)) 92%, transparent);
+}
+
+.users-list-item > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.role-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+  color: var(--md-text, var(--text));
+}
+
+.role-badge.role-admin {
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+}
+
+.danger {
+  background: color-mix(in srgb, #c0392b 90%, transparent);
+  color: white;
+}
+
+.muted.small {
+  font-size: 0.8rem;
+}
+
+.topbar-user-name {
+  font-weight: 600;
+}
+
+.topbar-user-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+}
+
+.topbar-actions .ghost {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.workspace-topbar button,
+.obsidian-workspace button {
+  min-height: 44px;
+}
+
+.workspace-topbar button:hover:not(:disabled),
+.obsidian-workspace button:hover:not(:disabled) {
+  transform: none;
+}
+
+.obsidian-shell .main-content {
+  min-height: 0;
+}
+
+.obsidian-workspace {
+  grid-template-columns: minmax(260px, 320px) minmax(440px, 1fr) minmax(320px, 390px);
+  /* Use the JS-measured real topbar height (set on :root via
+     --owd-topbar-h in App.tsx) instead of guessing 74px. Falls
+     back to a generous estimate for the brief moment before
+     the JS runs, but the JS path is what's actually used. */
+  min-height: calc(100dvh - var(--owd-topbar-h, 74px));
+  padding: 0.85rem;
+  gap: 0.85rem;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  /* Same reasoning as .obsidian-workspace: don't hardcode a
+     subtracted topbar height. The pane height also subtracts
+     the workspace's own padding (0.85rem * 2 = ~27px) so each
+     pane fits inside the workspace without forcing it to grow.
+     Using a real measurement (--owd-topbar-h) eliminates the
+     "pageH > viewportH by a few px" outer scrollbar. */
+  min-height: calc(100dvh - var(--owd-topbar-h, 74px) - 1.7rem);
+  max-height: calc(100dvh - var(--owd-topbar-h, 74px) - 1.7rem);
+}
+
+.vault-pane,
+.editor-pane {
+  overflow: hidden;
+}
+
+/* The vault pane is a flex column: header / toolbar / sort row
+   take their natural height, then the .vault-scroll fills the
+   rest and is the actual scroll container. The doc-tree inside
+   has no own height; it scrolls together with the wrapper.
+   This replaces the old `max-height: calc(100dvh - 270px)` on
+   .doc-tree which was guessed and clipped the bottom row
+   whenever the actual chrome was taller than 270px. */
+.vault-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-pane .vault-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.vault-pane .doc-tree {
+  max-height: none;
+  overflow: visible;
+}
+
+.editor-pane .panel-header {
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.vault-toolbar,
+.editor-toolbar,
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.vault-toolbar {
+  margin-bottom: 0.85rem;
+}
+
+.vault-toolbar .primary {
+  flex: 1 1 150px;
+}
+
+.editor-toolbar {
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-actions {
+  justify-content: end;
+  margin-left: auto;
+}
+
+.mode-switch {
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  background: color-mix(in srgb, var(--bg-soft) 72%, transparent);
+}
+
+.mode-switch button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: var(--muted);
+}
+
+.mode-switch button.active {
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-2) 38%, transparent);
+}
+
+.danger {
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+  color: color-mix(in srgb, var(--danger) 70%, white);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger) 52%, transparent);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.preview-surface {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: clamp(1rem, 2vw, 1.6rem);
+  background: color-mix(in srgb, var(--panel-strong) 72%, transparent);
+}
+
+.preview-surface article {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  line-height: 1.72;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.preview-surface article :first-child {
+  margin-top: 0;
+}
+
+.preview-surface article :last-child {
+  margin-bottom: 0;
+}
+
+.preview-surface article code {
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.preview-surface article pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.preview-surface article pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: #c9d1d9;
+}
+
+.preview-surface article :where(p, li, blockquote, td, th) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.preview-surface article pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.preview-surface article a.internal-link {
+  color: var(--md-primary, var(--accent-2));
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.preview-surface article a.internal-link:hover {
+  color: color-mix(in srgb, var(--md-primary, var(--accent-2)) 84%, var(--md-text, var(--text)));
+}
+
+.preview-surface article blockquote,
+.qa-answer blockquote {
+  margin: 1rem 0;
+  padding: 0.15rem 0 0.15rem 0.9rem;
+  border-left: 3px solid color-mix(in srgb, var(--accent) 46%, var(--border));
+  color: var(--muted);
+  background: transparent;
+}
+
+.preview-surface article blockquote > :first-child,
+.qa-answer blockquote > :first-child {
+  margin-top: 0;
+}
+
+.preview-surface article blockquote > :last-child,
+.qa-answer blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.preview-surface article li:has(input[type="checkbox"]) {
+  position: relative;
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  margin: 0.35rem 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--md-radius-md, 12px);
+  list-style: none;
+  background: color-mix(in srgb, var(--md-surface-2, var(--bg-soft)) 34%, transparent);
+}
+
+.preview-surface article li:has(input[type="checkbox"]:checked) {
+  border-color: color-mix(in srgb, var(--success, #34d399) 24%, transparent);
+  background: color-mix(in srgb, var(--success, #34d399) 9%, transparent);
+  color: color-mix(in srgb, var(--md-muted, var(--muted)) 72%, var(--md-text, var(--text)));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--success, #34d399) 58%, transparent);
+}
+
+.preview-surface article li:has(input[type="checkbox"]:not(:checked)) {
+  border-color: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}
+
+.preview-surface article li:has(input[type="checkbox"]) > p {
+  display: contents;
+  margin: 0;
+}
+
+.preview-surface article input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.22rem 0 0;
+  border-radius: 2px;
+  accent-color: var(--success, #34d399);
+  cursor: default;
+}
+
+.preview-surface article input[type="checkbox"]:not(:checked) {
+  accent-color: var(--accent-2);
+}
+
+.preview-surface article table {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: var(--md-radius-lg, 16px);
+  border-spacing: 0;
+  border-collapse: separate;
+  margin: 1.15rem 0;
+  background: var(--md-surface, color-mix(in srgb, var(--panel-strong) 80%, transparent));
+  box-shadow: var(--md-elevation-1, 0 1px 3px rgba(0, 0, 0, 0.16));
+}
+
+.preview-surface article table :where(thead, tbody) {
+  display: table-row-group;
+  min-width: max-content;
+}
+
+.preview-surface article table thead {
+  background: var(--md-surface-3, color-mix(in srgb, var(--accent-2) 10%, transparent));
+}
+
+.preview-surface article table tr {
+  display: table-row;
+}
+
+.preview-surface article table th,
+.preview-surface article table td {
+  display: table-cell;
+  min-width: 8rem;
+  border-right: 1px solid var(--md-outline-soft, var(--border));
+  border-bottom: 1px solid var(--md-outline-soft, var(--border));
+  padding: 0.72rem 0.85rem;
+  vertical-align: top;
+  text-align: left;
+  line-height: 1.55;
+}
+
+.preview-surface article table th {
+  color: var(--md-text, var(--text));
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.015em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.preview-surface article table td {
+  color: var(--md-text, var(--text));
+  font-size: 0.92rem;
+}
+
+.preview-surface article table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--md-surface-3, var(--bg-soft)) 46%, transparent);
+}
+
+.preview-surface article table tbody tr:hover {
+  background: color-mix(in srgb, var(--md-primary-container, var(--accent-2)) 18%, transparent);
+}
+
+.preview-surface article table :where(th, td):last-child {
+  border-right: 0;
+}
+
+.preview-surface article table tr:last-child td {
+  border-bottom: 0;
+}
+
+.preview-surface article table :where(th, td) > :first-child {
+  margin-top: 0;
+}
+
+.preview-surface article table :where(th, td) > :last-child {
+  margin-bottom: 0;
+}
+
+.preview-surface article table code {
+  white-space: nowrap;
+}
+
+.preview-surface article .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+}
+
+.preview-surface article img,
+.qa-answer img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem auto;
+  border-radius: var(--md-radius-md, 14px);
+  box-shadow: var(--md-elevation-1, 0 1px 3px rgba(0, 0, 0, 0.2));
+}
+
+.qa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: none;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 20rem),
+    var(--panel);
+}
+
+.qa-panel .qa-hero,
+.qa-panel .qa-response,
+.qa-panel .citation {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.qa-panel .qa-hero {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.qa-panel .qa-hero .muted {
+  margin: 0;
+}
+
+.qa-panel .ask-row {
+  grid-template-columns: 1fr;
+}
+
+.qa-panel .ask-row input,
+.qa-panel .ask-row button {
+  min-height: 48px;
+  border-radius: 16px;
+}
+
+.query-button {
+  min-width: 112px;
+}
+
+.query-loading,
+.query-loading:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--muted) 18%, var(--panel-strong));
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.qa-query-state {
+  width: fit-content;
+}
+
+.qa-panel .qa-response {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.qa-panel .panel-header {
+  margin-bottom: 0;
+}
+
+.qa-panel .citation-grid {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.qa-panel .citation {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.85rem;
+  background: rgba(148, 163, 184, 0.07);
+}
+
+.citation-source {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.35rem 0.45rem;
+  background: transparent;
+  text-align: left;
+}
+
+.citation-source:not(:disabled):hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.citation-source:disabled {
+  opacity: 1;
+}
+
+.citation-source strong,
+.citation-source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-panel .citation p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+}
+
+.search-modal {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 1rem;
+  width: min(760px, 100%);
+  max-height: min(760px, 90dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Settings / indexing overlay modal (desktop only). The
+   embedded SettingsView ships its own internal navigation
+   chrome (eyebrow + h1, side nav for settings); we put a
+   compact pill header on top with eyebrow + title + close
+   button so the user always has a single dismiss target. The
+   body owns the scroll so the header / close stay sticky as
+   the content overflows. */
+.settings-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1100px, 100%);
+  height: min(780px, 90dvh);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 16px;
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  border-bottom: 1px solid transparent;
+  background: var(--md-surface, var(--panel));
+  /* Animate only the divider color so the header slips quietly
+     into a state with a visible separator once the user scrolls. */
+  transition-property: border-color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.settings-modal-header[data-scrolled="true"] {
+  border-bottom-color: var(--md-outline-soft, var(--border));
+  /* Soft shadow that fades content under the header once it is
+     no longer flush with the top of the body. Layered above the
+     hairline border so the seam reads as a single edge. */
+  box-shadow: 0 1px 0 0 transparent, 0 6px 12px -10px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal-header {
+    transition: none;
+  }
+}
+
+.settings-modal-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.settings-modal-titles .eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--md-text-muted, var(--text-muted));
+}
+
+.settings-modal-titles h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--md-text, var(--text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-modal-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.settings-modal-body {
+  min-height: 0;
+  overflow: auto;
+  /* Keep wheel scroll bound to the modal so it never
+     accidentally scrolls the workspace behind the dialog. */
+  overscroll-behavior: contain;
+  /* The embedded SettingsView assumes a viewport-sized
+     container. Reset its outer padding because the modal
+     already has chrome and let the inner layout breathe. */
+  padding: 0;
+}
+
+/* SettingsView is rendered as <main className="settings-view">
+   with its own padding / hero. When embedded inside the modal
+   we want it to use up the available width with a slimmer
+   gutter and no top-of-page hero block since the modal header
+   already shows the title. */
+.settings-modal-body .settings-view {
+  padding: 1rem 1.25rem 1.5rem;
+  background: transparent;
+}
+
+.settings-modal-body .settings-view > .settings-hero {
+  display: none;
+}
+
+.settings-modal-body .settings-view > .settings-back-bar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  /* Defensive: even if the modal is briefly rendered during a
+     resize, fall back to a near-fullscreen sheet. */
+  .settings-modal {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
+.prompt-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(520px, 100%);
+  max-height: min(720px, 90dvh);
+  padding: 1.25rem;
+  overflow: auto;
+}
+
+.prompt-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.prompt-actions button {
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .prompt-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .prompt-actions button {
+    width: 100%;
+  }
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.search-form button {
+  min-width: 120px;
+}
+
+.search-results {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-height: 160px;
+  max-height: min(52dvh, 520px);
+  overflow: auto;
+  padding-right: 0.25rem;
+  overscroll-behavior: contain;
+}
+
+.search-result {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 0.85rem 0.95rem;
+  text-align: left;
+}
+
+.search-result strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+@media (max-width: 1180px) {
+  .workspace-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .top-nav,
+  .topbar-actions {
+    justify-content: start;
+  }
+
+  .obsidian-workspace {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+
+  .qa-panel {
+    grid-column: 1 / -1;
+    min-height: 440px;
+    max-height: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .workspace-topbar {
+    position: static;
+  }
+
+  .topbar-brand {
+    width: 100%;
+  }
+
+  .top-nav,
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top-nav button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0.6rem;
+    text-align: center;
+  }
+
+  .obsidian-workspace {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .vault-pane,
+  .editor-pane,
+  .qa-panel {
+    min-height: auto;
+    max-height: none;
+  }
+
+  .vault-pane .doc-tree {
+    max-height: 45vh;
+  }
+
+  .search-form,
+  .search-result {
+    grid-template-columns: 1fr;
+  }
+}

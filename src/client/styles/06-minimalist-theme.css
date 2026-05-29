@@ -1,0 +1,800 @@
+/* ============================================================
+   18. Cheap virtualization for the vault tree.
+
+   Large vaults can render hundreds (or thousands) of <button>
+   .tree-row nodes inside a single scrollable column. Most of
+   them sit far below the viewport at any given moment, so we
+   tag every row with `content-visibility: auto`: the browser
+   skips layout, paint, and style work for off-screen rows
+   until they scroll near the viewport, and then renders them
+   on demand. `contain-intrinsic-size: auto 34px` gives the
+   browser a stable height hint so the scrollbar stays accurate
+   even when most rows haven't been rendered yet; the `auto`
+   keyword lets it cache the actual rendered size for
+   subsequent scroll passes.
+
+   The placeholder / loading row is excluded so spinners
+   continue to animate even when the row is technically out of
+   view (avoids the "spinner pauses" effect during long folder
+   loads).
+
+   Find-in-page, focus, and pointer events still work: modern
+   Chromium "force renders" content-visibility:auto subtrees
+   when they receive focus or match a find-in-page query. */
+.tree-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 34px;
+}
+
+.tree-row.tree-row-placeholder {
+  content-visibility: visible;
+}
+
+/* ============================================================
+   17. Collapsible side panels (desktop only)
+
+   Both the vault and the AI Q&A panels can be tucked away into
+   a 44px vertical rail so the editor takes the full freed
+   width. Only desktop participates: mobile already has its own
+   section switcher (see .obsidian-workspace[data-mobile-section]
+   above) and these rules are scoped to the >=861px breakpoint.
+
+   Behaviour:
+     - .obsidian-workspace[data-vault-collapsed="true"]
+       -> column 1 shrinks from minmax(260px,310px) to 44px
+     - .obsidian-workspace[data-qa-collapsed="true"]
+       -> column 3 shrinks from minmax(320px,380px) to 44px
+     - When both are collapsed the editor is the only surface
+       that grows.
+
+   Inside each pane two children cooperate: the normal panel
+   content (toolbars, tree, ask row, answer, etc.) is hidden
+   when collapsed; a sibling .pane-collapsed-rail holds the
+   single expand button + an icon hint and is hidden when the
+   pane is expanded. The collapse trigger lives inside the
+   normal toolbar area and is hidden when the pane is collapsed.
+   ============================================================ */
+@media (min-width: 861px) {
+  /* Default rail / collapse-toggle visibility. The rail is only
+     shown when the pane is collapsed; the inline collapse button
+     is only shown when the pane is expanded. */
+  .pane-collapsed-rail {
+    display: none;
+  }
+
+  /* Vault collapsed */
+  .obsidian-workspace[data-vault-collapsed="true"] {
+    grid-template-columns: 44px minmax(440px, 1fr) minmax(320px, 380px);
+  }
+
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane > *:not(.pane-collapsed-rail):not(.mobile-section-header) {
+    display: none !important;
+  }
+
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane .pane-collapsed-rail {
+    display: flex;
+  }
+
+  /* Q&A collapsed */
+  .obsidian-workspace[data-qa-collapsed="true"] {
+    grid-template-columns: minmax(260px, 310px) minmax(440px, 1fr) 44px;
+  }
+
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] > *:not(.pane-collapsed-rail) {
+    display: none !important;
+  }
+
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] .pane-collapsed-rail {
+    display: flex;
+  }
+
+  /* Both collapsed: the editor is the only thing that grows. */
+  .obsidian-workspace[data-vault-collapsed="true"][data-qa-collapsed="true"] {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  /* The collapsed rail itself: a centred column of buttons /
+     icons. Padding lifts the chevron away from the panel
+     border so it has a comfortable hit target. */
+  .pane-collapsed-rail {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0;
+    width: 100%;
+  }
+
+  /* The hint icon below the chevron is decorative; muted
+     colour keeps it from competing with the active button. */
+  .pane-collapsed-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--md-muted, var(--muted));
+  }
+
+  .pane-collapsed-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Compact buttons inside the rail / inline collapse triggers
+     match the editor-tabbar action button size so the chrome
+     reads as one consistent control language. */
+  .pane-expand-toggle,
+  .pane-collapse-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .pane-expand-toggle > svg,
+  .pane-collapse-toggle > svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Top row of the Q&A hero on desktop: the collapse toggle and
+     the small eyebrow label share a single flex row. Keeping the
+     button inline (rather than absolutely positioning it over
+     the panel) means the title / description / ask-row below
+     keep their natural full width and aren't shifted by the
+     button's presence. */
+  .qa-panel .qa-hero-top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  .qa-panel .qa-hero-top > .eyebrow {
+    margin: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Hide the inline collapse trigger when the pane is already
+     collapsed (the rail's expand button takes its place). */
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane .pane-collapse-toggle,
+  .qa-panel[data-collapsed="true"] .pane-collapse-toggle {
+    display: none;
+  }
+
+  /* The vault pane is already a flex column; when the rail is
+     showing, centre the content and remove the wide padding
+     that was tuned for the 300px expanded width. */
+  .obsidian-workspace[data-vault-collapsed="true"] .vault-pane,
+  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] {
+    padding: 0.35rem 0;
+    overflow: hidden;
+  }
+}
+
+/* ============================================================
+   19. Redesign branch flat polish guardrail.
+
+   Scope:
+     - no font-family or font-size changes
+     - no tab-strip / editor-tab styling changes
+     - no action-sheet or tree-context-menu changes
+     - no Markdown preview typography/content styling changes
+
+   This layer removes the boxy polish from the redesign branch.
+   State is carried by ink, hairline dividers, and selection rails
+   rather than extra panels, hover boxes, shadows, or gradients.
+   ============================================================ */
+:root {
+  --owd-flat-divider: color-mix(in srgb, var(--md-outline-soft, var(--border)) 76%, transparent);
+  --owd-flat-divider-strong: color-mix(in srgb, var(--md-outline, var(--border)) 88%, transparent);
+  --owd-flat-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
+  --owd-flat-ink-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 82%, var(--md-text, var(--text)) 18%);
+}
+
+:root[data-theme="light"] {
+  --owd-flat-divider: rgba(80, 67, 48, 0.10);
+  --owd-flat-divider-strong: rgba(80, 67, 48, 0.18);
+  --owd-flat-muted: #706e6b;
+  --owd-flat-ink-hover: #2e4f4f;
+}
+
+.obsidian-workspace {
+  background: var(--md-bg, var(--bg)) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  background: var(--md-surface, var(--panel)) !important;
+  box-shadow: none !important;
+}
+
+.vault-pane {
+  border-color: transparent var(--owd-flat-divider) transparent transparent !important;
+}
+
+.editor-pane {
+  border-color: transparent !important;
+}
+
+.qa-panel {
+  border-color: transparent transparent transparent var(--owd-flat-divider) !important;
+}
+
+.settings-modal,
+.search-modal,
+.prompt-modal,
+.login-card,
+.single-view.panel {
+  box-shadow: none !important;
+}
+
+.vault-meta,
+.editor-tabbar-status,
+.status-subline,
+.path-picker-current,
+.tree-row-placeholder,
+.folder-picker-loading {
+  color: var(--owd-flat-muted) !important;
+}
+
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.editor-tabbar-actions .icon-button,
+.settings-modal-close,
+.back-to-top,
+.mobile-section-actions .icon-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.pane-expand-toggle:hover:not(:disabled),
+.pane-collapse-toggle:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
+.settings-modal-close:hover:not(:disabled),
+.back-to-top:hover:not(:disabled),
+.mobile-section-actions .icon-button:hover:not(:disabled) {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--owd-flat-ink-hover) !important;
+}
+
+.editor-tabbar-actions .icon-button:focus-visible {
+  outline: 2px solid var(--md-primary, var(--accent-2));
+  outline-offset: 2px;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.editor-tabbar-actions .icon-button > svg {
+  pointer-events: none;
+}
+
+.tree-row,
+.folder-picker-label,
+.citation-source,
+.settings-nav button,
+.prompt-actions button,
+.search-form button,
+.qa-panel .query-button {
+  box-shadow: none !important;
+  transition:
+    color 140ms ease,
+    opacity 140ms ease,
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.tree-row,
+.folder-picker-label,
+.citation-source {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.tree-row {
+  border-radius: 0 !important;
+}
+
+.tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--owd-flat-ink-hover) !important;
+}
+
+.tree-row.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.file-row.selected,
+.doc-item.selected {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
+}
+
+.file-row.selected .tree-file-name,
+.folder-row.selected .tree-label,
+.folder-picker-row.selected .folder-picker-name {
+  color: var(--md-primary, var(--accent-2)) !important;
+}
+
+.qa-panel .citation-grid {
+  gap: 0 !important;
+}
+
+.qa-panel .citation {
+  border-width: 1px 0 0 !important;
+  border-color: var(--owd-flat-divider) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.8rem 0 !important;
+}
+
+.qa-panel .citation:first-child {
+  border-top-color: transparent !important;
+  padding-top: 0 !important;
+}
+
+:root[data-theme="light"] .citation-source {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+:root[data-theme="light"] .citation-source:not(:disabled):hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.blank-editor,
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
+.tree-row-placeholder,
+.folder-picker-loading {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
+.tree-row-placeholder,
+.folder-picker-loading {
+  border-top: 1px solid var(--owd-flat-divider) !important;
+  padding-inline: 0 !important;
+}
+
+.tree-row-placeholder svg,
+.folder-picker-loading svg,
+button[aria-busy="true"] .spinner,
+button[aria-busy="true"] .button-spinner {
+  filter: none !important;
+}
+
+.tree-row:active,
+.folder-picker-label:active:not(:disabled),
+.citation-source:active:not(:disabled),
+.vault-toolbar-action:active:not(:disabled),
+.pane-expand-toggle:active:not(:disabled),
+.pane-collapse-toggle:active:not(:disabled),
+.editor-tabbar-actions .icon-button:active:not(:disabled),
+.settings-modal-close:active:not(:disabled),
+.prompt-actions button:active:not(:disabled),
+.search-form button:active:not(:disabled),
+.qa-panel .query-button:active:not(:disabled),
+.back-to-top:active:not(:disabled) {
+  transform: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-toolbar-action,
+  .pane-expand-toggle,
+  .pane-collapse-toggle,
+  .editor-tabbar-actions .icon-button,
+  .settings-modal-close,
+  .back-to-top,
+  .mobile-section-actions .icon-button,
+  .tree-row,
+  .folder-picker-label,
+  .citation-source,
+  .settings-nav button,
+  .prompt-actions button,
+  .search-form button,
+  .qa-panel .query-button {
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   20. Minimalist UI unification layer.
+
+   Font is intentionally untouched. This layer makes the current
+   interface read as one warm, editorial workspace: monochrome
+   surfaces, scarce accent color, divider-led rows, low/no
+   elevation, and crisp radii.
+   ============================================================ */
+:root {
+  --md-bg: #11100f;
+  --md-surface: #171615;
+  --md-surface-2: #201f1d;
+  --md-surface-3: #2a2825;
+  --md-outline-soft: rgba(245, 242, 235, 0.09);
+  --md-outline: rgba(245, 242, 235, 0.16);
+  --md-text: #ebe7dd;
+  --md-muted: #a8a096;
+  --md-primary: #f4f1e8;
+  --md-primary-container: rgba(244, 241, 232, 0.09);
+  --md-on-primary: #11100f;
+  --md-danger: #f0aaa3;
+  --md-success: #9fc7a3;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(245, 242, 235, 0.055);
+  --owd-minimal-danger-bg: rgba(240, 170, 163, 0.10);
+  --owd-minimal-success-bg: rgba(159, 199, 163, 0.10);
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="light"] {
+  --md-bg: #fbfbfa;
+  --md-surface: #ffffff;
+  --md-surface-2: #f7f6f3;
+  --md-surface-3: #efede8;
+  --md-outline-soft: #eae8e2;
+  --md-outline: #d9d5ca;
+  --md-text: #2f3437;
+  --md-muted: #787774;
+  --md-primary: #111111;
+  --md-primary-container: #f1f0ed;
+  --md-on-primary: #ffffff;
+  --md-danger: #9f2f2d;
+  --md-success: #346538;
+  --owd-minimal-canvas: var(--md-bg);
+  --owd-minimal-surface: var(--md-surface);
+  --owd-minimal-subtle: var(--md-surface-2);
+  --owd-minimal-divider: var(--md-outline-soft);
+  --owd-minimal-divider-strong: var(--md-outline);
+  --owd-minimal-hover: rgba(47, 52, 55, 0.055);
+  --owd-minimal-danger-bg: #fdebec;
+  --owd-minimal-success-bg: #edf3ec;
+  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
+  --md-elevation-2: 0 2px 8px rgba(47, 52, 55, 0.045);
+}
+
+html,
+body,
+.obsidian-workspace,
+.workspace-grid,
+.login-shell {
+  background: var(--owd-minimal-canvas) !important;
+  color: var(--md-text) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel,
+.settings-modal,
+.search-modal,
+.prompt-modal,
+.path-picker-modal,
+.login-card,
+.single-view.panel,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  border-color: var(--owd-minimal-divider) !important;
+  background: var(--owd-minimal-surface) !important;
+}
+
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  box-shadow: none !important;
+}
+
+.vault-pane {
+  border-width: 0 1px 0 0 !important;
+}
+
+.editor-pane {
+  border-width: 0 !important;
+}
+
+.qa-panel {
+  border-width: 0 0 0 1px !important;
+}
+
+.modal-backdrop {
+  background: rgba(17, 16, 15, 0.44) !important;
+}
+
+:root[data-theme="light"] .modal-backdrop {
+  background: rgba(47, 52, 55, 0.18) !important;
+}
+
+.search-modal,
+.path-picker-modal,
+.settings-modal,
+.prompt-modal,
+.tree-context-menu,
+.anchored-menu,
+.modal-backdrop.sheet-backdrop .action-sheet {
+  box-shadow: var(--md-elevation-2) !important;
+}
+
+.editor-fab {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+}
+
+:root[data-theme="light"] .editor-fab {
+  box-shadow: 0 2px 8px rgba(47, 52, 55, 0.08) !important;
+}
+
+button.primary,
+.primary,
+.editor-fab {
+  border: 1px solid var(--md-primary) !important;
+  background: var(--md-primary) !important;
+  background-image: none !important;
+  color: var(--md-on-primary) !important;
+  box-shadow: none !important;
+}
+
+button.primary:hover:not(:disabled),
+.primary:hover:not(:disabled),
+.editor-fab:hover:not(:disabled),
+.editor-fab:focus-visible {
+  border-color: var(--md-primary) !important;
+  background: color-mix(in srgb, var(--md-primary) 88%, var(--md-surface)) !important;
+  color: var(--md-on-primary) !important;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+.file-button,
+.search-form button,
+.qa-panel .query-button {
+  border-radius: 6px !important;
+}
+
+.icon-button,
+.tab-strip-add,
+.tab-close,
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.settings-modal-close {
+  border-radius: 8px !important;
+}
+
+.status-pill,
+.draft-pill {
+  border-color: transparent !important;
+  background: var(--md-primary-container) !important;
+  color: var(--md-muted) !important;
+  box-shadow: none !important;
+}
+
+.error {
+  border-color: color-mix(in srgb, var(--md-danger) 30%, transparent) !important;
+  background: var(--owd-minimal-danger-bg) !important;
+  color: var(--md-danger) !important;
+}
+
+.success {
+  border-color: color-mix(in srgb, var(--md-success) 30%, transparent) !important;
+  background: var(--owd-minimal-success-bg) !important;
+  color: var(--md-success) !important;
+}
+
+.vault-toolbar {
+  display: flex !important;
+  gap: 0.25rem !important;
+  padding: 0 0 0.55rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--owd-minimal-divider) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.vault-toolbar-search {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.vault-toolbar-action,
+.pane-expand-toggle,
+.pane-collapse-toggle,
+.editor-tabbar-actions .icon-button,
+.settings-modal-close,
+.back-to-top,
+.mobile-section-actions .icon-button,
+.action-sheet-header button {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-muted) !important;
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible,
+.pane-expand-toggle:hover:not(:disabled),
+.pane-expand-toggle:focus-visible,
+.pane-collapse-toggle:hover:not(:disabled),
+.pane-collapse-toggle:focus-visible,
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
+.settings-modal-close:hover:not(:disabled),
+.settings-modal-close:focus-visible,
+.back-to-top:hover:not(:disabled),
+.mobile-section-actions .icon-button:hover:not(:disabled),
+.action-sheet-header button:hover:not(:disabled),
+.action-sheet-header button:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.editor-tabbar-actions .mode-toggle[aria-pressed="true"],
+.editor-pane .tab-strip > .editor-tab-shell.active,
+.action-sheet-group button.active {
+  color: var(--md-primary) !important;
+}
+
+.editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
+.editor-pane .tab-strip > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
+.editor-pane .tab-strip > .tab-strip-add:focus-visible,
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
+.editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.tree-row:hover,
+:root[data-theme="light"] .tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled),
+.action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+  background: transparent !important;
+  color: var(--md-text) !important;
+}
+
+.tree-row.selected,
+.file-row.selected,
+.folder-row.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--md-primary) !important;
+  color: var(--md-primary) !important;
+}
+
+.tree-row.folder-row.drop-target {
+  outline: 1px solid var(--owd-minimal-divider-strong) !important;
+  outline-offset: -1px;
+  background: transparent !important;
+}
+
+.search-results {
+  gap: 0 !important;
+  padding-right: 0 !important;
+}
+
+.search-result {
+  min-height: 42px !important;
+  border-width: 1px 0 0 !important;
+  border-color: var(--owd-minimal-divider) !important;
+  border-radius: 0 !important;
+  padding: 0.72rem 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text) !important;
+}
+
+.search-result:first-child {
+  border-top-color: transparent !important;
+}
+
+.search-result:hover,
+.search-result:focus-visible {
+  background: transparent !important;
+  border-color: var(--owd-minimal-divider) !important;
+  color: var(--md-primary) !important;
+}
+
+.qa-panel .citation,
+.document-list .empty-state,
+.qa-panel .empty-state,
+.search-results .empty-state,
+.tree-row-placeholder,
+.folder-picker-loading {
+  border-color: var(--owd-minimal-divider) !important;
+}
+
+.blank-editor,
+.empty-state,
+.info-box {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.search-form input,
+.qa-panel .ask-row input,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  border-color: var(--owd-minimal-divider) !important;
+  background: var(--owd-minimal-subtle) !important;
+  color: var(--md-text) !important;
+  box-shadow: none !important;
+}
+
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible {
+  border-color: var(--owd-minimal-divider-strong) !important;
+}
+
+.zen-exit-button {
+  border-color: var(--owd-minimal-divider-strong) !important;
+  background: var(--owd-minimal-surface) !important;
+  color: var(--md-text) !important;
+}
+
+.zen-exit-button:hover {
+  border-color: var(--md-primary) !important;
+  background: var(--owd-minimal-surface) !important;
+  color: var(--md-primary) !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button.primary:active:not(:disabled),
+  .primary:active:not(:disabled),
+  .editor-fab:active:not(:disabled) {
+    transform: scale(0.98) !important;
+  }
+}

@@ -1,0 +1,425 @@
+/* ============================================================
+   21. Minimalist type-size normalization.
+
+   Font family is intentionally untouched. This only reduces the
+   number of competing UI text sizes and raises the smallest
+   labels so the flat interface stays clear.
+   ============================================================ */
+:root {
+  --owd-type-app: 15px;
+  --owd-type-readable: 16px;
+  --owd-type-row: 14px;
+  --owd-type-meta: 13px;
+  --owd-type-small: 12px;
+  --owd-line-readable: 1.68;
+  --owd-line-ui: 1.45;
+}
+
+body {
+  font-size: var(--owd-type-app) !important;
+  line-height: 1.56;
+}
+
+.editor textarea,
+.preview-surface article,
+.qa-answer {
+  font-size: var(--owd-type-readable) !important;
+  line-height: var(--owd-line-readable) !important;
+}
+
+.preview-surface article :where(p, li, blockquote, td, th),
+.qa-answer :where(p, li, blockquote, td, th) {
+  line-height: var(--owd-line-readable) !important;
+}
+
+.tree-row,
+.folder-picker-label,
+.search-result,
+.citation-source,
+.modal-backdrop.sheet-backdrop .action-sheet-group button,
+.tree-context-menu button,
+.anchored-menu button,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
+.file-button {
+  font-size: var(--owd-type-row) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.search-form input,
+.qa-panel .ask-row input {
+  font-size: var(--owd-type-row) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+.editor-pane .tab-strip > .editor-tab-shell .editor-tab,
+.editor-tab,
+.tab-strip-add {
+  font-size: var(--owd-type-row) !important;
+}
+
+.editor-tabbar-status,
+.vault-meta,
+.status-subline,
+.path-picker-current,
+.tree-row-placeholder,
+.folder-picker-loading,
+.obsidian-workspace .muted,
+.qa-panel .muted,
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.path-picker-section-label {
+  font-size: var(--owd-type-meta) !important;
+  line-height: var(--owd-line-ui) !important;
+}
+
+.eyebrow,
+.obsidian-workspace .eyebrow,
+.settings-modal-titles .eyebrow,
+.status-pill,
+.draft-pill,
+.anchored-menu-kbd {
+  font-size: var(--owd-type-small) !important;
+  line-height: 1.3 !important;
+}
+
+.tab-close {
+  font-size: 14px !important;
+}
+
+@media (max-width: 860px) {
+  input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  .search-form input,
+  .qa-panel .ask-row input {
+    font-size: 16px !important;
+  }
+}
+
+/* ============================================================
+   22. Mobile tab strip alignment.
+
+   Mobile uses the same flat underline tab language as desktop:
+   no pills, no filled active state, no boxed hover state. The
+   swipe-to-close behavior remains; only the resting visual shape
+   changes.
+   ============================================================ */
+@media (max-width: 860px) {
+  .editor-pane > .editor-tabbar {
+    display: flex !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: inset 0 -1px 0 var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+  }
+
+  .editor-pane .tab-strip {
+    display: flex !important;
+    align-items: stretch !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: auto;
+    background: transparent !important;
+    box-shadow: none !important;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex: 0 0 auto !important;
+    height: 36px !important;
+    max-width: min(220px, 62vw) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--md-muted, var(--muted)) !important;
+    box-shadow: none !important;
+    transition-property: color, transform;
+    transition-duration: 140ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active {
+    color: var(--md-text, var(--text)) !important;
+    background: transparent !important;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active::after {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    right: 0.35rem;
+    bottom: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--md-primary, var(--accent-2));
+    pointer-events: none;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    max-width: none !important;
+    gap: 0.35rem !important;
+    padding: 0 0.35rem 0 0.6rem !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: inherit !important;
+    line-height: 1 !important;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active .editor-tab {
+    font-weight: 600;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-path {
+    display: none !important;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 0.4rem !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: var(--md-muted, var(--muted)) !important;
+    opacity: 0 !important;
+    transition-property: opacity, color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active .tab-close,
+  .editor-pane .tab-strip > .editor-tab-shell:focus-within .tab-close {
+    opacity: 1 !important;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close:focus-visible {
+    background: transparent !important;
+    color: var(--md-text, var(--text)) !important;
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add {
+    align-self: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    margin: 0 0.15rem 0 0.25rem !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: var(--md-muted, var(--muted)) !important;
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add:hover,
+  .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+    background: transparent !important;
+    color: var(--md-text, var(--text)) !important;
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* ============================================================
+   23. Mobile minimalist control cleanup.
+
+   Keep mobile aligned with the desktop flat system: transparent
+   icon controls, divider-led sheets, and no floating shadow/pill
+   treatment for editor actions.
+   ============================================================ */
+@media (max-width: 860px) {
+  .mobile-app-bar,
+  .mobile-section-header {
+    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    background: var(--owd-minimal-surface, var(--md-surface)) !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-app-bar .icon-button,
+  .mobile-section-actions .icon-button,
+  .action-sheet-header button,
+  .back-to-top {
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: var(--md-muted, var(--muted)) !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-app-bar .icon-button:hover:not(:disabled),
+  .mobile-app-bar .icon-button:focus-visible,
+  .mobile-section-actions .icon-button:hover:not(:disabled),
+  .mobile-section-actions .icon-button:focus-visible,
+  .action-sheet-header button:hover:not(:disabled),
+  .action-sheet-header button:focus-visible,
+  .back-to-top:hover:not(:disabled),
+  .back-to-top:focus-visible {
+    background: transparent !important;
+    color: var(--md-text, var(--text)) !important;
+    transform: none !important;
+  }
+
+  .mobile-app-bar .icon-button[aria-expanded="true"],
+  .mobile-app-bar .icon-button[aria-pressed="true"],
+  .mobile-section-actions .icon-button[aria-expanded="true"],
+  .mobile-section-actions .icon-button[aria-pressed="true"] {
+    color: var(--md-primary, var(--accent-2)) !important;
+  }
+
+  .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .modal-backdrop.sheet-backdrop .action-sheet,
+  .action-sheet {
+    background: var(--owd-minimal-surface, var(--md-surface)) !important;
+    box-shadow: none !important;
+  }
+
+  .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"] {
+    border-right: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .modal-backdrop.sheet-backdrop .action-sheet,
+  .action-sheet {
+    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+  }
+
+  .modal-backdrop.sheet-backdrop {
+    background: rgba(17, 16, 15, 0.34) !important;
+  }
+
+  :root[data-theme="light"] .modal-backdrop.sheet-backdrop {
+    background: rgba(47, 52, 55, 0.16) !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet,
+  .action-sheet {
+    gap: 0 !important;
+    border-radius: 10px 10px 0 0 !important;
+    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.9rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left)) !important;
+  }
+
+  .action-sheet-header {
+    min-height: 42px !important;
+    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    padding: 0 0 0.55rem !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group,
+  .action-sheet-group {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group:first-of-type,
+  .action-sheet-group:first-of-type {
+    border-top: 0 !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button,
+  .action-sheet-group button {
+    min-height: 44px !important;
+    border-width: 0 0 1px !important;
+    border-color: var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    border-radius: 0 !important;
+    padding: 0.65rem 0.1rem !important;
+    background: transparent !important;
+    color: var(--md-text, var(--text)) !important;
+    box-shadow: none !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:last-child,
+  .action-sheet-group button:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible,
+  .action-sheet-group button:hover:not(:disabled),
+  .action-sheet-group button:focus-visible {
+    background: transparent !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button.active,
+  .action-sheet-group button.active {
+    background: transparent !important;
+    box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon,
+  .action-sheet-icon {
+    color: var(--md-muted, var(--muted)) !important;
+  }
+
+  .qa-panel .ask-row {
+    gap: 0.5rem !important;
+  }
+
+  .qa-panel .ask-row input,
+  .qa-panel .query-button {
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+
+  .editor-fab {
+    min-height: 44px !important;
+    border-radius: 8px !important;
+    padding: 0.55rem 0.75rem !important;
+    background: var(--owd-minimal-surface, var(--md-surface)) !important;
+    border-color: var(--owd-minimal-divider-strong, var(--md-outline)) !important;
+    color: var(--md-text, var(--text)) !important;
+    box-shadow: none !important;
+  }
+
+  .editor-fab:hover:not(:disabled),
+  .editor-fab:focus-visible {
+    background: var(--owd-minimal-surface, var(--md-surface)) !important;
+    border-color: var(--md-primary, var(--accent-2)) !important;
+    color: var(--md-primary, var(--accent-2)) !important;
+    transform: none !important;
+  }
+
+  .editor-fab:active:not(:disabled) {
+    transform: scale(0.98) !important;
+  }
+
+  .desktop-only,
+  .vault-toolbar.desktop-only,
+  .pane-collapsed-rail.desktop-only,
+  .vault-meta.desktop-only,
+  .editor-tabbar-actions.desktop-only {
+    display: none !important;
+  }
+}
