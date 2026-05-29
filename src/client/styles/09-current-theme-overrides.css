@@ -215,42 +215,42 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
    ============================================================ */
 .editor-pane .preview-surface article :is(h1, h2, h3, h4, h5, h6),
 .qa-panel .qa-answer :is(h1, h2, h3, h4, h5, h6) {
-  margin: 1.35em 0 0.55em !important;
-  color: var(--md-text, var(--text)) !important;
-  font-weight: 650 !important;
-  line-height: 1.24 !important;
-  letter-spacing: 0 !important;
+  margin: 1.35em 0 0.55em;
+  color: var(--md-text, var(--text));
+  font-weight: 650;
+  line-height: 1.24;
+  letter-spacing: 0;
 }
 
 .editor-pane .preview-surface article h1,
 .qa-panel .qa-answer h1 {
-  font-size: 1.74rem !important;
+  font-size: 1.74rem;
 }
 
 .editor-pane .preview-surface article h2,
 .qa-panel .qa-answer h2 {
-  font-size: 1.5rem !important;
+  font-size: 1.5rem;
 }
 
 .editor-pane .preview-surface article h3,
 .qa-panel .qa-answer h3 {
-  font-size: 1.22rem !important;
+  font-size: 1.22rem;
 }
 
 .editor-pane .preview-surface article h4,
 .qa-panel .qa-answer h4 {
-  font-size: 1.1rem !important;
+  font-size: 1.1rem;
 }
 
 .editor-pane .preview-surface article h5,
 .qa-panel .qa-answer h5 {
-  font-size: 1rem !important;
+  font-size: 1rem;
 }
 
 .editor-pane .preview-surface article h6,
 .qa-panel .qa-answer h6 {
-  color: var(--md-muted, var(--muted)) !important;
-  font-size: 0.94rem !important;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.94rem;
 }
 
 /* ============================================================
@@ -328,115 +328,115 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
    ============================================================ */
 .editor-pane .preview-surface article,
 .qa-panel .qa-answer {
-  color: var(--owd-doc-text) !important;
+  color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(h1, h2, h3, h4, h5),
 .qa-panel .qa-answer :where(h1, h2, h3, h4, h5) {
-  color: var(--owd-doc-heading) !important;
+  color: var(--owd-doc-heading);
 }
 
 .editor-pane .preview-surface article h6,
 .qa-panel .qa-answer h6 {
-  color: var(--owd-doc-muted) !important;
+  color: var(--owd-doc-muted);
 }
 
 .editor-pane .preview-surface article :where(p, li, td, th),
 .qa-panel .qa-answer :where(p, li, td, th) {
-  color: var(--owd-doc-text) !important;
+  color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(a, a.internal-link),
 .qa-panel .qa-answer :where(a, a.internal-link) {
-  color: var(--owd-doc-link) !important;
-  text-decoration-color: color-mix(in srgb, currentcolor 38%, transparent) !important;
-  text-decoration-thickness: 1px !important;
-  text-underline-offset: 0.18em !important;
+  color: var(--owd-doc-link);
+  text-decoration-color: color-mix(in srgb, currentcolor 38%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 .editor-pane .preview-surface article :where(a, a.internal-link):hover,
 .qa-panel .qa-answer :where(a, a.internal-link):hover {
-  color: color-mix(in srgb, var(--owd-doc-link) 78%, var(--owd-doc-text) 22%) !important;
-  text-decoration-color: currentcolor !important;
+  color: color-mix(in srgb, var(--owd-doc-link) 78%, var(--owd-doc-text) 22%);
+  text-decoration-color: currentcolor;
 }
 
 .editor-pane .preview-surface article blockquote,
 .qa-panel .qa-answer blockquote {
-  border-left: 2px solid var(--owd-doc-border-strong) !important;
-  background: var(--owd-doc-quote-bg) !important;
-  color: var(--owd-doc-muted) !important;
+  border-left: 2px solid var(--owd-doc-border-strong);
+  background: var(--owd-doc-quote-bg);
+  color: var(--owd-doc-muted);
 }
 
 .editor-pane .preview-surface article code,
 .qa-panel .qa-answer code {
-  border: 1px solid var(--owd-doc-border) !important;
-  border-radius: 3px !important;
-  background: var(--owd-doc-inline-code-bg) !important;
-  color: var(--owd-doc-text) !important;
+  border: 1px solid var(--owd-doc-border);
+  border-radius: 3px;
+  background: var(--owd-doc-inline-code-bg);
+  color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(pre, pre.hljs),
 .qa-panel .qa-answer :where(pre, pre.hljs) {
-  border: 1px solid var(--owd-doc-border) !important;
-  border-radius: 0 !important;
-  background: var(--owd-doc-code-bg) !important;
-  box-shadow: none !important;
-  color: var(--owd-doc-text) !important;
+  border: 1px solid var(--owd-doc-border);
+  border-radius: 0;
+  background: var(--owd-doc-code-bg);
+  box-shadow: none;
+  color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(pre, pre.hljs) code,
 .qa-panel .qa-answer :where(pre, pre.hljs) code {
-  border: 0 !important;
-  background: transparent !important;
-  color: inherit !important;
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .editor-pane .preview-surface article table,
 .qa-panel .qa-answer table {
-  border-color: var(--owd-doc-border) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
+  border-color: var(--owd-doc-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .editor-pane .preview-surface article table thead,
 .qa-panel .qa-answer table thead {
-  background: var(--owd-doc-table-head-bg) !important;
+  background: var(--owd-doc-table-head-bg);
 }
 
 .editor-pane .preview-surface article table :where(th, td),
 .qa-panel .qa-answer table :where(th, td) {
-  border-color: var(--owd-doc-border) !important;
+  border-color: var(--owd-doc-border);
 }
 
 .editor-pane .preview-surface article table tbody tr:nth-child(even),
 .qa-panel .qa-answer table tbody tr:nth-child(even) {
-  background: var(--owd-doc-table-row-alt) !important;
+  background: var(--owd-doc-table-row-alt);
 }
 
 .editor-pane .preview-surface article table tbody tr:hover,
 .qa-panel .qa-answer table tbody tr:hover {
-  background: var(--owd-tonal-hover) !important;
+  background: var(--owd-tonal-hover);
 }
 
 .editor-pane .preview-surface article li:has(input[type="checkbox"]),
 .qa-panel .qa-answer li:has(input[type="checkbox"]) {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: 0.1rem 0 !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.1rem 0;
 }
 
 .editor-pane .preview-surface article input[type="checkbox"],
 .qa-panel .qa-answer input[type="checkbox"] {
-  accent-color: var(--md-primary, var(--accent-2)) !important;
+  accent-color: var(--md-primary, var(--accent-2));
 }
 
 .editor-pane .preview-surface article img,
 .qa-panel .qa-answer img {
-  border: 1px solid var(--owd-doc-border) !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  border: 1px solid var(--owd-doc-border);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 /* Reading light mode: remove old cool-blue interaction remnants so
