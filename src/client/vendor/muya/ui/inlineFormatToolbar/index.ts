@@ -5,6 +5,7 @@ import type { IBaseOptions } from '../types';
 
 import type { FormatToolIcon } from './config';
 import Format from '../../block/base/format';
+import { isOsx } from '../../config';
 import { isKeyboardEvent } from '../../utils';
 import { h, patch } from '../../utils/snabbdom';
 import BaseFloat from '../baseFloat';
@@ -135,9 +136,14 @@ export class InlineFormatToolbar extends BaseFloat {
         if (!isSelectionInSameBlock)
             return;
 
+        // On macOS, Ctrl+A/E are native text navigation shortcuts. Keep
+        // format shortcuts aligned with the toolbar labels: Cmd on macOS,
+        // Ctrl on other platforms.
+        const formatModifierPressed = isOsx ? metaKey : ctrlKey;
+
         // Hide toolbar on editing operations
-        if (!(anchorBlock instanceof Format) || (!metaKey && !ctrlKey)) {
-            this._hideOnEditingKey(key, metaKey, ctrlKey);
+        if (!(anchorBlock instanceof Format) || !formatModifierPressed) {
+            this._hideOnEditingKey(key, formatModifierPressed);
             return;
         }
 
@@ -148,12 +154,11 @@ export class InlineFormatToolbar extends BaseFloat {
     /**
      * Hide toolbar when an editing key is pressed
      * @param key - Key name
-     * @param metaKey - Meta key state
-     * @param ctrlKey - Control key state
+     * @param formatModifierPressed - Platform format shortcut modifier state
      */
-    private _hideOnEditingKey(key: string, metaKey: boolean, ctrlKey: boolean) {
+    private _hideOnEditingKey(key: string, formatModifierPressed: boolean) {
         // Don't hide if it's a modifier/navigation key or if format shortcut is pressed
-        if (NON_EDITING_KEYS.has(key) || metaKey || ctrlKey)
+        if (NON_EDITING_KEYS.has(key) || formatModifierPressed)
             return;
 
         if (this.status) {
