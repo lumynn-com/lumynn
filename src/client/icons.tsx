@@ -139,6 +139,15 @@ export function PencilIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CodeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M9 18l-6-6 6-6" />
+      <path d="M15 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 export function TrashIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>

@@ -9,6 +9,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronUpIcon,
+  CodeIcon,
   EyeIcon,
   FolderPlusIcon,
   GlobeIcon,
@@ -43,18 +44,30 @@ function importMuyaMarkdownEditor() {
   return import("./MuyaMarkdownEditor").then((module) => ({ default: module.MuyaMarkdownEditor }));
 }
 
+function importMarkdownSourceEditor() {
+  return import("./MarkdownSourceEditor").then((module) => ({ default: module.MarkdownSourceEditor }));
+}
+
 let muyaMarkdownEditorPromise: ReturnType<typeof importMuyaMarkdownEditor> | null = null;
+let markdownSourceEditorPromise: ReturnType<typeof importMarkdownSourceEditor> | null = null;
 
 function loadMuyaMarkdownEditor() {
   muyaMarkdownEditorPromise ??= importMuyaMarkdownEditor();
   return muyaMarkdownEditorPromise;
 }
 
+function loadMarkdownSourceEditor() {
+  markdownSourceEditorPromise ??= importMarkdownSourceEditor();
+  return markdownSourceEditorPromise;
+}
+
 const MuyaMarkdownEditor = lazy(loadMuyaMarkdownEditor);
+const MarkdownSourceEditor = lazy(loadMarkdownSourceEditor);
 
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
 type SettingsModalMode = "indexing" | "settings";
+type EditKind = "wysiwyg" | "source";
 
 interface DocumentsViewProps {
   currentView?: AppView;
@@ -134,6 +147,7 @@ type OpenTab = DocumentContent & {
   // blank preview is useless. Switching modes only affects the
   // active tab.
   mode: "edit" | "preview";
+  editKind: EditKind;
 };
 
 type PreviewSnapshot = {
@@ -702,6 +716,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // still need a default so the toolbar renders sensibly; preview
   // matches the new "open notes in preview" behavior.
   const centerMode: "edit" | "preview" = active?.mode ?? "preview";
+  const activeEditKind: EditKind = active?.editKind ?? "wysiwyg";
+  const editKindTarget: EditKind = centerMode === "edit" && activeEditKind === "source" ? "wysiwyg" : "source";
 
   const openDocument = useCallback(
     (path: string) => {
@@ -1200,7 +1216,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         // Existing files open in preview mode by default. Newly
         // created notes and drafts install their tabs before this
         // effect runs, so they keep their explicit edit mode.
-        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview" }]);
+        setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview", editKind: "wysiwyg" }]);
       })
       .catch((error) => setStatusText(error.message));
   }, [activePath, tabs]);
@@ -1333,6 +1349,15 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   function setActiveMode(nextMode: "edit" | "preview") {
     if (!activePath) return;
     setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, mode: nextMode } : tab)));
+  }
+
+  function setActiveEditKind(nextEditKind: EditKind) {
+    if (!activePath) return;
+    setTabs((current) => current.map((tab) => (tab.path === activePath ? { ...tab, mode: "edit", editKind: nextEditKind } : tab)));
+  }
+
+  function toggleActiveEditKind() {
+    setActiveEditKind(activeEditKind === "source" ? "wysiwyg" : "source");
   }
 
   function setActiveDraft(nextDraft: string) {
@@ -1474,7 +1499,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setTabs((current) =>
           current.map((tab) => {
             if (tab.path !== saved.path) return tab;
-            return { ...saved, draft: tab.draft, mode: tab.mode };
+            return { ...saved, draft: tab.draft, mode: tab.mode, editKind: tab.editKind };
           })
         );
         if (options.refreshList) await refreshDocuments();
@@ -1512,7 +1537,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         // land the committed tab in preview mode (matches the
         // post-save preview switch for existing files). The next
         // edit will be one tap away on the FAB.
-        setTabs((current) => current.map((tab) => (tab.path === draftTab.path ? { ...created, draft: created.content, mode: "preview" } : tab)));
+        setTabs((current) =>
+          current.map((tab) =>
+            tab.path === draftTab.path ? { ...created, draft: created.content, mode: "preview", editKind: tab.editKind } : tab
+          )
+        );
         setActivePath(created.path);
         await refreshDocuments();
         setStatusKey("status.saved");
@@ -1563,7 +1592,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       frontmatter: {},
       links: [],
       isDraft: true,
-      mode: "edit"
+      mode: "edit",
+      editKind: "wysiwyg"
     };
     setTabs((current) => [...current, draftTab]);
     setActivePath(draftPath);
@@ -1589,7 +1619,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       // A freshly created note opens in edit mode: it's empty,
       // the user is about to write into it. Existing files open
       // in preview (see the active-path effect).
-      setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content, mode: "edit" }]);
+      setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content, mode: "edit", editKind: "wysiwyg" }]);
       openDocument(created.path);
       setStatusKey("status.created");
     } catch (error) {
@@ -1612,7 +1642,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         body: JSON.stringify({ path: currentPath, nextPath })
       });
       setTabs((current) =>
-        current.map((tab) => (tab.path === currentPath ? { ...renamed, draft: tab.draft, mode: tab.mode } : tab))
+        current.map((tab) => (tab.path === currentPath ? { ...renamed, draft: tab.draft, mode: tab.mode, editKind: tab.editKind } : tab))
       );
       if (activePath === currentPath) setActivePath(renamed.path);
       if (selectedFolder !== "" && selectedFolder === parentFolderOf(currentPath)) {
@@ -1820,7 +1850,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       await refreshDocuments();
       setTabs((current) => [
         ...current.filter((tab) => tab.path !== restored.path),
-        { ...restored, draft: restored.content, mode: "preview" }
+        { ...restored, draft: restored.content, mode: "preview", editKind: "wysiwyg" }
       ]);
       openDocument(restored.path);
       setStatusText(`${t("status.restoredPrefix")} ${restored.name}`);
@@ -2248,6 +2278,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             >
               {status.kind === "key" ? t(status.key, status.params) : status.text}
             </span>
+            {active && centerMode === "edit" ? (
+              <button
+                type="button"
+                className="icon-button source-toggle"
+                onClick={toggleActiveEditKind}
+                aria-pressed={activeEditKind === "source"}
+                aria-label={activeEditKind === "source" ? t("editor.modeWysiwyg") : t("editor.modeSource")}
+                title={activeEditKind === "source" ? t("editor.modeWysiwyg") : t("editor.modeSource")}
+              >
+                {activeEditKind === "source" ? <PencilIcon /> : <CodeIcon />}
+              </button>
+            ) : null}
             <button
               type="button"
               className="icon-button mode-toggle"
@@ -2291,17 +2333,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 </div>
               }
             >
-              <MuyaMarkdownEditor
-                key={active.path}
-                ref={muyaEditorRef}
-                value={active.draft}
-                documentPath={active.isDraft ? undefined : active.path}
-                language={locale === "zh" ? "zh-CN" : "en"}
-                autoFocus={active.isDraft}
-                onReady={handleMuyaEditorReady}
-                onChange={setActiveDraft}
-                onPasteImage={uploadPastedImage}
-              />
+              {activeEditKind === "source" ? (
+                <MarkdownSourceEditor
+                  key={`${active.path}:source`}
+                  value={active.draft}
+                  ariaLabel={t("editor.sourceContentLabel")}
+                  autoFocus
+                  onChange={setActiveDraft}
+                />
+              ) : (
+                <MuyaMarkdownEditor
+                  key={active.path}
+                  ref={muyaEditorRef}
+                  value={active.draft}
+                  documentPath={active.isDraft ? undefined : active.path}
+                  language={locale === "zh" ? "zh-CN" : "en"}
+                  autoFocus={active.isDraft}
+                  onReady={handleMuyaEditorReady}
+                  onChange={setActiveDraft}
+                  onPasteImage={uploadPastedImage}
+                />
+              )}
             </Suspense>
           </div>
         ) : null}
@@ -2666,6 +2718,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               <button
                 type="button"
                 role="menuitem"
+                onClick={() => {
+                  closeCommandMenu();
+                  setActiveEditKind(editKindTarget);
+                }}
+              >
+                {editKindTarget === "source" ? <CodeIcon /> : <PencilIcon />}
+                <span>{editKindTarget === "source" ? t("editor.modeSource") : t("editor.modeWysiwyg")}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
                 disabled={!dirty || saving}
                 onClick={() => {
                   closeCommandMenu();
@@ -2821,6 +2884,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                     {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
                   </span>
                   <span>{centerMode === "edit" ? t("editor.modePreview") : t("editor.modeEdit")}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    setActiveEditKind(editKindTarget);
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true">
+                    {editKindTarget === "source" ? <CodeIcon /> : <PencilIcon />}
+                  </span>
+                  <span>{editKindTarget === "source" ? t("editor.modeSource") : t("editor.modeWysiwyg")}</span>
                 </button>
                 <button
                   type="button"

@@ -319,6 +319,11 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   color: var(--owd-tonal-ink) !important;
 }
 
+.editor-tabbar-actions .source-toggle[aria-pressed="true"] {
+  background: var(--owd-tonal-selected) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
 .settings-nav button.active,
 .settings-nav button.active:hover:not(:disabled),
 .settings-nav button.active:focus-visible {
