@@ -2324,7 +2324,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </div>
         </div>
         {active && centerMode === "edit" ? (
-          <div className="editor-field" aria-label={t("editor.contentLabel")}>
+          <div className={`editor-field${activeEditKind === "source" ? " editor-field-source" : ""}`} aria-label={t("editor.contentLabel")}>
             <Suspense
               fallback={
                 <div className="muya-editor-loading" role="status" aria-live="polite">
