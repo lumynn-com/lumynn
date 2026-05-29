@@ -179,6 +179,34 @@ body .mu-front-button-wrapper :where(button, input, select, textarea) {
   font-family: inherit !important;
 }
 
+/* Muya's quick-insert icons are dark PNG masks recolored by an
+   off-canvas drop-shadow. Make that clipping explicit so desktop
+   browsers don't lose the shadow while the mobile menu keeps the
+   same visual treatment. */
+body .mu-float-wrapper .mu-quick-insert .icon-container {
+  flex: 0 0 20px;
+}
+
+body .mu-float-wrapper .mu-quick-insert .icon-container > i.icon {
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  color: var(--icon-color, var(--editor-color-50));
+}
+
+body .mu-float-wrapper .mu-quick-insert .icon-container > i.icon > i[class^='icon-'] {
+  position: absolute;
+  top: 0;
+  left: -16px;
+  display: block;
+  width: 16px;
+  height: 16px;
+  background-size: 100% !important;
+  filter: drop-shadow(16px 0 currentcolor);
+}
+
 .owd-muya-tooltip {
   position: fixed;
   z-index: 20000;
