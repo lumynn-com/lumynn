@@ -2,6 +2,8 @@
 
 `../styles.css` is the public entrypoint. Keep its `@import` order stable because the cascade order is currently part of the theme contract.
 
+## Import Order
+
 The partials are split by historical layer and behavior area:
 
 - `00-legacy-base.css`: original base styles and early light-mode overrides.
@@ -15,11 +17,35 @@ The partials are split by historical layer and behavior area:
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
 - `09-current-theme-overrides.css`: final component rules that consume the current theme tokens.
 
-Guidelines:
+## Where To Edit
+
+- Current light/dark theme values belong in `08-current-theme-tokens.css`.
+- New final app-level component rules belong in `09-current-theme-overrides.css`.
+- Mobile chrome rules should stay in `03-mobile-chrome.css` or `07-typography-mobile-polish.css` when they are specifically mobile-only.
+- File tree, print, focus mode, and file-management rules should stay in `04-print-file-management.css`.
+- Muya-specific rules should stay in `../MuyaMarkdownEditor.css` when they only target the embedded editor.
+- Legacy partials `00` through `07` are compatibility layers. Avoid adding new theme direction there unless the change is explicitly local to that historical layer.
+
+## Token Model
+
+- `--owd-theme-*` tokens are the canonical raw theme values.
+- Legacy aliases such as `--bg`, `--panel`, `--md-bg`, and `--md-primary` map to `--owd-theme-*` in `08-current-theme-tokens.css`.
+- Document reading tokens such as `--owd-doc-*` are shared by preview and Q&A Markdown output.
+- State tokens such as `--owd-tonal-*` control flat hover, selected, and focus surfaces.
+- Shape tokens such as `--owd-radius-*` control the current flat corner system.
+
+## Guidelines
 
 - Add new current-theme tokens in `08-current-theme-tokens.css` unless a token clearly belongs to an older compatibility layer.
 - Prefer token changes over adding more raw color values.
 - Do not add new `:root[data-theme="light"]` token blocks to legacy partials; put active theme values in `08-current-theme-tokens.css`.
 - Avoid adding new `!important` rules unless they override an existing compatibility layer, protect mobile chrome, or isolate Muya/editor third-party styles.
 - Prefer later import order plus stronger, component-scoped selectors before reaching for `!important`.
-- Keep Muya-specific rules in `../MuyaMarkdownEditor.css` when they only target the embedded editor.
+- Do not reorder imports without checking desktop, mobile, light mode, dark mode, preview, editor, and Q&A views.
+
+## Before Commit
+
+- Run `git diff --check`.
+- Run `npm run build` for CSS import or selector changes.
+- Restart with `./server.sh restart` when the production preview should reflect the latest build.
+- Check `https://127.0.0.1:4177/` after restart.
