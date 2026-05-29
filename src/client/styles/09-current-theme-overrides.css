@@ -114,6 +114,48 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   border-radius: var(--owd-radius-overlay) !important;
 }
 
+/* ============================================================
+   26b. Flat desktop editor command menu.
+
+   The editor overflow menu should read as one unified menu surface.
+   Individual rows must not inherit the app's generic button shadow,
+   outline, or card-like affordance; state is shown with a quiet row
+   tint and an inset focus bar for keyboard users.
+   ============================================================ */
+@media (min-width: 861px) {
+  .editor-command-menu {
+    border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    background: var(--owd-minimal-surface, var(--md-surface)) !important;
+    box-shadow: none !important;
+  }
+
+  .editor-command-menu button {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: 0;
+    transform: none !important;
+  }
+
+  .editor-command-menu button:hover:not(:disabled) {
+    background: var(--owd-tonal-hover, var(--owd-minimal-hover, var(--surface-hover))) !important;
+    box-shadow: none !important;
+    color: var(--md-text, var(--text)) !important;
+  }
+
+  .editor-command-menu button:focus-visible {
+    background: var(--owd-tonal-hover, var(--owd-minimal-hover, var(--surface-hover))) !important;
+    box-shadow: inset 2px 0 0 var(--owd-tonal-rail, var(--md-primary, var(--accent-2))) !important;
+    color: var(--md-text, var(--text)) !important;
+  }
+
+  .editor-command-menu button.danger:hover:not(:disabled),
+  .editor-command-menu button.danger:focus-visible {
+    background: color-mix(in srgb, var(--md-danger, var(--danger)) 9%, transparent) !important;
+    color: var(--md-danger, var(--danger)) !important;
+  }
+}
+
 @media (max-width: 860px) {
   .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
   .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
