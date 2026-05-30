@@ -34,7 +34,7 @@ import {
 } from "./icons";
 import { useLocale, useT } from "./i18n";
 import type { TKey } from "./i18n";
-import { QaView } from "./QaView";
+import { CopilotView } from "./CopilotView";
 import { FolderPicker } from "./FolderPicker";
 import type { MuyaMarkdownEditorHandle } from "./MuyaMarkdownEditor";
 import { SettingsView } from "./SettingsView";
@@ -2386,10 +2386,22 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         role={isMobile ? "tabpanel" : undefined}
         aria-labelledby={isMobile ? "section-tab-ask" : undefined}
       >
-        <QaView
+        <CopilotView
           compact
           username={props.username}
           onOpenSource={openDocument}
+          activeNote={
+            active
+              ? {
+                  path: active.path,
+                  title: active.title || active.name || active.path,
+                  content: active.draft,
+                  hash: active.hash,
+                  isDraft: Boolean(active.isDraft),
+                  dirty
+                }
+              : null
+          }
           collapsed={!isMobile && qaCollapsed}
           onToggleCollapsed={!isMobile ? toggleQaCollapsed : undefined}
         />

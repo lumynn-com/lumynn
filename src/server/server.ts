@@ -14,6 +14,7 @@ import { requireAuth } from "./auth/authService";
 // augmentation so handlers can read `request.user`.
 import "./auth/fastifyTypes";
 import { config } from "./config";
+import { registerCopilotRoutes } from "./copilot/copilotRoutes";
 import { assertProductionSecrets } from "./crypto";
 import { registerDocumentRoutes } from "./documents/documentRoutes";
 import { checkObsidianCli } from "./obsidian/obsidianCli";
@@ -236,6 +237,7 @@ export async function buildServer() {
   await registerSettingsRoutes(app);
   await registerDocumentRoutes(app);
   await registerRagRoutes(app);
+  await registerCopilotRoutes(app);
 
   const clientDir = path.join(config.rootDir, "dist/client");
   const hasClient = await fs.stat(clientDir).then((stat) => stat.isDirectory()).catch(() => false);
