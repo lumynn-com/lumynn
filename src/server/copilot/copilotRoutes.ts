@@ -5,7 +5,7 @@ import type { UserRecord } from "../store";
 import { readDocument } from "../vault/vaultService";
 import { getCopilotProviderStatus, runCopilotAgent } from "./agent";
 import { applyFileEditProposal, rejectFileEditProposal } from "./proposals";
-import { listConversations, loadConversation, saveConversation } from "./conversations";
+import { deleteConversation, listConversations, loadConversation, saveConversation } from "./conversations";
 import type { CopilotNoteContext, CopilotStreamEvent } from "./types";
 
 function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | null {
@@ -17,11 +17,20 @@ function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | 
   return user;
 }
 
+const citationSchema = z.object({
+  path: z.string(),
+  title: z.string(),
+  snippet: z.string(),
+  score: z.number().optional(),
+  source: z.string().optional()
+});
+
 const messageSchema = z.object({
   id: z.string().optional(),
   role: z.enum(["user", "assistant"]),
   content: z.string(),
-  createdAt: z.string().optional()
+  createdAt: z.string().optional(),
+  citations: z.array(citationSchema).optional()
 });
 
 const conversationSchema = z.object({
@@ -173,6 +182,18 @@ export async function registerCopilotRoutes(app: FastifyInstance): Promise<void>
     if (!user) return;
     const body = conversationSchema.parse(request.body);
     return saveConversation(user, body);
+  });
+
+  app.delete("/api/copilot/conversations/:id", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const params = z.object({ id: z.string().min(1) }).parse(request.params);
+    try {
+      return await deleteConversation(user, params.id);
+    } catch (error) {
+      reply.code(404);
+      return { error: error instanceof Error ? error.message : "Conversation not found" };
+    }
   });
 
   app.post("/api/copilot/file-edits/:id/apply", async (request, reply) => {

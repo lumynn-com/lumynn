@@ -240,7 +240,7 @@
   /* Active-pane min-height tweak: subtract topbar (\u2248 64px),
      segmented (\u2248 50px), and one section header (\u2248 50px). */
   .obsidian-workspace[data-mobile-section] > [data-section],
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel:not(.copilot-view) {
     min-height: calc(100dvh - 64px - 50px - env(safe-area-inset-bottom, 0px));
   }
 
@@ -654,7 +654,7 @@ img.logo {
     display: contents;
   }
 
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel:not(.copilot-view) {
     position: fixed;
     inset: auto 0 0 0;
     z-index: 25;

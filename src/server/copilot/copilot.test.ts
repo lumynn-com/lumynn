@@ -5,7 +5,7 @@ import test from "node:test";
 import { emptyRagSettings, type UserRecord } from "../store";
 import { readDocument, writeDocument } from "../vault/vaultService";
 import { runCopilotAgent } from "./agent";
-import { saveConversation, listConversations, loadConversation } from "./conversations";
+import { deleteConversation, saveConversation, listConversations, loadConversation } from "./conversations";
 import { applyFileEditProposal, clearFileEditProposalsForTest } from "./proposals";
 import { createCopilotToolRegistry } from "./tools";
 import type { CopilotStreamEvent } from "./types";
@@ -140,7 +140,13 @@ test("conversation markdown save/load roundtrips through the vault", async () =>
     const saved = await saveConversation(user, {
       messages: [
         { role: "user", content: "What is Alpha?", id: "u1", createdAt: "2026-05-29T00:00:00.000Z" },
-        { role: "assistant", content: "Alpha is in Project.md.", id: "a1", createdAt: "2026-05-29T00:00:01.000Z" }
+        {
+          role: "assistant",
+          content: "Alpha is in Project.md.",
+          id: "a1",
+          createdAt: "2026-05-29T00:00:01.000Z",
+          citations: [{ path: "Project.md", title: "Project", snippet: "Alpha", score: 0.9, source: "localSearch" }]
+        }
       ]
     });
     assert.ok(saved.path?.startsWith("copilot/copilot-conversations/"));
@@ -152,6 +158,12 @@ test("conversation markdown save/load roundtrips through the vault", async () =>
     const loaded = await loadConversation(user, saved.id);
     assert.equal(loaded.title, "What is Alpha?");
     assert.deepEqual(loaded.messages.map((message) => message.content), ["What is Alpha?", "Alpha is in Project.md."]);
+    assert.deepEqual(loaded.messages[1].citations?.map((citation) => citation.path), ["Project.md"]);
+
+    const deleted = await deleteConversation(user, saved.id);
+    assert.equal(deleted.ok, true);
+    assert.equal((await listConversations(user)).length, 0);
+    await assert.rejects(() => loadConversation(user, saved.id), /Conversation not found/);
   });
 });
 

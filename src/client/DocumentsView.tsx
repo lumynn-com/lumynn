@@ -2390,6 +2390,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           compact
           username={props.username}
           onOpenSource={openDocument}
+          onDismiss={isMobile ? closeOverlays : undefined}
           activeNote={
             active
               ? {

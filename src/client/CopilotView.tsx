@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import fuzzysort from "fuzzysort";
 import type { DocumentSummary } from "../shared/types";
 import { api } from "./api";
-import { AskIcon, BusyLabel, PanelToggleIcon } from "./icons";
+import { AskIcon, CloseIcon, EyeIcon, HistoryIcon, PanelToggleIcon, PlusIcon, SendIcon, StopIcon, TrashIcon } from "./icons";
 import { useT } from "./i18n";
 import { parseSseChunk } from "./copilot/sse";
 
@@ -15,6 +15,7 @@ interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: string;
+  citations?: Citation[];
 }
 
 interface Citation {
@@ -147,6 +148,7 @@ const COPILOT_STATE_KEY_PREFIX = "owd_copilot_state:";
 const MAX_REQUEST_NOTE_CONTENT_CHARS = 500_000;
 const MAX_VISIBLE_CITATIONS = 5;
 const MAX_MENTION_RESULTS = 30;
+const NOTE_PICKER_ID = "copilot-note-picker-listbox";
 
 function stateKey(username: string): string {
   return `${COPILOT_STATE_KEY_PREFIX}${username}`;
@@ -201,6 +203,21 @@ function writeSavedState(username: string, state: CopilotState): void {
   }
 }
 
+function conversationAutoSaveKey(messages: ChatMessage[]): string {
+  return messages.map((message) => `${message.id}\u0000${message.role}\u0000${message.createdAt}\u0000${message.content}`).join("\u0001");
+}
+
+function formatHistoryTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
 function mergeCitation(citations: Citation[], next: Citation): Citation[] {
   const merged = new Map<string, Citation>();
   for (const citation of [...citations, next]) {
@@ -220,6 +237,18 @@ function mergeProposal(proposals: FileEditProposal[], next: FileEditProposal): F
 
 function noteTitle(note: Pick<NoteContext, "path" | "title">): string {
   return note.title || note.path.split("/").pop()?.replace(/\.md$/i, "") || note.path;
+}
+
+function noteMentionLabel(note: Pick<NoteContext, "path" | "title">): string {
+  return noteTitle(note).trim() || note.path;
+}
+
+function noteMentionText(note: Pick<NoteContext, "path" | "title">): string {
+  return `@${noteMentionLabel(note)}`;
+}
+
+function inputIncludesNoteMention(input: string, note: Pick<NoteContext, "path" | "title">): boolean {
+  return input.includes(noteMentionText(note)) || input.includes(`@${note.path}`);
 }
 
 function noteFromDocument(doc: DocumentSummary): NoteContext {
@@ -245,6 +274,10 @@ function citationRank(citation: Citation): number {
 
 function sortCitations(citations: Citation[]): Citation[] {
   return [...citations].sort((a, b) => citationRank(b) - citationRank(a) || a.path.localeCompare(b.path));
+}
+
+function notePickerOptionId(index: number): string {
+  return `${NOTE_PICKER_ID}-option-${index}`;
 }
 
 function mentionAtCursor(value: string, cursor: number): { query: string; start: number } | null {
@@ -302,6 +335,7 @@ export const CopilotView = memo(function CopilotView(props: {
   compact?: boolean;
   username?: string;
   onOpenSource?: (path: string) => void;
+  onDismiss?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   activeNote?: NoteContext | null;
@@ -311,7 +345,6 @@ export const CopilotView = memo(function CopilotView(props: {
   const [state, setState] = useState<CopilotState>(() => ({ ...emptyState, ...readSavedState(username) }));
   const [providerStatus, setProviderStatus] = useState<CopilotProviderStatus | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [selectedConversationId, setSelectedConversationId] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [documentOptions, setDocumentOptions] = useState<DocumentSummary[]>([]);
@@ -320,13 +353,18 @@ export const CopilotView = memo(function CopilotView(props: {
   const [includeCurrentNote, setIncludeCurrentNote] = useState(true);
   const [attachedNotes, setAttachedNotes] = useState<NoteContext[]>([]);
   const [notePicker, setNotePicker] = useState<NotePickerState>({ open: false, query: "", cursor: 0, start: null, category: null });
+  const [notePickerActiveIndex, setNotePickerActiveIndex] = useState(0);
   const [notePickerPosition, setNotePickerPosition] = useState<NotePickerPosition | null>(null);
   const [renderedMessages, setRenderedMessages] = useState<Record<string, string>>({});
+  const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const chatLogRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const notePickerRef = useRef<HTMLDivElement | null>(null);
+  const historyMenuRef = useRef<HTMLDivElement | null>(null);
   const previewCacheRef = useRef(new Map<string, { content: string; html: string }>());
+  const lastAutoSaveKeyRef = useRef("");
+  const autoSaveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setState({ ...emptyState, ...readSavedState(username) });
@@ -345,6 +383,29 @@ export const CopilotView = memo(function CopilotView(props: {
     refreshDocumentOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
+
+  useEffect(() => {
+    if (state.loading || state.messages.length === 0) return;
+    const signature = conversationAutoSaveKey(state.messages);
+    if (!signature || signature === lastAutoSaveKeyRef.current) return;
+    if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      void persistConversation({ signature });
+    }, 800);
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [state.loading, state.messages]);
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) window.clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const node = chatLogRef.current;
@@ -391,6 +452,25 @@ export const CopilotView = memo(function CopilotView(props: {
   }, [notePicker.open]);
 
   useEffect(() => {
+    if (!historyMenuOpen) return;
+    function closeOnOutsidePointer(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (historyMenuRef.current?.contains(target)) return;
+      setHistoryMenuOpen(false);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setHistoryMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePointer, true);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer, true);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [historyMenuOpen]);
+
+  useEffect(() => {
     const assistantMessages = state.messages.filter((message) => message.role === "assistant" && message.content.trim());
     if (assistantMessages.length === 0) {
       setRenderedMessages({});
@@ -427,7 +507,6 @@ export const CopilotView = memo(function CopilotView(props: {
     try {
       const result = await api<{ conversations: ConversationSummary[] }>("/api/copilot/conversations");
       setConversations(result.conversations);
-      setSelectedConversationId((current) => current || result.conversations[0]?.id || "");
     } catch {
       setConversations([]);
     }
@@ -470,6 +549,7 @@ export const CopilotView = memo(function CopilotView(props: {
 
   function handleInputChange(value: string, cursor: number) {
     setStateAndPersist((current) => ({ ...current, input: value }));
+    setAttachedNotes((current) => current.filter((note) => inputIncludesNoteMention(value, note)));
     updateNotePicker(value, cursor);
   }
 
@@ -483,7 +563,8 @@ export const CopilotView = memo(function CopilotView(props: {
       setNotePickerPosition(null);
       return;
     }
-    const rect = input.getBoundingClientRect();
+    const anchor = input.closest(".copilot-input-shell") as HTMLElement | null;
+    const rect = (anchor ?? input).getBoundingClientRect();
     const margin = 12;
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
@@ -521,9 +602,50 @@ export const CopilotView = memo(function CopilotView(props: {
     }
   }
 
+  function clearMentionText() {
+    const targetCursor = notePicker.start ?? inputRef.current?.selectionStart ?? state.input.length;
+    setStateAndPersist((current) => {
+      const cursor = Math.min(notePicker.cursor || current.input.length, current.input.length);
+      const start = Math.min(notePicker.start ?? cursor, cursor);
+      const before = current.input.slice(0, start);
+      const after = current.input.slice(cursor);
+      const spacer = before && after && !/\s$/.test(before) && !/^\s/.test(after) ? " " : "";
+      return { ...current, input: `${before}${spacer}${after}` };
+    });
+    window.requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      const cursor = Math.min(targetCursor, input.value.length);
+      input.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function insertNoteMention(note: NoteContext) {
+    const label = noteMentionLabel(note);
+    let nextCursor = state.input.length;
+    setStateAndPersist((current) => {
+      const cursor = Math.min(notePicker.cursor || current.input.length, current.input.length);
+      const start = Math.min(notePicker.start ?? cursor, cursor);
+      const before = current.input.slice(0, start);
+      const after = current.input.slice(cursor);
+      const prefix = before && !/\s$/.test(before) ? " " : "";
+      const suffix = after && !/^\s/.test(after) ? " " : "";
+      const mention = `${prefix}@${label} `;
+      nextCursor = before.length + mention.length;
+      return { ...current, input: `${before}${mention}${suffix}${after}` };
+    });
+    window.requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   function attachNote(note: NoteContext) {
     setAttachedNotes((current) => (current.some((item) => item.path === note.path) ? current : [...current, note].slice(-6)));
-    replaceMentionText(noteTitle(note));
+    insertNoteMention(note);
     setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
     window.requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -532,6 +654,7 @@ export const CopilotView = memo(function CopilotView(props: {
 
   function selectActiveNote() {
     setIncludeCurrentNote(true);
+    clearMentionText();
     setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
     window.requestAnimationFrame(() => {
       inputRef.current?.focus();
@@ -586,10 +709,6 @@ export const CopilotView = memo(function CopilotView(props: {
     attachNote(option.note);
   }
 
-  function removeAttachedNote(pathName: string) {
-    setAttachedNotes((current) => current.filter((note) => note.path !== pathName));
-  }
-
   async function sendMessage(event?: FormEvent) {
     event?.preventDefault();
     const content = state.input.trim();
@@ -605,6 +724,7 @@ export const CopilotView = memo(function CopilotView(props: {
     const referencedNotes = attachedNotes.map(noteForRequest);
     abortRef.current = controller;
 
+    setAttachedNotes([]);
     setStateAndPersist((current) => ({
       ...current,
       input: "",
@@ -697,7 +817,15 @@ export const CopilotView = memo(function CopilotView(props: {
         };
       }
       if (event.type === "citation" && event.citation) {
-        return { ...current, citations: mergeCitation(current.citations, event.citation) };
+        return {
+          ...current,
+          citations: mergeCitation(current.citations, event.citation),
+          messages: current.messages.map((message) =>
+            message.id === assistantId
+              ? { ...message, citations: mergeCitation(message.citations ?? [], event.citation) }
+              : message
+          )
+        };
       }
       if (event.type === "edit_proposal" && event.proposal) {
         return { ...current, proposals: mergeProposal(current.proposals, event.proposal) };
@@ -716,8 +844,12 @@ export const CopilotView = memo(function CopilotView(props: {
     abortRef.current?.abort();
   }
 
-  function newChat() {
+  async function newChat() {
     stop();
+    if (!state.loading && state.messages.length > 0) {
+      await persistConversation({ signature: conversationAutoSaveKey(state.messages) });
+    }
+    setHistoryMenuOpen(false);
     setAttachedNotes([]);
     setIncludeCurrentNote(true);
     setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
@@ -725,8 +857,9 @@ export const CopilotView = memo(function CopilotView(props: {
     setState({ ...emptyState });
   }
 
-  async function saveChat() {
-    if (state.messages.length === 0 || saving) return;
+  async function persistConversation(options: { closeHistory?: boolean; signature?: string } = {}) {
+    const signature = options.signature ?? conversationAutoSaveKey(state.messages);
+    if (state.messages.length === 0 || saving || signature === lastAutoSaveKeyRef.current) return;
     setSaving(true);
     try {
       const saved = await api<SavedCopilotState & { id: string; path?: string; title: string; createdAt: string; updatedAt: string }>("/api/copilot/conversations", {
@@ -738,6 +871,7 @@ export const CopilotView = memo(function CopilotView(props: {
           messages: state.messages
         })
       });
+      lastAutoSaveKeyRef.current = signature;
       setStateAndPersist((current) => ({
         ...current,
         conversationId: saved.id,
@@ -745,6 +879,7 @@ export const CopilotView = memo(function CopilotView(props: {
         title: saved.title
       }));
       await refreshConversations();
+      if (options.closeHistory) setHistoryMenuOpen(false);
     } catch (error) {
       setStateAndPersist((current) => ({ ...current, error: error instanceof Error ? error.message : t("copilot.error.save") }));
     } finally {
@@ -752,10 +887,13 @@ export const CopilotView = memo(function CopilotView(props: {
     }
   }
 
-  async function loadSelectedConversation() {
-    if (!selectedConversationId || loadingConversation) return;
+  async function loadConversation(conversationId: string) {
+    if (!conversationId || loadingConversation) return;
     setLoadingConversation(true);
     try {
+      if (!state.loading && state.messages.length > 0) {
+        await persistConversation({ signature: conversationAutoSaveKey(state.messages) });
+      }
       const conversation = await api<{
         id: string;
         title: string;
@@ -763,7 +901,8 @@ export const CopilotView = memo(function CopilotView(props: {
         messages: ChatMessage[];
         createdAt: string;
         updatedAt: string;
-      }>(`/api/copilot/conversations/${encodeURIComponent(selectedConversationId)}`);
+      }>(`/api/copilot/conversations/${encodeURIComponent(conversationId)}`);
+      lastAutoSaveKeyRef.current = conversationAutoSaveKey(conversation.messages);
       setState({
         ...emptyState,
         conversationId: conversation.id,
@@ -776,10 +915,31 @@ export const CopilotView = memo(function CopilotView(props: {
       setIncludeCurrentNote(true);
       setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
       setRenderedMessages({});
+      setHistoryMenuOpen(false);
     } catch (error) {
       setStateAndPersist((current) => ({ ...current, error: error instanceof Error ? error.message : t("copilot.error.load") }));
     } finally {
       setLoadingConversation(false);
+    }
+  }
+
+  async function deleteConversationHistory(conversation: ConversationSummary) {
+    if (loadingConversation || saving) return;
+    try {
+      await api<{ ok: true; path: string }>(`/api/copilot/conversations/${encodeURIComponent(conversation.id)}`, {
+        method: "DELETE"
+      });
+      if (conversation.id === state.conversationId) {
+        lastAutoSaveKeyRef.current = "";
+        setAttachedNotes([]);
+        setIncludeCurrentNote(true);
+        setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
+        setRenderedMessages({});
+        setState({ ...emptyState });
+      }
+      await refreshConversations();
+    } catch (error) {
+      setStateAndPersist((current) => ({ ...current, error: error instanceof Error ? error.message : t("copilot.error.delete") }));
     }
   }
 
@@ -839,7 +999,6 @@ export const CopilotView = memo(function CopilotView(props: {
   const activePath = props.activeNote?.path.toLowerCase() ?? "";
   const attachedPaths = new Set(attachedNotes.map((note) => note.path.toLowerCase()));
   const noteQuery = notePicker.query.trim();
-  const normalizedNoteQuery = noteQuery.toLowerCase();
   const folderPaths = useMemo(() => folderPathsFromDocuments(documentOptions), [documentOptions]);
   const notePickerOptions = useMemo<NotePickerOption[]>(() => {
     if (!notePicker.open) return [];
@@ -871,19 +1030,8 @@ export const CopilotView = memo(function CopilotView(props: {
       badge: t("copilot.notePicker.folderBadge"),
       path: folderPath
     });
-    const activeOption: NotePickerOption | null = props.activeNote
-      ? {
-          kind: "active",
-          key: `active:${props.activeNote.path}`,
-          title: t("copilot.notePicker.activeNote"),
-          subtitle: props.activeNote.path,
-          badge: t("copilot.notePicker.activeBadge")
-        }
-      : null;
-
     if (!noteQuery && !notePicker.category) {
       return [
-        ...(activeOption ? [activeOption] : []),
         ...noteItems.slice(0, 24).map(makeNoteOption),
         ...folderPaths.slice(0, 6).map(makeFolderOption)
       ].slice(0, MAX_MENTION_RESULTS);
@@ -968,7 +1116,6 @@ export const CopilotView = memo(function CopilotView(props: {
       ];
     }
 
-    const activeMatches = activeOption && t("copilot.notePicker.activeNote").toLowerCase().includes(normalizedNoteQuery) ? [activeOption] : [];
     const noteResults = fuzzysort.go(noteQuery, noteItems, {
       keys: ["title", "path"],
       limit: MAX_MENTION_RESULTS,
@@ -980,12 +1127,29 @@ export const CopilotView = memo(function CopilotView(props: {
       threshold: -10000
     }).map((result) => result.obj.path);
     return [
-      ...activeMatches,
       ...noteResults.map(makeNoteOption),
       ...folderResults.map(makeFolderOption)
     ].slice(0, MAX_MENTION_RESULTS);
   }, [activePath, attachedNotes, documentOptions, folderPaths, notePicker.category, notePicker.open, noteQuery, props.activeNote, t]);
-  const visibleCitations = sortCitations(state.citations).slice(0, MAX_VISIBLE_CITATIONS);
+
+  useEffect(() => {
+    setNotePickerActiveIndex(0);
+  }, [notePicker.category, notePicker.open, notePicker.query, notePicker.start]);
+
+  useEffect(() => {
+    if (!notePicker.open || notePickerOptions.length === 0) return;
+    setNotePickerActiveIndex((current) => Math.max(0, Math.min(current, notePickerOptions.length - 1)));
+  }, [notePicker.open, notePickerOptions.length]);
+
+  useEffect(() => {
+    if (!notePicker.open) return;
+    const activeOption = notePickerRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    activeOption?.scrollIntoView({ block: "nearest" });
+  }, [notePicker.open, notePickerActiveIndex, notePickerOptions.length]);
+
+  const clampedPickerIndex = notePickerOptions.length === 0 ? 0 : Math.min(notePickerActiveIndex, notePickerOptions.length - 1);
+  const activePickerOption = notePickerOptions[clampedPickerIndex];
+  const activePickerDescendant = notePicker.open && activePickerOption ? notePickerOptionId(clampedPickerIndex) : undefined;
   const notePickerEmptyMessage =
     documentOptionsLoading && documentOptions.length === 0
       ? t("copilot.notePicker.loading")
@@ -1004,6 +1168,7 @@ export const CopilotView = memo(function CopilotView(props: {
     notePicker.open && typeof document !== "undefined"
       ? createPortal(
           <div
+            id={NOTE_PICKER_ID}
             ref={notePickerRef}
             className="copilot-note-picker copilot-note-picker-floating"
             role="listbox"
@@ -1011,13 +1176,17 @@ export const CopilotView = memo(function CopilotView(props: {
             style={notePickerStyle}
           >
             {notePickerOptions.length === 0 ? <div className="copilot-note-picker-empty">{notePickerEmptyMessage}</div> : null}
-            {notePickerOptions.map((option) => (
+            {notePickerOptions.map((option, index) => (
               <button
+                id={notePickerOptionId(index)}
                 type="button"
                 role="option"
+                aria-selected={index === clampedPickerIndex}
                 key={option.key}
+                data-active={index === clampedPickerIndex ? "true" : undefined}
                 data-kind={option.kind}
                 onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setNotePickerActiveIndex(index)}
                 onClick={() => handlePickerOption(option)}
               >
                 <strong translate="no">{option.title}</strong>
@@ -1029,6 +1198,30 @@ export const CopilotView = memo(function CopilotView(props: {
           document.body
         )
       : null;
+
+  function renderCitationButtons(citations: Citation[], totalCount: number) {
+    return (
+      <>
+        {citations.map((citation, index) => (
+          <button
+            className="copilot-message-source"
+            type="button"
+            key={`${citation.path}-${index}`}
+            onClick={() => props.onOpenSource?.(citation.path)}
+            disabled={!props.onOpenSource}
+            title={`${citation.title}\n${citation.path}`}
+            aria-label={`${t("copilot.sources")}: ${citation.title}`}
+          >
+            <strong translate="no">{citation.title}</strong>
+            <span translate="no">{citation.path}</span>
+          </button>
+        ))}
+        {totalCount > citations.length ? (
+          <div className="copilot-citation-more">{t("copilot.sources.moreCompact", { count: totalCount - citations.length })}</div>
+        ) : null}
+      </>
+    );
+  }
 
   return (
     <aside
@@ -1047,6 +1240,15 @@ export const CopilotView = memo(function CopilotView(props: {
         </div>
       ) : null}
 
+      {props.onDismiss ? (
+        <div className="copilot-mobile-header">
+          <strong>{t("copilot.title")}</strong>
+          <button type="button" className="icon-button" aria-label={t("copilot.close")} onClick={props.onDismiss}>
+            <CloseIcon />
+          </button>
+        </div>
+      ) : null}
+
       <section className={props.compact ? "qa-hero copilot-hero" : "panel hero copilot-hero"}>
         {props.compact && props.onToggleCollapsed ? (
           <div className="qa-hero-top desktop-only">
@@ -1059,69 +1261,42 @@ export const CopilotView = memo(function CopilotView(props: {
           <p className="eyebrow desktop-only">{t("copilot.eyebrow")}</p>
         )}
         {props.compact ? <h2 className="desktop-only">{t("copilot.title")}</h2> : <h1>{t("copilot.title")}</h1>}
-        <div className="copilot-toolbar" aria-label={t("copilot.toolbar")}>
-          <button type="button" onClick={newChat} disabled={state.loading}>{t("copilot.new")}</button>
-          <button type="button" onClick={saveChat} disabled={state.messages.length === 0 || state.loading || saving} aria-busy={saving}>
-            <BusyLabel busy={saving} busyText={t("copilot.saveBusy")}>{t("copilot.save")}</BusyLabel>
-          </button>
-          <select value={selectedConversationId} onChange={(event) => setSelectedConversationId(event.target.value)} aria-label={t("copilot.loadSelect")}>
-            <option value="">{t("copilot.loadSelect")}</option>
-            {conversations.map((conversation) => (
-              <option key={conversation.id} value={conversation.id}>{conversation.title}</option>
-            ))}
-          </select>
-          <button type="button" onClick={loadSelectedConversation} disabled={!selectedConversationId || state.loading || loadingConversation} aria-busy={loadingConversation}>
-            <BusyLabel busy={loadingConversation} busyText={t("copilot.loadBusy")}>{t("copilot.load")}</BusyLabel>
-          </button>
-        </div>
         {providerUnavailable ? <div className="error">{providerStatus.reason}</div> : null}
-        {props.activeNote || attachedNotes.length > 0 ? (
-          <div className="copilot-context-row" aria-label={t("copilot.context.label")}>
-            {props.activeNote ? (
-              <button
-                type="button"
-                className="copilot-context-chip"
-                data-active={includeCurrentNote ? "true" : "false"}
-                onClick={() => setIncludeCurrentNote((current) => !current)}
-              >
-                <span>{includeCurrentNote ? t("copilot.context.current") : t("copilot.context.currentOff")}</span>
-                <strong translate="no">{noteTitle(props.activeNote)}</strong>
-                {props.activeNote.dirty ? <em>{t("copilot.context.dirty")}</em> : null}
-              </button>
-            ) : null}
-            {attachedNotes.map((note) => (
-              <span className="copilot-context-chip copilot-context-chip-attached" key={note.path}>
-                <button type="button" onClick={() => props.onOpenSource?.(note.path)} disabled={!props.onOpenSource}>
-                  <span>{t("copilot.context.attached")}</span>
-                  <strong translate="no">{noteTitle(note)}</strong>
-                </button>
-                <button type="button" className="copilot-context-remove" onClick={() => removeAttachedNote(note.path)} aria-label={t("copilot.context.remove")}>
-                  x
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : null}
       </section>
 
       <div className="copilot-chat-log" ref={chatLogRef} aria-live="polite">
         {state.messages.length === 0 ? <div className="empty-state">{t("copilot.empty")}</div> : null}
-        {state.messages.map((message) => (
-          <article className={`copilot-message copilot-message-${message.role}`} key={message.id}>
-            <div className="copilot-message-role">{message.role === "user" ? t("copilot.user") : t("copilot.assistant")}</div>
-            {message.role === "assistant" && renderedMessages[message.id] ? (
-              <div
-                className="qa-answer copilot-message-content copilot-rendered-preview"
-                onClick={openRenderedInternalLink}
-                dangerouslySetInnerHTML={{ __html: renderedMessages[message.id] }}
-              />
-            ) : (
-              <div className="qa-answer copilot-message-content">
-                {message.content || (message.role === "assistant" && state.loading ? t("copilot.status.thinking") : "")}
-              </div>
-            )}
-          </article>
-        ))}
+        {state.messages.map((message) => {
+          const messageCitations = message.role === "assistant" ? sortCitations(message.citations ?? []) : [];
+          const visibleMessageCitations = messageCitations.slice(0, MAX_VISIBLE_CITATIONS);
+          return (
+            <article className={`copilot-message copilot-message-${message.role}`} key={message.id}>
+              <div className="copilot-message-role">{message.role === "user" ? t("copilot.user") : t("copilot.assistant")}</div>
+              {message.role === "assistant" && renderedMessages[message.id] ? (
+                <div
+                  className="qa-answer copilot-message-content copilot-rendered-preview"
+                  onClick={openRenderedInternalLink}
+                  dangerouslySetInnerHTML={{ __html: renderedMessages[message.id] }}
+                />
+              ) : (
+                <div className="qa-answer copilot-message-content">
+                  {message.content || (message.role === "assistant" && state.loading ? t("copilot.status.thinking") : "")}
+                </div>
+              )}
+              {visibleMessageCitations.length > 0 ? (
+                <section className="copilot-message-sources" aria-label={t("copilot.sources")}>
+                  <div className="copilot-message-sources-title">
+                    <span>{t("copilot.sources")}</span>
+                    <strong>{messageCitations.length}</strong>
+                  </div>
+                  <div className="copilot-message-source-list">
+                    {renderCitationButtons(visibleMessageCitations, messageCitations.length)}
+                  </div>
+                </section>
+              ) : null}
+            </article>
+          );
+        })}
         {state.proposals.map((proposal) => (
           <article className="copilot-proposal-card" key={proposal.id}>
             <div className="copilot-tool-title">
@@ -1144,68 +1319,163 @@ export const CopilotView = memo(function CopilotView(props: {
 
       {notePickerNode}
 
-      <form className="ask-row copilot-input-row" onSubmit={sendMessage}>
-        <label className="sr-only" htmlFor="copilot-message">{t("copilot.input")}</label>
-        <textarea
-          id="copilot-message"
-          ref={inputRef}
-          value={state.input}
-          onChange={(event) => handleInputChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
-          onClick={(event) => syncNotePickerFromInput(event.currentTarget)}
-          onFocus={(event) => syncNotePickerFromInput(event.currentTarget)}
-          onKeyUp={(event) => {
-            if (event.key !== "Escape") syncNotePickerFromInput(event.currentTarget);
-          }}
-          onSelect={(event) => updateNotePicker(event.currentTarget.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
-          placeholder={providerUnavailable ? t("copilot.disabledPlaceholder") : t("copilot.placeholder")}
-          rows={3}
-          disabled={state.loading || providerUnavailable}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && notePicker.open) {
-              event.preventDefault();
-              setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
-              return;
-            }
-            if (event.key === "Enter" && notePicker.open && !event.metaKey && !event.ctrlKey && notePickerOptions[0]) {
-              event.preventDefault();
-              handlePickerOption(notePickerOptions[0]);
-              return;
-            }
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              sendMessage();
-            }
-            if (event.key === "@") {
-              window.requestAnimationFrame(() => {
-                const input = inputRef.current;
-                if (input) syncNotePickerFromInput(input);
-              });
-            }
-          }}
-        />
-        {state.loading ? (
-          <button type="button" className="query-button" onClick={stop}>{t("copilot.stop")}</button>
-        ) : (
-          <button className="primary query-button" type="submit" disabled={!state.input.trim() || providerUnavailable}>
-            {t("copilot.send")}
-          </button>
-        )}
-      </form>
-      {state.status ? <div className="status-pill qa-query-state">{state.status}</div> : null}
-      {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}
-
-      <section className="citation-grid copilot-citations" aria-label={t("copilot.sources")}>
-        {visibleCitations.map((citation, index) => (
-          <article className={`${props.compact ? "" : "panel"} citation`} key={`${citation.path}-${index}`}>
-            <button className="citation-source" type="button" onClick={() => props.onOpenSource?.(citation.path)} disabled={!props.onOpenSource}>
-              <strong translate="no">{citation.title}</strong>
-              <span translate="no">{citation.path}</span>
+      <div className="copilot-composer">
+        <div className="copilot-composer-toolbar" aria-label={t("copilot.toolbar")}>
+          <div className="copilot-mode-label">
+            <span>{t("copilot.mode.vaultQa")}</span>
+          </div>
+          <div className="copilot-composer-actions">
+            <button
+              type="button"
+              className="icon-button copilot-icon-button copilot-new-chat"
+              onClick={newChat}
+              disabled={state.loading}
+              aria-label={t("copilot.new")}
+              title={t("copilot.new")}
+            >
+              <PlusIcon />
             </button>
-          </article>
-        ))}
-        {state.citations.length > visibleCitations.length ? (
-          <div className="copilot-citation-more">{t("copilot.sources.more", { count: state.citations.length - visibleCitations.length })}</div>
-        ) : null}
-      </section>
+            <div className="copilot-history-menu" ref={historyMenuRef}>
+              <button
+                type="button"
+                className="icon-button copilot-icon-button copilot-history-trigger"
+                aria-haspopup="dialog"
+                aria-expanded={historyMenuOpen}
+                aria-label={t("copilot.history")}
+                title={t("copilot.history")}
+                onClick={() => {
+                  const nextOpen = !historyMenuOpen;
+                  setHistoryMenuOpen(nextOpen);
+                  if (nextOpen) void refreshConversations();
+                }}
+              >
+                <HistoryIcon />
+              </button>
+              {historyMenuOpen ? (
+                <div className="copilot-history-popover" role="dialog" aria-label={t("copilot.history")} aria-busy={saving || loadingConversation}>
+                  {conversations.length === 0 ? (
+                    <div className="copilot-history-empty">{t("copilot.history.empty")}</div>
+                  ) : (
+                    <div className="copilot-history-list">
+                      {conversations.map((conversation) => (
+                        <div
+                          className="copilot-history-item"
+                          key={conversation.id}
+                          data-active={conversation.id === state.conversationId ? "true" : undefined}
+                        >
+                          <button
+                            type="button"
+                            className="copilot-history-load"
+                            onClick={() => loadConversation(conversation.id)}
+                            disabled={state.loading || loadingConversation}
+                          >
+                            <strong translate="no">{conversation.title}</strong>
+                            <span>{formatHistoryTime(conversation.updatedAt)}</span>
+                          </button>
+                          <div className="copilot-history-item-actions">
+                            <button
+                              type="button"
+                              className="icon-button copilot-history-action"
+                              onClick={() => conversation.path && props.onOpenSource?.(conversation.path)}
+                              disabled={!conversation.path || !props.onOpenSource}
+                              aria-label={t("copilot.history.open")}
+                              title={t("copilot.history.open")}
+                            >
+                              <EyeIcon />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-button copilot-history-action danger"
+                              onClick={() => deleteConversationHistory(conversation)}
+                              disabled={state.loading || loadingConversation || saving}
+                              aria-label={t("copilot.history.delete")}
+                              title={t("copilot.history.delete")}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <form className="ask-row copilot-input-row" onSubmit={sendMessage}>
+          <div className="copilot-input-shell">
+            <label className="sr-only" htmlFor="copilot-message">{t("copilot.input")}</label>
+            <textarea
+              id="copilot-message"
+              ref={inputRef}
+              value={state.input}
+              onChange={(event) => handleInputChange(event.target.value, event.target.selectionStart ?? event.target.value.length)}
+              onClick={(event) => syncNotePickerFromInput(event.currentTarget)}
+              onFocus={(event) => syncNotePickerFromInput(event.currentTarget)}
+              onKeyUp={(event) => {
+                if (!["Escape", "ArrowDown", "ArrowUp", "Enter", "Tab"].includes(event.key)) syncNotePickerFromInput(event.currentTarget);
+              }}
+              onSelect={(event) => updateNotePicker(event.currentTarget.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
+              placeholder={providerUnavailable ? t("copilot.disabledPlaceholder") : t("copilot.placeholder")}
+              rows={3}
+              disabled={state.loading || providerUnavailable}
+              aria-controls={notePicker.open ? NOTE_PICKER_ID : undefined}
+              aria-expanded={notePicker.open}
+              aria-haspopup="listbox"
+              aria-activedescendant={activePickerDescendant}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && notePicker.open) {
+                  event.preventDefault();
+                  setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
+                  return;
+                }
+                if (notePicker.open && notePickerOptions.length > 0 && event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setNotePickerActiveIndex((current) => (current + 1) % notePickerOptions.length);
+                  return;
+                }
+                if (notePicker.open && notePickerOptions.length > 0 && event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setNotePickerActiveIndex((current) => (current - 1 + notePickerOptions.length) % notePickerOptions.length);
+                  return;
+                }
+                if (notePicker.open && notePickerOptions.length > 0 && (event.key === "Tab" || (event.key === "Enter" && !event.metaKey && !event.ctrlKey))) {
+                  event.preventDefault();
+                  if (activePickerOption) handlePickerOption(activePickerOption);
+                  return;
+                }
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  sendMessage();
+                }
+                if (event.key === "@") {
+                  window.requestAnimationFrame(() => {
+                    const input = inputRef.current;
+                    if (input) syncNotePickerFromInput(input);
+                  });
+                }
+              }}
+            />
+            {state.loading ? (
+              <button type="button" className="icon-button copilot-input-action" onClick={stop} aria-label={t("copilot.stop")} title={t("copilot.stop")}>
+                <StopIcon />
+              </button>
+            ) : (
+              <button
+                className="icon-button copilot-input-action"
+                type="submit"
+                disabled={!state.input.trim() || providerUnavailable}
+                aria-label={t("copilot.send")}
+                title={t("copilot.send")}
+              >
+                <SendIcon />
+              </button>
+            )}
+          </div>
+        </form>
+        {state.status ? <div className="copilot-inline-status">{state.status}</div> : null}
+        {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}
+      </div>
     </aside>
   );
 });

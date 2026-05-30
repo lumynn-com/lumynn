@@ -1,7 +1,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { UserRecord } from "../store";
-import { listDocuments, normalizeDocumentPath, readDocument, writeDocument } from "../vault/vaultService";
+import { deleteDocument, listDocuments, normalizeDocumentPath, readDocument, writeDocument } from "../vault/vaultService";
 import type { CopilotChatMessage, CopilotConversation } from "./types";
 
 export const COPILOT_CONVERSATION_FOLDER = "copilot/copilot-conversations";
@@ -45,7 +45,15 @@ function escapeYamlString(input: string): string {
 function formatMessageForMarkdown(message: CopilotChatMessage): string {
   const label = message.role === "user" ? "User" : "Assistant";
   const timestamp = message.createdAt ? ` _${message.createdAt}_` : "";
-  return [`## ${label}${timestamp}`, "", message.content.trim() || "_No content_", ""].join("\n");
+  const sources =
+    message.role === "assistant" && message.citations?.length
+      ? [
+          "",
+          "Sources:",
+          ...message.citations.map((citation) => `- [[${citation.path}|${citation.title || citation.path}]]`)
+        ]
+      : [];
+  return [`## ${label}${timestamp}`, "", message.content.trim() || "_No content_", ...sources, ""].join("\n");
 }
 
 export function serializeConversation(conversation: CopilotConversation): string {
@@ -142,6 +150,16 @@ export async function loadConversation(user: UserRecord, conversationIdOrPath: s
     throw new Error("Conversation file does not contain Copilot metadata");
   }
   return conversation;
+}
+
+export async function deleteConversation(user: UserRecord, conversationIdOrPath: string): Promise<{ ok: true; path: string }> {
+  const requestedPath = conversationIdOrPath.includes("/") ? normalizeDocumentPath(conversationIdOrPath) : null;
+  const targetPath = requestedPath ?? (await findConversationPath(user, conversationIdOrPath));
+  if (!targetPath || !targetPath.startsWith(`${COPILOT_CONVERSATION_FOLDER}/`)) {
+    throw new Error("Conversation not found");
+  }
+  await deleteDocument(user, targetPath);
+  return { ok: true, path: targetPath };
 }
 
 export async function listConversations(user: UserRecord): Promise<ConversationListItem[]> {

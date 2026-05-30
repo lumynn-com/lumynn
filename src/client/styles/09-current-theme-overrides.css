@@ -115,6 +115,30 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 /* ============================================================
+   26a. App chrome stays flat.
+
+   Outside Muya's own editor UI, icon controls and menu rows should
+   not use elevation. State is expressed with color, opacity, or a
+   quiet row tint so the web chrome matches the vault tree style.
+   ============================================================ */
+.icon-button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.vault-toolbar-action,
+.copilot-icon-button,
+.copilot-history-action,
+.tree-context-menu,
+.tree-context-menu button,
+.anchored-menu,
+.anchored-menu button,
+.copilot-history-popover,
+.copilot-history-item,
+.copilot-history-load,
+.editor-command-menu,
+.editor-command-menu button {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* ============================================================
    26b. Flat desktop editor command menu.
 
    The editor overflow menu should read as one unified menu surface.
@@ -589,34 +613,234 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
    tool cards, and diff proposals stable dimensions.
    ============================================================ */
 .copilot-view {
-  gap: 0.85rem;
+  gap: 0.65rem;
 }
 
 .copilot-hero {
-  gap: 0.7rem;
+  gap: 0.55rem;
 }
 
-.copilot-toolbar {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: 0.45rem;
+.copilot-mobile-header {
+  display: none;
+}
+
+.copilot-composer-toolbar {
+  position: relative;
+  display: flex;
+  min-height: 22px;
+  gap: 0.3rem;
   align-items: center;
+  justify-content: space-between;
+  padding: 0;
 }
 
-.copilot-toolbar button,
-.copilot-toolbar select {
-  min-height: 34px;
-  font-size: 0.82rem;
-}
-
-.copilot-toolbar select {
+.copilot-mode-label {
+  display: inline-flex;
   min-width: 0;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--md-muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.copilot-composer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.04rem;
+}
+
+.copilot-view .copilot-icon-button.icon-button {
+  display: inline-flex;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-muted);
+  padding: 0;
+  transform: none !important;
+  touch-action: manipulation;
+}
+
+.copilot-view .copilot-icon-button.icon-button:hover:not(:disabled),
+.copilot-view .copilot-icon-button.icon-button:focus-visible,
+:root[data-theme="light"] .copilot-view .copilot-icon-button.icon-button:hover:not(:disabled),
+:root[data-theme="light"] .copilot-view .copilot-icon-button.icon-button:focus-visible {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text);
+}
+
+.copilot-view .copilot-icon-button.icon-button > svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+.copilot-new-chat {
+  flex: 0 0 auto;
+}
+
+.copilot-history-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.copilot-history-trigger {
+  max-width: 100%;
+}
+
+.copilot-history-popover {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 70;
+  display: grid;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(360px, 52vh);
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  border-radius: var(--owd-radius-overlay, 10px);
+  background: var(--owd-minimal-surface, var(--md-surface));
+  box-shadow: none;
+  overflow: hidden;
+  padding: 0.35rem;
+}
+
+.copilot-history-list {
+  display: grid;
+  gap: 0.12rem;
+  overflow: auto;
+}
+
+.copilot-history-item {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.14rem 0 0.14rem 0.25rem;
+  color: var(--md-text);
+  transform: none !important;
+  text-align: left;
+}
+
+.copilot-history-load {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 30px;
+  justify-items: start;
+  gap: 0.12rem;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  transform: none !important;
+}
+
+.copilot-history-item:hover,
+.copilot-history-item:focus-within,
+.copilot-history-item[data-active="true"] {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.copilot-history-item:hover .copilot-history-load strong,
+.copilot-history-item:focus-within .copilot-history-load strong,
+.copilot-history-item[data-active="true"] .copilot-history-load strong {
+  color: var(--md-text);
+}
+
+.copilot-history-load strong,
+.copilot-history-load span {
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-history-load strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.copilot-history-load span,
+.copilot-history-empty {
+  color: var(--md-muted);
+  font-size: 0.72rem;
+}
+
+.copilot-history-item-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.05rem;
+  opacity: 0.72;
+}
+
+.copilot-view .copilot-history-action.icon-button {
+  display: inline-flex;
+  width: 22px !important;
+  min-width: 22px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-muted);
+  padding: 0;
+  transform: none !important;
+}
+
+.copilot-view .copilot-history-action.icon-button:hover:not(:disabled),
+.copilot-view .copilot-history-action.icon-button:focus-visible,
+:root[data-theme="light"] .copilot-view .copilot-history-action.icon-button:hover:not(:disabled),
+:root[data-theme="light"] .copilot-view .copilot-history-action.icon-button:focus-visible {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text);
+}
+
+.copilot-history-action.danger:hover:not(:disabled),
+.copilot-history-action.danger:focus-visible {
+  color: var(--md-danger, var(--danger));
+}
+
+.copilot-history-action svg {
+  width: 12px;
+  height: 12px;
+}
+
+.copilot-history-empty {
+  padding: 0.85rem;
+  text-align: center;
 }
 
 .copilot-context-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  min-width: 0;
+  gap: 0.3rem;
   align-items: center;
 }
 
@@ -625,29 +849,33 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   max-width: 100%;
   min-height: 30px;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
-  background: var(--owd-minimal-surface, var(--md-surface));
-  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: var(--owd-minimal-subtle, var(--md-surface-2));
+  padding: 0.16rem 0.45rem;
   color: var(--md-text);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  touch-action: manipulation;
 }
 
 .copilot-context-chip[data-active="false"] {
-  opacity: 0.62;
+  border-style: dashed;
+  opacity: 0.78;
 }
 
 .copilot-context-chip span,
 .copilot-context-chip em {
   color: var(--md-muted);
   font-style: normal;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .copilot-context-chip strong {
   overflow: hidden;
   min-width: 0;
-  max-width: 18ch;
+  max-width: 14ch;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -660,43 +888,67 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   display: inline-flex;
   min-height: 30px;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.24rem;
   border: 0;
   background: transparent;
-  padding: 0.25rem 0.45rem;
+  padding: 0.14rem 0.35rem 0.14rem 0.45rem;
   color: inherit;
   font-size: inherit;
 }
 
 .copilot-context-chip-attached .copilot-context-remove {
-  width: 28px;
-  min-width: 28px;
+  width: 30px;
+  min-width: 30px;
   justify-content: center;
   border-left: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   padding: 0;
   color: var(--md-muted);
 }
 
+.copilot-context-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
 .copilot-chat-log {
   display: flex;
-  min-height: 180px;
-  max-height: 42vh;
+  flex: 1 1 180px;
+  max-height: none;
+  min-height: 0;
   flex-direction: column;
-  gap: 0.7rem;
-  overflow: auto;
+  gap: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding-right: 0.15rem;
 }
 
 .copilot-message,
 .copilot-tool-card,
 .copilot-proposal-card {
-  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
-  background: var(--owd-minimal-surface, var(--md-surface));
-  padding: 0.75rem;
+  border: 0;
+  border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.85rem 0.05rem;
+}
+
+.copilot-message {
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.copilot-message-assistant {
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+  background: transparent;
 }
 
 .copilot-message-user {
-  background: var(--owd-tonal-selected, color-mix(in srgb, var(--md-primary) 10%, transparent));
+  align-self: stretch;
+  width: auto;
+  max-width: 100%;
+  background: transparent;
 }
 
 .copilot-message-role,
@@ -705,21 +957,47 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.32rem;
   color: var(--md-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0;
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .copilot-message-content {
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .copilot-rendered-preview {
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.copilot-rendered-preview :where(p, li, blockquote, td, th, a, strong, em, code) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.copilot-rendered-preview :where(pre, pre.hljs, pre code, pre.hljs code) {
+  max-width: 100%;
+  overflow: visible !important;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap !important;
+}
+
+.copilot-rendered-preview table {
+  display: table;
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
 }
 
 .copilot-rendered-preview > :first-child {
@@ -730,13 +1008,115 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   margin-bottom: 0;
 }
 
+.copilot-message-sources {
+  display: block;
+  margin-top: 0.6rem;
+  border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  padding-top: 0.42rem;
+  color: var(--md-muted);
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.copilot-message-sources-title {
+  display: inline;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--md-muted);
+  font-size: inherit;
+  font-weight: 650;
+  line-height: inherit;
+  margin-right: 0.4rem;
+}
+
+.copilot-message-sources-title strong {
+  color: var(--md-muted);
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.copilot-message-sources-title strong::before {
+  content: " ";
+}
+
+.copilot-message-source-list {
+  display: inline;
+  min-width: 0;
+  counter-reset: copilot-source;
+}
+
+.copilot-message-source {
+  display: inline;
+  min-height: 0;
+  width: auto;
+  max-width: none;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent !important;
+  padding: 0;
+  color: var(--md-text) !important;
+  font: inherit;
+  line-height: inherit;
+  margin-right: 0.45rem;
+  text-align: inherit;
+  vertical-align: baseline;
+  counter-increment: copilot-source;
+}
+
+.copilot-message-source::before {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  content: "[" counter(copilot-source) "]";
+  margin-right: 0.16rem;
+  color: var(--md-muted);
+  opacity: 1;
+}
+
+.copilot-message-source:hover:not(:disabled),
+.copilot-message-source:focus-visible {
+  border-color: currentColor;
+  background: transparent !important;
+}
+
+.copilot-message-source strong,
+.copilot-message-source span {
+  overflow: visible;
+  max-width: none;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.copilot-message-source span {
+  display: none;
+  color: var(--md-muted);
+  font-size: 0.72rem;
+}
+
+.copilot-message-source-list .copilot-citation-more {
+  display: inline;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  margin-left: 0.05rem;
+  padding: 0;
+  color: var(--md-muted);
+  font-size: inherit;
+  line-height: inherit;
+}
+
 .copilot-tool-card pre,
 .copilot-diff {
   max-height: 220px;
   overflow: auto;
   margin: 0;
   border: 1px solid var(--owd-doc-border, var(--md-outline-soft));
-  background: var(--owd-doc-code-bg, var(--md-surface-2));
+  background: var(--owd-minimal-subtle, var(--md-surface-2));
   padding: 0.65rem;
   color: var(--owd-doc-text, var(--md-text));
   font-size: 0.76rem;
@@ -758,7 +1138,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   background: var(--owd-minimal-surface, var(--md-surface));
   color: var(--md-text);
-  box-shadow: var(--md-shadow-2);
+  box-shadow: none;
   position: relative;
   z-index: 12;
 }
@@ -780,16 +1160,23 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   justify-items: start;
   align-items: center;
   border: 0;
+  border-left: 2px solid transparent;
   border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   background: transparent;
   color: var(--md-text) !important;
-  padding: 0.7rem 0.8rem;
+  padding: 0.7rem 0.8rem 0.7rem calc(0.8rem - 2px);
   text-align: left;
 }
 
 .copilot-note-picker button:hover,
-.copilot-note-picker button:focus-visible {
-  background: var(--owd-tonal-selected, color-mix(in srgb, var(--md-primary) 10%, transparent));
+.copilot-note-picker button:focus-visible,
+.copilot-note-picker button[data-active="true"] {
+  background: transparent !important;
+}
+
+.copilot-note-picker button[data-active="true"] {
+  border-left-color: var(--md-muted);
+  box-shadow: none !important;
 }
 
 .copilot-note-picker button:last-child {
@@ -832,26 +1219,135 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 .copilot-input-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
+  gap: 0;
 }
 
-.copilot-input-row textarea {
-  min-height: 76px;
+.copilot-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: auto;
+  border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  background: var(--owd-minimal-surface, var(--md-surface));
+  padding-top: 0.5rem;
+}
+
+.copilot-input-shell {
+  position: relative;
+  display: block;
+  min-height: 88px;
+  min-width: 0;
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.55rem 2.55rem 0.55rem 0.6rem;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.copilot-input-shell:focus-within {
+  border-color: var(--owd-minimal-divider-strong, var(--md-outline));
+  background: transparent;
+  box-shadow: none;
+}
+
+.copilot-input-shell textarea {
+  display: block;
   width: 100%;
-  resize: vertical;
+  min-width: 0;
+  min-height: 62px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.08rem 0 !important;
+  resize: none;
+  line-height: 1.45;
 }
 
-.copilot-input-row .query-button {
-  min-width: 72px;
+.copilot-input-shell .copilot-context-chip {
+  min-height: 0;
+  align-items: baseline;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--md-primary, var(--accent-2));
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
-.copilot-citations {
-  grid-template-columns: 1fr;
-  gap: 0.45rem;
-  max-height: 230px;
-  overflow: auto;
-  padding-bottom: 0.25rem;
+.copilot-input-shell .copilot-context-chip-attached > button {
+  display: inline-flex;
+  min-height: 0;
+  align-items: center;
+  gap: 0.12rem;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.copilot-input-shell .copilot-context-chip span {
+  color: inherit;
+  font-weight: 650;
+}
+
+.copilot-input-shell .copilot-context-chip strong {
+  max-width: 16ch;
+  font-weight: 650;
+}
+
+.copilot-input-shell .copilot-context-chip-attached .copilot-context-remove {
+  width: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  border-left: 0;
+  color: var(--md-muted);
+  opacity: 0.65;
+}
+
+.copilot-input-shell .copilot-context-remove svg {
+  width: 11px;
+  height: 11px;
+}
+
+.copilot-input-action {
+  position: absolute;
+  right: 0.46rem;
+  bottom: 0.46rem;
+  display: inline-flex;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-muted);
+  padding: 0;
+  transform: none !important;
+}
+
+.copilot-input-action:hover:not(:disabled),
+.copilot-input-action:focus-visible {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text);
+}
+
+.copilot-input-action:disabled {
+  opacity: 0.36;
+}
+
+.copilot-input-action svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .copilot-citation-more {
@@ -860,20 +1356,163 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   text-align: center;
 }
 
+.copilot-inline-status {
+  color: var(--md-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 860px) {
-  .copilot-toolbar {
-    grid-template-columns: 1fr 1fr;
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel.copilot-view {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    max-width: 100%;
+    max-height: none;
+    margin: 0;
+    border-radius: 0 !important;
+    padding: calc(0.65rem + env(safe-area-inset-top, 0px)) 1rem 0;
+    overflow: hidden;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 26;
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+    background: var(--owd-minimal-surface, var(--md-surface));
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-mobile-header strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-hero {
+    flex: 0 0 auto;
+    gap: 0.42rem;
+    padding-bottom: 0.42rem;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-chat-log {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .copilot-composer-toolbar {
+    min-height: 24px;
+    gap: 0.2rem;
+  }
+
+  .copilot-context-chip,
+  .copilot-context-chip-attached > button,
+  .copilot-context-chip-attached .copilot-context-remove {
+    min-height: 44px;
+  }
+
+  .copilot-view .copilot-icon-button.icon-button {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+  }
+
+  .copilot-history-menu {
+    flex: 0 0 auto;
+  }
+
+  .copilot-history-trigger {
+    width: 28px !important;
+  }
+
+  .copilot-context-row {
+    flex-wrap: nowrap;
+    margin-right: -1rem;
+    overflow-x: auto;
+    padding-right: 1rem;
+    scrollbar-width: none;
+  }
+
+  .copilot-context-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .copilot-context-chip {
+    flex: 0 0 auto;
+    max-width: min(72vw, 22rem);
+    padding-inline: 0.58rem;
+    font-size: 0.76rem;
+  }
+
+  .copilot-context-chip strong {
+    max-width: 18ch;
+  }
+
+  .copilot-context-chip-attached .copilot-context-remove {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .copilot-history-popover {
+    left: auto;
+    right: 0;
   }
 
   .copilot-input-row {
     grid-template-columns: 1fr;
   }
 
-  .copilot-input-row .query-button {
-    grid-column: auto;
+  .copilot-input-shell {
+    min-height: 104px;
   }
 
   .copilot-chat-log {
     max-height: none;
+  }
+
+  .copilot-composer {
+    bottom: 0;
+    margin-right: -1rem;
+    margin-bottom: 0;
+    margin-left: -1rem;
+    padding: 0.65rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .copilot-message-source {
+    min-height: 0;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .copilot-message-sources {
+    gap: 0;
+  }
+
+  .copilot-message-source-list {
+    display: inline;
+  }
+
+  .copilot-message-source-list .copilot-citation-more {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .copilot-note-picker-floating {
+    left: 1rem !important;
+    right: 1rem;
+    width: auto !important;
+    max-height: min(420px, 56dvh) !important;
   }
 }

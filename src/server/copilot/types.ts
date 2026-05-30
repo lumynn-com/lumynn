@@ -7,6 +7,7 @@ export interface CopilotChatMessage {
   role: CopilotChatRole;
   content: string;
   createdAt?: string;
+  citations?: CopilotCitation[];
 }
 
 export interface CopilotConversation {
