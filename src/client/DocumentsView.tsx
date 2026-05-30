@@ -239,6 +239,186 @@ function folderRefreshTargetsForChangedPaths(paths: string[]): string[] {
   return Array.from(targets);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function stylesheetMarkupForPrint(): string {
+  const linkMarkup = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]'))
+    .map((link) => `<link rel="stylesheet" href="${escapeHtml(link.href)}" />`)
+    .join("\n");
+  const styleMarkup = Array.from(document.querySelectorAll<HTMLStyleElement>("style"))
+    .map((style) => `<style>${style.textContent?.replace(/<\/style/gi, "<\\/style") ?? ""}</style>`)
+    .join("\n");
+  return `${linkMarkup}\n${styleMarkup}`;
+}
+
+function rootThemeAttributes(): string {
+  const theme = document.documentElement.getAttribute("data-theme");
+  return theme ? ` data-theme="${escapeHtml(theme)}"` : "";
+}
+
+function bodyThemeAttributes(): string {
+  const theme = document.body.getAttribute("data-theme") || document.documentElement.getAttribute("data-theme");
+  return theme ? ` data-theme="${escapeHtml(theme)}"` : "";
+}
+
+async function waitForPrintableAssets(doc: Document): Promise<void> {
+  const stylesheetReady = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]')).map(
+    (link) =>
+      link.sheet
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+            link.addEventListener("load", () => resolve(), { once: true });
+            link.addEventListener("error", () => resolve(), { once: true });
+          })
+  );
+  const fonts = (doc as Document & { fonts?: { ready?: Promise<unknown> } }).fonts;
+  const fontReady = fonts?.ready?.catch(() => undefined) ?? Promise.resolve();
+  const imageReady = Array.from(doc.images)
+    .filter((image) => !image.complete)
+    .map(
+      (image) =>
+        new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        })
+    );
+  await Promise.race([
+    Promise.all([...stylesheetReady, fontReady, ...imageReady]).then(() => undefined),
+    new Promise<void>((resolve) => window.setTimeout(resolve, 1500))
+  ]);
+}
+
+async function printRenderedPreviewHtml(html: string, title: string): Promise<void> {
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("title", title);
+  Object.assign(iframe.style, {
+    position: "absolute",
+    left: "-10000px",
+    top: "0",
+    width: "960px",
+    height: "1200px",
+    border: "0",
+    opacity: "0",
+    pointerEvents: "none"
+  });
+  document.body.appendChild(iframe);
+
+  const printWindow = iframe.contentWindow;
+  const printDocument = iframe.contentDocument ?? printWindow?.document;
+  if (!printWindow || !printDocument) {
+    iframe.remove();
+    throw new Error("Unable to prepare print document");
+  }
+
+  const cleanup = () => {
+    window.setTimeout(() => iframe.remove(), 0);
+    printWindow.removeEventListener("afterprint", cleanup);
+  };
+  printWindow.addEventListener("afterprint", cleanup);
+  printDocument.open();
+  printDocument.write(`<!doctype html>
+<html${rootThemeAttributes()}>
+<head>
+  <meta charset="utf-8" />
+  <title></title>
+  ${stylesheetMarkupForPrint()}
+  <style>
+    html, body {
+      background: #fff !important;
+      color: #111 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      color-scheme: light !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .editor-pane,
+    .print-surface {
+      display: block !important;
+      position: static !important;
+      left: auto !important;
+      top: auto !important;
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+    }
+    .editor-pane > *:not(.print-surface) {
+      display: none !important;
+    }
+    .print-surface article {
+      display: block !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+      color: #111 !important;
+      font-size: 11pt !important;
+      line-height: 1.55 !important;
+      box-shadow: none !important;
+    }
+    .print-surface article :where(p, li, blockquote, td, th) {
+      font-size: 11pt !important;
+      line-height: 1.55 !important;
+    }
+    .print-surface article :where(h1, h2, h3, h4, h5, h6) {
+      color: #111 !important;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+    .print-surface article :where(pre, table, figure, img, .katex-display) {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .print-surface article :where(p, li, blockquote) {
+      break-inside: auto;
+      page-break-inside: auto;
+      widows: 3;
+      orphans: 3;
+    }
+    .print-surface article a {
+      color: #1a4d8c;
+      text-decoration: underline;
+    }
+    .print-surface article pre {
+      white-space: pre-wrap;
+    }
+    .print-surface article img {
+      max-width: 100%;
+      height: auto;
+    }
+    @page { margin: 1.5cm 1.2cm; }
+  </style>
+</head>
+<body${bodyThemeAttributes()}>
+  <main class="editor-pane">
+    <div class="print-surface">
+      <article>${html}</article>
+    </div>
+  </main>
+</body>
+</html>`);
+  printDocument.close();
+
+  await waitForPrintableAssets(printDocument);
+  printWindow.focus();
+  printWindow.print();
+  window.setTimeout(cleanup, 6000);
+}
+
 // Default path for the New Note prompt. We pre-fill the dialog with
 // the user's selected folder so a new note lands where they're
 // looking. Selected folder comes from (in order): an explicit folder
@@ -1421,12 +1601,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }, [offerUndo, t]);
 
-  // Print the rendered preview of the active document. Uses the
-  // browser's native print dialog (so the user can choose AirPrint,
-  // a real printer, or Save-as-PDF) and a print-only stylesheet that
-  // hides app chrome and shows just the .print-surface article.
-  // Drafts work too because the preview pipeline runs against the
-  // draft buffer regardless of save state.
+  // Print the rendered preview of the active document through an
+  // isolated temporary iframe. That keeps the print job scoped to the
+  // note article itself instead of relying on print CSS to hide the
+  // surrounding web app chrome.
   async function printActive(): Promise<void> {
     if (!active) return;
     let html = cachedPreviewFor(active);
@@ -1451,24 +1629,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setStatusKey("status.printNothing");
       return;
     }
-    const previousTitle = document.title;
     const docName = active.name?.replace(/\.md$/i, "") || (active.isDraft ? t("quick.draftTitle") : t("editor.title"));
-    document.title = `${t("app.brand.name")} - ${docName}`;
-    function restore() {
-      document.title = previousTitle;
-      window.removeEventListener("afterprint", restore);
+    try {
+      await printRenderedPreviewHtml(html, `${t("app.brand.name")} - ${docName}`);
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : "Unable to print document");
     }
-    window.addEventListener("afterprint", restore);
-    // Defer slightly so the title change makes it into the print
-    // dialog (some browsers snapshot title at print() call time).
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        window.print();
-        // Safari iOS doesn't always fire afterprint, so restore
-        // proactively after a generous timeout too.
-        window.setTimeout(restore, 6000);
-      }, 30);
-    });
   }
 
   // 5-second autosave loop. Stash the latest autosave callback in
@@ -2430,10 +2596,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <p className="muted">{t("editor.blankBody")}</p>
           </div>
         ) : null}
-        {/* Hidden print surface: holds the latest rendered preview for
-            window.print() so the user can print directly from edit
-            mode without flipping to preview first. Hidden in normal
-            screen rendering and revealed by the @media print rules. */}
+        {/* Hidden print surface: keeps Ctrl/Cmd+P as a best-effort
+            fallback, while the app Print command uses an isolated
+            iframe so only the rendered note article is printed. */}
         {active && activePreview ? (
           <div className="print-surface" aria-hidden="true">
             <article dangerouslySetInnerHTML={{ __html: activePreview }} />

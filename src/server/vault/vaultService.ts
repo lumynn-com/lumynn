@@ -749,11 +749,6 @@ export async function searchDocuments(user: UserRecord, query: string): Promise<
   }
 
   const vaultRoot = await ensureVault(user);
-  const ripgrepResults = await searchWithRipgrep(vaultRoot, trimmedQuery);
-  if (ripgrepResults && ripgrepResults.length > 0) {
-    return ripgrepResults;
-  }
-
   const documents = await listDocuments(user, "updatedAt", "desc");
   const results = new Map<string, DocumentSearchResult>();
   const needle = trimmedQuery.toLocaleLowerCase();
@@ -766,7 +761,12 @@ export async function searchDocuments(user: UserRecord, query: string): Promise<
     }
   }
 
+  const ripgrepResults = await searchWithRipgrep(vaultRoot, trimmedQuery);
   if (ripgrepResults) {
+    for (const match of ripgrepResults) {
+      if (results.size >= SEARCH_RESULT_LIMIT) break;
+      if (!results.has(match.path)) results.set(match.path, match);
+    }
     return Array.from(results.values());
   }
 

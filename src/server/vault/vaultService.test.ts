@@ -1,6 +1,42 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
-import { normalizeDocumentPath, renderPreview } from "./vaultService";
+import { emptyRagSettings, type UserRecord } from "../store";
+import { normalizeDocumentPath, renderPreview, searchDocuments, writeDocument } from "./vaultService";
+
+function testVaultPath(name: string): string {
+  return path.resolve("sample-vault", "test-vaults", `${name}-${process.pid}-${Date.now()}`);
+}
+
+function makeUser(vaultPath: string): UserRecord {
+  return {
+    username: `test-${path.basename(vaultPath)}`,
+    role: "admin",
+    passwordHash: "",
+    passwordUpdatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    vault: {
+      path: vaultPath,
+      allowPlainMarkdownFolder: true
+    },
+    rag: emptyRagSettings(),
+    createdAtByPath: {},
+    metadataByPath: {}
+  };
+}
+
+async function withVault(name: string, fn: (user: UserRecord) => Promise<void>) {
+  const vaultPath = testVaultPath(name);
+  await fs.rm(vaultPath, { recursive: true, force: true });
+  await fs.mkdir(vaultPath, { recursive: true });
+  const user = makeUser(vaultPath);
+  try {
+    await fn(user);
+  } finally {
+    await fs.rm(vaultPath, { recursive: true, force: true });
+  }
+}
 
 test("normalizeDocumentPath rejects traversal and normalizes markdown extension", () => {
   assert.equal(normalizeDocumentPath("Folder/Note"), "Folder/Note.md");
@@ -16,6 +52,18 @@ test("renderPreview sanitizes unsafe HTML", async () => {
   assert.doesNotMatch(html, /script/);
   assert.doesNotMatch(html, /onerror/);
   assert.match(html, /<img src="x"/);
+});
+
+test("searchDocuments includes filename matches alongside body matches", async () => {
+  await withVault("filename-search", async (user) => {
+    await writeDocument(user, "Alpha Filename.md", "# Other\n\nThis file only matches by path.");
+    await writeDocument(user, "Body.md", "# Body\n\nThe Alpha Filename phrase appears in this body.");
+
+    const results = await searchDocuments(user, "Alpha Filename");
+
+    assert.equal(results[0].path, "Alpha Filename.md");
+    assert.ok(results.some((result) => result.path === "Body.md"));
+  });
 });
 
 test("renderPreview supports common Obsidian markdown", async () => {
