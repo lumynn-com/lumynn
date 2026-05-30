@@ -1456,6 +1456,9 @@ export const CopilotView = memo(function CopilotView(props: {
                 }
               }}
             />
+          </div>
+          <div className="copilot-submit-row">
+            {state.status ? <div className="copilot-inline-status">{state.status}</div> : null}
             {state.loading ? (
               <button type="button" className="icon-button copilot-input-action" onClick={stop} aria-label={t("copilot.stop")} title={t("copilot.stop")}>
                 <StopIcon />
@@ -1473,7 +1476,6 @@ export const CopilotView = memo(function CopilotView(props: {
             )}
           </div>
         </form>
-        {state.status ? <div className="copilot-inline-status">{state.status}</div> : null}
         {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}
       </div>
     </aside>
