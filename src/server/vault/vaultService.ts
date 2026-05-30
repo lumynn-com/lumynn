@@ -1221,13 +1221,36 @@ function renderMath(tex: string, displayMode: boolean): string {
   });
 }
 
-function transformObsidianMath(input: string): string {
-  const withBlockMath = input.replace(/(^|[\r\n])\$\$([\s\S]*?)\$\$(?=$|[\r\n])/g, (_match, prefix: string, tex: string) => {
-    return `${prefix}${renderMath(tex, true)}`;
-  });
+function transformOutsideMarkdownCode(input: string, transform: (value: string) => string): string {
+  const protectedSegments: string[] = [];
+  const protect = (segment: string) => {
+    const token = `@@OWD_CODE_SEGMENT_${protectedSegments.length}@@`;
+    protectedSegments.push(segment);
+    return token;
+  };
+  const protectedInput = input
+    .replace(/(^|\r?\n)(`{3,}|~{3,})[^\r\n]*(?:\r?\n[\s\S]*?)(?:\r?\n\2)(?=$|\r?\n)/g, (match) => protect(match))
+    .replace(/(`+)([^`\r\n]*?)\1/g, (match) => protect(match));
+  return transform(protectedInput).replace(/@@OWD_CODE_SEGMENT_(\d+)@@/g, (_match, index: string) => protectedSegments[Number(index)] ?? "");
+}
 
-  return withBlockMath.replace(/(^|[^\\$])\$(?!\s|\$)([^\n$]+?)(?<!\s|\\)\$/g, (_match, prefix: string, tex: string) => {
-    return `${prefix}${renderMath(tex, false)}`;
+function transformObsidianMath(input: string): string {
+  return transformOutsideMarkdownCode(input, (mathInput) => {
+    const withBracketDisplayMath = mathInput.replace(/\\\[([\s\S]*?)\\\]/g, (_match, tex: string) => {
+      return renderMath(tex, true);
+    });
+
+    const withBlockMath = withBracketDisplayMath.replace(/(^|[\r\n])\$\$([\s\S]*?)\$\$(?=$|[\r\n])/g, (_match, prefix: string, tex: string) => {
+      return `${prefix}${renderMath(tex, true)}`;
+    });
+
+    const withParenInlineMath = withBlockMath.replace(/\\\((?!\s)([^\n]+?)(?<!\s)\\\)/g, (_match, tex: string) => {
+      return renderMath(tex, false);
+    });
+
+    return withParenInlineMath.replace(/(^|[^\\$])\$(?!\s|\$)([^\n$]+?)(?<!\s|\\)\$/g, (_match, prefix: string, tex: string) => {
+      return `${prefix}${renderMath(tex, false)}`;
+    });
   });
 }
 
@@ -1411,7 +1434,7 @@ export async function renderPreview(content: string, basePath?: string): Promise
     walkTokens: normalizeEmptyPreviewTaskListItem
   });
   return sanitizeHtml(html, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "input", "mark"]),
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(["img", "h1", "h2", "input", "mark", "svg", "path"]),
     allowedAttributes: {
       ...sanitizeHtml.defaults.allowedAttributes,
       a: ["href", "name", "target", "title", "class"],
@@ -1421,8 +1444,13 @@ export async function renderPreview(content: string, basePath?: string): Promise
       pre: ["class"],
       code: ["class"],
       span: ["class", "style", "aria-hidden"],
+      svg: ["xmlns", "width", "height", "viewBox", "viewbox", "preserveAspectRatio", "preserveaspectratio"],
+      path: ["d"],
       img: ["src", "alt", "title", "loading", "width", "height"],
       mark: ["class"]
+    },
+    parser: {
+      lowerCaseAttributeNames: false
     }
   });
 }

@@ -107,15 +107,43 @@ test("renderPreview supports Obsidian heading-only links", async () => {
   assert.match(html, />go there<\/a>/);
 });
 
-test("renderPreview supports Obsidian math syntax", async () => {
-  const html = await renderPreview("Inline $\\angle ABC = 90^\\circ$ and $\\square + \\dots$.\n\n$$\na^2 + b^2 = c^2\n$$\n\n`$\\angle$ stays code`");
+test("renderPreview supports common LaTeX math syntax", async () => {
+  const html = await renderPreview(
+    [
+      "Inline $\\angle ABC = 90^\\circ$, $\\sqrt{x^2 + y^2}$, and \\(\\frac{1}{2}\\).",
+      "",
+      "$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} \\quad (\\Delta \\ge 0)$",
+      "",
+      "$$",
+      "\\sum_{i=1}^n i = \\frac{n(n+1)}{2}",
+      "$$",
+      "",
+      "\\[\\int_0^1 x^2\\,dx\\]",
+      "",
+      "$$",
+      "\\begin{aligned}a&=b\\\\c&=d\\end{aligned}",
+      "$$",
+      "",
+      "`$\\angle$ and \\(\\sqrt{x}\\) stay code`",
+      "",
+      "```",
+      "$\\sqrt{x}$ stays fenced code",
+      "```"
+    ].join("\n")
+  );
 
   assert.match(html, /class="katex"/);
   assert.match(html, /class="katex-display"/);
   assert.match(html, /∠/);
-  assert.match(html, /□/);
-  assert.match(html, /…/);
-  assert.match(html, /<code>\$\\angle\$ stays code<\/code>/);
+  assert.match(html, /class="mord sqrt/);
+  assert.match(html, /<svg[^>]+(?:viewBox|viewbox)="0 0 400000 1080"/);
+  assert.match(html, /<path d="M95,702/);
+  assert.match(html, /∫/);
+  assert.match(html, /∑/);
+  assert.doesNotMatch(html, /\\frac\{1\}\{2\}/);
+  assert.doesNotMatch(html, /\\frac\{-b \\pm \\sqrt\{b\^2 - 4ac\}\}\{2a\}/);
+  assert.ok(html.includes("<code>$\\angle$ and \\(\\sqrt{x}\\) stay code</code>"));
+  assert.match(html, /<pre class="hljs"><code>[\s\S]*<span class="hljs-built_in">sqrt<\/span>\{x\}[\s\S]*<\/code><\/pre>/);
 });
 
 test("renderPreview keeps safe task list checkboxes", async () => {
