@@ -24,6 +24,7 @@ import {
   PencilIcon,
   PlusIcon,
   PrintIcon,
+  RefreshIcon,
   SaveIcon,
   SearchIcon,
   SettingsIcon,
@@ -221,6 +222,21 @@ function parentFolderOf(documentPath: string): string {
   if (!documentPath || isDraftPath(documentPath)) return "";
   const lastSlash = documentPath.lastIndexOf("/");
   return lastSlash > 0 ? documentPath.slice(0, lastSlash) : "";
+}
+
+function folderRefreshTargetsForChangedPaths(paths: string[]): string[] {
+  const targets = new Set<string>([""]);
+  for (const path of paths) {
+    const folderPath = parentFolderOf(path);
+    if (!folderPath) continue;
+    const parts = folderPath.split("/").filter(Boolean);
+    let current = "";
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      targets.add(current);
+    }
+  }
+  return Array.from(targets);
 }
 
 // Default path for the New Note prompt. We pre-fill the dialog with
@@ -425,6 +441,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setDialog(null);
   }
   const [saving, setSaving] = useState(false);
+  const [vaultTreeRefreshing, setVaultTreeRefreshing] = useState(false);
   const [sortSheetOpen, setSortSheetOpen] = useState(false);
   const [commandSheetOpen, setCommandSheetOpen] = useState(false);
   const [commandMenuAnchor, setCommandMenuAnchor] = useState<{ x: number; y: number } | null>(null);
@@ -1158,6 +1175,28 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       folderFetchTracker.current.loaded.delete(folderPath);
     });
     await Promise.all(uniquePaths.map((folderPath) => loadFolderChildren(folderPath, { force: true, silent: true })));
+  }
+
+  async function refreshVaultPaths(paths: string[]) {
+    const refreshTargets = folderRefreshTargetsForChangedPaths(paths);
+    try {
+      await refreshFolders(refreshTargets);
+      await refreshDocumentCount();
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : t("vault.refresh"));
+    }
+  }
+
+  async function refreshVaultTree() {
+    if (vaultTreeRefreshing) return;
+    setVaultTreeRefreshing(true);
+    try {
+      await refreshDocuments();
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : t("vault.refresh"));
+    } finally {
+      setVaultTreeRefreshing(false);
+    }
   }
 
   function setStatusKey(key: TKey, params?: Record<string, string | number>) {
@@ -2057,6 +2096,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <button
               type="button"
               className="icon-button"
+              aria-label={t(vaultTreeRefreshing ? "vault.refreshBusy" : "vault.refresh")}
+              title={t(vaultTreeRefreshing ? "vault.refreshBusy" : "vault.refresh")}
+              aria-busy={vaultTreeRefreshing}
+              disabled={vaultTreeRefreshing}
+              onClick={() => void refreshVaultTree()}
+            >
+              {vaultTreeRefreshing ? <SpinnerIcon /> : <RefreshIcon />}
+            </button>
+            <button
+              type="button"
+              className="icon-button"
               aria-label={t("vault.new")}
               onClick={() => {
                 if (isMobile) closeOverlays();
@@ -2112,6 +2162,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             onClick={() => setSearchOpen(true)}
           >
             <SearchIcon />
+          </button>
+          <button
+            type="button"
+            className="icon-button vault-toolbar-action"
+            aria-label={t(vaultTreeRefreshing ? "vault.refreshBusy" : "vault.refresh")}
+            title={t(vaultTreeRefreshing ? "vault.refreshBusy" : "vault.refresh")}
+            aria-busy={vaultTreeRefreshing}
+            disabled={vaultTreeRefreshing}
+            onClick={() => void refreshVaultTree()}
+          >
+            {vaultTreeRefreshing ? <SpinnerIcon /> : <RefreshIcon />}
           </button>
           <button
             type="button"
@@ -2390,6 +2451,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           compact
           username={props.username}
           onOpenSource={openDocument}
+          onVaultFilesChanged={refreshVaultPaths}
           onDismiss={isMobile ? closeOverlays : undefined}
           activeNote={
             active

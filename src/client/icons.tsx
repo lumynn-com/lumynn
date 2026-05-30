@@ -111,6 +111,17 @@ export function SortIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function RefreshIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M20 6v5h-5" />
+      <path d="M4 18v-5h5" />
+      <path d="M18.4 9A7 7 0 0 0 6.1 6.8L4 11" />
+      <path d="M5.6 15a7 7 0 0 0 12.3 2.2L20 13" />
+    </svg>
+  );
+}
+
 export function MoreIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>
@@ -274,6 +285,15 @@ export function SaveIcon(props: SVGProps<SVGSVGElement>) {
       <path d="M4 4h12l4 4v12H4z" />
       <path d="M8 4v6h8V4" />
       <path d="M8 14h8v6H8z" />
+    </svg>
+  );
+}
+
+export function CopyIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
     </svg>
   );
 }

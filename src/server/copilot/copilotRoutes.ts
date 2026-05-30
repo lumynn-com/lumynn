@@ -188,8 +188,9 @@ export async function registerCopilotRoutes(app: FastifyInstance): Promise<void>
     const user = authedUser(request, reply);
     if (!user) return;
     const params = z.object({ id: z.string().min(1) }).parse(request.params);
+    const query = z.object({ path: z.string().min(1).optional() }).parse(request.query);
     try {
-      return await deleteConversation(user, params.id);
+      return await deleteConversation(user, query.path || params.id);
     } catch (error) {
       reply.code(404);
       return { error: error instanceof Error ? error.message : "Conversation not found" };

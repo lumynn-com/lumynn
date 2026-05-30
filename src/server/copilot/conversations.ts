@@ -99,17 +99,23 @@ type ConversationSaveInput = Partial<Omit<CopilotConversation, "messages">> & { 
 type ConversationListItem = Pick<CopilotConversation, "id" | "title" | "createdAt" | "updatedAt" | "path">;
 
 async function findConversationPath(user: UserRecord, id: string): Promise<string | null> {
+  const [first] = await findConversationPaths(user, id);
+  return first ?? null;
+}
+
+async function findConversationPaths(user: UserRecord, id: string): Promise<string[]> {
   const docs = await listDocuments(user, "updatedAt", "desc").catch(() => []);
+  const matches: string[] = [];
   for (const doc of docs) {
     if (!doc.path.startsWith(`${COPILOT_CONVERSATION_FOLDER}/`)) continue;
     const full = await readDocument(user, doc.path).catch(() => null);
     if (!full) continue;
     const conversation = parseConversationMarkdown(full.content, full.path);
     if (conversation?.id === id) {
-      return full.path;
+      matches.push(full.path);
     }
   }
-  return null;
+  return Array.from(new Set(matches));
 }
 
 export async function saveConversation(user: UserRecord, input: ConversationSaveInput): Promise<CopilotConversation> {
@@ -152,14 +158,15 @@ export async function loadConversation(user: UserRecord, conversationIdOrPath: s
   return conversation;
 }
 
-export async function deleteConversation(user: UserRecord, conversationIdOrPath: string): Promise<{ ok: true; path: string }> {
+export async function deleteConversation(user: UserRecord, conversationIdOrPath: string): Promise<{ ok: true; path: string; paths: string[] }> {
   const requestedPath = conversationIdOrPath.includes("/") ? normalizeDocumentPath(conversationIdOrPath) : null;
-  const targetPath = requestedPath ?? (await findConversationPath(user, conversationIdOrPath));
-  if (!targetPath || !targetPath.startsWith(`${COPILOT_CONVERSATION_FOLDER}/`)) {
+  const targetPaths = requestedPath ? [requestedPath] : await findConversationPaths(user, conversationIdOrPath);
+  const safeTargetPaths = targetPaths.filter((targetPath) => targetPath.startsWith(`${COPILOT_CONVERSATION_FOLDER}/`));
+  if (safeTargetPaths.length === 0) {
     throw new Error("Conversation not found");
   }
-  await deleteDocument(user, targetPath);
-  return { ok: true, path: targetPath };
+  await Promise.all(safeTargetPaths.map((targetPath) => deleteDocument(user, targetPath)));
+  return { ok: true, path: safeTargetPaths[0], paths: safeTargetPaths };
 }
 
 export async function listConversations(user: UserRecord): Promise<ConversationListItem[]> {

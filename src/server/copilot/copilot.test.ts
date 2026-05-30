@@ -167,6 +167,47 @@ test("conversation markdown save/load roundtrips through the vault", async () =>
   });
 });
 
+test("deleteConversation removes duplicate files with the same conversation id", async () => {
+  await withVault("duplicate-conversations", async (user) => {
+    const messages = [
+      { role: "user" as const, content: "What is duplicated?", id: "u1", createdAt: "2026-05-29T00:00:00.000Z" }
+    ];
+    await saveConversation(user, {
+      id: "duplicate-id",
+      path: "copilot/copilot-conversations/Duplicate A.md",
+      messages
+    });
+    await saveConversation(user, {
+      id: "duplicate-id",
+      path: "copilot/copilot-conversations/Duplicate B.md",
+      messages
+    });
+
+    assert.equal((await listConversations(user)).filter((conversation) => conversation.id === "duplicate-id").length, 2);
+    const deleted = await deleteConversation(user, "duplicate-id");
+    assert.equal(deleted.ok, true);
+    assert.equal(deleted.paths.length, 2);
+    assert.equal((await listConversations(user)).filter((conversation) => conversation.id === "duplicate-id").length, 0);
+  });
+});
+
+test("deleteConversation deletes a specific conversation file by path", async () => {
+  await withVault("conversation-path-delete", async (user) => {
+    const saved = await saveConversation(user, {
+      id: "delete-by-path",
+      path: "copilot/copilot-conversations/Delete Me.md",
+      messages: [
+        { role: "user", content: "Delete by path", id: "u1", createdAt: "2026-05-29T00:00:00.000Z" }
+      ]
+    });
+
+    const deleted = await deleteConversation(user, saved.path ?? "");
+    assert.equal(deleted.ok, true);
+    assert.equal(deleted.path, "copilot/copilot-conversations/Delete Me.md");
+    assert.equal((await listConversations(user)).filter((conversation) => conversation.id === "delete-by-path").length, 0);
+  });
+});
+
 test("agent injects active and referenced note context into provider messages", async () => {
   await withVault("agent-context", async (user) => {
     const requestBodies: any[] = [];

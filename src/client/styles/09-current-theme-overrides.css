@@ -1008,6 +1008,41 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   margin-bottom: 0;
 }
 
+.copilot-message-actions {
+  display: flex;
+  gap: 0.08rem;
+  margin-top: 0.34rem;
+  align-items: center;
+}
+
+.copilot-answer-action {
+  display: inline-flex;
+  width: 24px !important;
+  min-width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 5px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-muted);
+  padding: 0 !important;
+}
+
+.copilot-answer-action:hover:not(:disabled),
+.copilot-answer-action:focus-visible {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text);
+}
+
+.copilot-answer-action svg {
+  width: 13px;
+  height: 13px;
+}
+
 .copilot-message-sources {
   display: block;
   margin-top: 0.6rem;
@@ -1371,6 +1406,19 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   color: var(--md-muted);
   font-size: 0.72rem;
   line-height: 1.4;
+}
+
+.copilot-answer-save-modal {
+  box-shadow: none !important;
+}
+
+.copilot-answer-save-modal input {
+  box-shadow: none !important;
+}
+
+.copilot-answer-save-modal .folder-picker {
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+  box-shadow: none !important;
 }
 
 @media (max-width: 860px) {

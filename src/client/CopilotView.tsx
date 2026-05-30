@@ -2,11 +2,12 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, FormEvent, MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import fuzzysort from "fuzzysort";
-import type { DocumentSummary } from "../shared/types";
+import type { DocumentContent, DocumentSummary, DocumentTreeEntry } from "../shared/types";
 import { api } from "./api";
-import { AskIcon, CloseIcon, EyeIcon, HistoryIcon, PanelToggleIcon, PlusIcon, SendIcon, StopIcon, TrashIcon } from "./icons";
+import { AskIcon, CloseIcon, CopyIcon, EyeIcon, HistoryIcon, PanelToggleIcon, PlusIcon, SaveIcon, SendIcon, StopIcon, TrashIcon } from "./icons";
 import { useT } from "./i18n";
 import { parseSseChunk } from "./copilot/sse";
+import { FolderPicker } from "./FolderPicker";
 
 type ChatRole = "user" | "assistant";
 
@@ -85,6 +86,14 @@ interface NotePickerPosition {
   bottom: number;
   width: number;
   maxHeight: number;
+}
+
+interface AnswerSaveState {
+  content: string;
+  folder: string;
+  name: string;
+  busy: boolean;
+  error: string;
 }
 
 type NotePickerOption =
@@ -297,6 +306,35 @@ function parentFolderOfPath(documentPath: string): string {
   return index === -1 ? "" : documentPath.slice(0, index);
 }
 
+function sanitizeFileNameSegment(input: string): string {
+  return input
+    .replace(/[\\/:*?"<>|#\[\]\n\r\t]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+function formatAnswerTimestamp(date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
+function defaultAnswerFileName(content: string): string {
+  const heading = content.match(/^#{1,6}\s+(.+)$/m)?.[1];
+  const firstLine = heading || content.split(/\r?\n/).find((line) => line.trim()) || "";
+  const base = sanitizeFileNameSegment(firstLine.replace(/[*_`[\]()]/g, " ")) || `Copilot answer ${formatAnswerTimestamp()}`;
+  return `${base}.md`;
+}
+
+function normalizeAnswerFileName(input: string): string {
+  const cleaned = sanitizeFileNameSegment(input.replace(/\.md$/i, ""));
+  return cleaned ? `${cleaned}.md` : "";
+}
+
+function answerPath(folder: string, fileName: string): string {
+  return folder ? `${folder.replace(/\/+$/, "")}/${fileName}` : fileName;
+}
+
 function folderPathsFromDocuments(documents: DocumentSummary[]): string[] {
   const folders = new Set<string>();
   for (const doc of documents) {
@@ -335,6 +373,7 @@ export const CopilotView = memo(function CopilotView(props: {
   compact?: boolean;
   username?: string;
   onOpenSource?: (path: string) => void;
+  onVaultFilesChanged?: (paths: string[]) => void | Promise<void>;
   onDismiss?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
@@ -357,18 +396,34 @@ export const CopilotView = memo(function CopilotView(props: {
   const [notePickerPosition, setNotePickerPosition] = useState<NotePickerPosition | null>(null);
   const [renderedMessages, setRenderedMessages] = useState<Record<string, string>>({});
   const [historyMenuOpen, setHistoryMenuOpen] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState("");
+  const [answerSave, setAnswerSave] = useState<AnswerSaveState | null>(null);
+  const [folderChildren, setFolderChildren] = useState<Map<string, DocumentTreeEntry[]>>(() => new Map());
+  const [loadingFolders, setLoadingFolders] = useState<Set<string>>(() => new Set());
   const abortRef = useRef<AbortController | null>(null);
   const chatLogRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const notePickerRef = useRef<HTMLDivElement | null>(null);
   const historyMenuRef = useRef<HTMLDivElement | null>(null);
   const previewCacheRef = useRef(new Map<string, { content: string; html: string }>());
+  const folderRequestsRef = useRef(new Map<string, Promise<DocumentTreeEntry[] | null>>());
+  const deletedConversationIdsRef = useRef(new Set<string>());
+  const deletedConversationPathsRef = useRef(new Set<string>());
   const lastAutoSaveKeyRef = useRef("");
   const autoSaveTimerRef = useRef<number | null>(null);
+
+  function notifyVaultFilesChanged(paths: string[]) {
+    const changedPaths = paths.filter(Boolean);
+    if (changedPaths.length === 0) return;
+    void Promise.resolve(props.onVaultFilesChanged?.(changedPaths)).catch(() => undefined);
+  }
 
   useEffect(() => {
     setState({ ...emptyState, ...readSavedState(username) });
     setRenderedMessages({});
+    setFolderChildren(new Map());
+    setLoadingFolders(new Set());
+    folderRequestsRef.current.clear();
   }, [username]);
 
   useEffect(() => {
@@ -524,6 +579,54 @@ export const CopilotView = memo(function CopilotView(props: {
     } finally {
       setDocumentOptionsLoading(false);
     }
+  }
+
+  function clearPendingAutoSave() {
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }
+
+  async function loadFolder(path: string): Promise<DocumentTreeEntry[] | null> {
+    if (folderChildren.has(path)) return folderChildren.get(path) ?? null;
+    const existing = folderRequestsRef.current.get(path);
+    if (existing) return existing;
+
+    setLoadingFolders((current) => {
+      if (current.has(path)) return current;
+      const next = new Set(current);
+      next.add(path);
+      return next;
+    });
+
+    const promise = (async () => {
+      try {
+        const params = new URLSearchParams({ sort: "name", order: "asc" });
+        if (path) params.set("path", path);
+        const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
+        const children = data.children ?? [];
+        setFolderChildren((current) => {
+          const next = new Map(current);
+          next.set(path, children);
+          return next;
+        });
+        return children;
+      } catch {
+        return null;
+      } finally {
+        folderRequestsRef.current.delete(path);
+        setLoadingFolders((current) => {
+          if (!current.has(path)) return current;
+          const next = new Set(current);
+          next.delete(path);
+          return next;
+        });
+      }
+    })();
+
+    folderRequestsRef.current.set(path, promise);
+    return promise;
   }
 
   function setStateAndPersist(updater: (current: CopilotState) => CopilotState) {
@@ -860,6 +963,8 @@ export const CopilotView = memo(function CopilotView(props: {
   async function persistConversation(options: { closeHistory?: boolean; signature?: string } = {}) {
     const signature = options.signature ?? conversationAutoSaveKey(state.messages);
     if (state.messages.length === 0 || saving || signature === lastAutoSaveKeyRef.current) return;
+    if (state.conversationId && deletedConversationIdsRef.current.has(state.conversationId)) return;
+    if (state.conversationPath && deletedConversationPathsRef.current.has(state.conversationPath)) return;
     setSaving(true);
     try {
       const saved = await api<SavedCopilotState & { id: string; path?: string; title: string; createdAt: string; updatedAt: string }>("/api/copilot/conversations", {
@@ -902,6 +1007,8 @@ export const CopilotView = memo(function CopilotView(props: {
         createdAt: string;
         updatedAt: string;
       }>(`/api/copilot/conversations/${encodeURIComponent(conversationId)}`);
+      deletedConversationIdsRef.current.delete(conversation.id);
+      if (conversation.path) deletedConversationPathsRef.current.delete(conversation.path);
       lastAutoSaveKeyRef.current = conversationAutoSaveKey(conversation.messages);
       setState({
         ...emptyState,
@@ -924,13 +1031,25 @@ export const CopilotView = memo(function CopilotView(props: {
   }
 
   async function deleteConversationHistory(conversation: ConversationSummary) {
-    if (loadingConversation || saving) return;
+    if (loadingConversation || saving || deletingConversationId) return;
+    const deletingCurrent = conversation.id === state.conversationId || Boolean(conversation.path && conversation.path === state.conversationPath);
+    deletedConversationIdsRef.current.add(conversation.id);
+    if (conversation.path) deletedConversationPathsRef.current.add(conversation.path);
+    if (deletingCurrent) {
+      clearPendingAutoSave();
+      lastAutoSaveKeyRef.current = conversationAutoSaveKey(state.messages);
+    }
+    setDeletingConversationId(conversation.id);
     try {
-      await api<{ ok: true; path: string }>(`/api/copilot/conversations/${encodeURIComponent(conversation.id)}`, {
+      const params = new URLSearchParams();
+      if (conversation.path) params.set("path", conversation.path);
+      const query = params.toString();
+      const deleted = await api<{ ok: true; path: string; paths?: string[] }>(`/api/copilot/conversations/${encodeURIComponent(conversation.id)}${query ? `?${query}` : ""}`, {
         method: "DELETE"
       });
-      if (conversation.id === state.conversationId) {
-        lastAutoSaveKeyRef.current = "";
+      notifyVaultFilesChanged(deleted.paths?.length ? deleted.paths : [deleted.path]);
+      setConversations((current) => current.filter((item) => item.id !== conversation.id && item.path !== conversation.path));
+      if (deletingCurrent) {
         setAttachedNotes([]);
         setIncludeCurrentNote(true);
         setNotePicker({ open: false, query: "", cursor: 0, start: null, category: null });
@@ -939,7 +1058,12 @@ export const CopilotView = memo(function CopilotView(props: {
       }
       await refreshConversations();
     } catch (error) {
+      deletedConversationIdsRef.current.delete(conversation.id);
+      if (conversation.path) deletedConversationPathsRef.current.delete(conversation.path);
+      await refreshConversations();
       setStateAndPersist((current) => ({ ...current, error: error instanceof Error ? error.message : t("copilot.error.delete") }));
+    } finally {
+      setDeletingConversationId("");
     }
   }
 
@@ -949,6 +1073,8 @@ export const CopilotView = memo(function CopilotView(props: {
         method: "POST"
       });
       setStateAndPersist((current) => ({ ...current, proposals: mergeProposal(current.proposals, updated) }));
+      notifyVaultFilesChanged([updated.path]);
+      void refreshDocumentOptions();
       props.onOpenSource?.(updated.path);
     } catch (error) {
       setStateAndPersist((current) => ({
@@ -973,6 +1099,60 @@ export const CopilotView = memo(function CopilotView(props: {
         ...current,
         proposals: current.proposals.map((item) => (item.id === proposal.id ? { ...item, status: "rejected", message: t("copilot.proposal.rejected") } : item))
       }));
+    }
+  }
+
+  async function copyAnswerMarkdown(message: ChatMessage) {
+    if (!message.content.trim()) return;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(message.content);
+      setStateAndPersist((current) => ({ ...current, status: t("copilot.answer.copied"), error: "" }));
+    } catch {
+      setStateAndPersist((current) => ({ ...current, error: t("copilot.answer.copyError") }));
+    }
+  }
+
+  function openAnswerSave(message: ChatMessage) {
+    if (!message.content.trim()) return;
+    setAnswerSave({
+      content: message.content,
+      folder: props.activeNote?.path && !props.activeNote.isDraft ? parentFolderOfPath(props.activeNote.path) : "",
+      name: defaultAnswerFileName(message.content),
+      busy: false,
+      error: ""
+    });
+  }
+
+  async function saveAnswerMarkdown() {
+    if (!answerSave || answerSave.busy) return;
+    const fileName = normalizeAnswerFileName(answerSave.name);
+    if (!fileName) {
+      setAnswerSave((current) => (current ? { ...current, error: t("copilot.answer.saveNameError") } : current));
+      return;
+    }
+
+    const targetPath = answerPath(answerSave.folder, fileName);
+    setAnswerSave((current) => (current ? { ...current, busy: true, error: "" } : current));
+    try {
+      const created = await api<DocumentContent>("/api/documents", {
+        method: "POST",
+        body: JSON.stringify({ path: targetPath, content: answerSave.content })
+      });
+      notifyVaultFilesChanged([created.path]);
+      setAnswerSave(null);
+      setStateAndPersist((current) => ({ ...current, status: t("copilot.answer.saved", { path: created.path }), error: "" }));
+      await refreshDocumentOptions();
+    } catch (error) {
+      setAnswerSave((current) => (
+        current
+          ? {
+              ...current,
+              busy: false,
+              error: error instanceof Error ? error.message : t("copilot.answer.saveError")
+            }
+          : current
+      ));
     }
   }
 
@@ -1198,6 +1378,72 @@ export const CopilotView = memo(function CopilotView(props: {
           document.body
         )
       : null;
+  const answerSaveNode =
+    answerSave && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onMouseDown={() => !answerSave.busy && setAnswerSave(null)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape" && !answerSave.busy) setAnswerSave(null);
+            }}
+          >
+            <section
+              className="prompt-modal path-picker-modal copilot-answer-save-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="copilot-answer-save-title"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <p className="eyebrow">{t("copilot.answer.saveEyebrow")}</p>
+              <h2 id="copilot-answer-save-title">{t("copilot.answer.saveTitle")}</h2>
+              <p className="muted">{t("copilot.answer.saveDescription")}</p>
+              <form
+                className="prompt-form path-picker-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveAnswerMarkdown();
+                }}
+              >
+                <div>
+                  <label className="path-picker-section-label">{t("prompt.pickFolder")}</label>
+                  <FolderPicker
+                    folderChildren={folderChildren}
+                    loadingFolders={loadingFolders}
+                    loadFolder={loadFolder}
+                    value={answerSave.folder}
+                    onChange={(folder) => setAnswerSave((current) => (current ? { ...current, folder } : current))}
+                    maxHeight="min(42dvh, 300px)"
+                  />
+                  <p className="muted path-picker-current" translate="no">
+                    {t("prompt.targetFolder", { folder: answerSave.folder || t("folderPicker.vaultRoot") })}
+                  </p>
+                </div>
+                <label>
+                  {t("copilot.answer.fileName")}
+                  <input
+                    name="copilot-answer-file-name"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={answerSave.name}
+                    disabled={answerSave.busy}
+                    onChange={(event) => setAnswerSave((current) => (current ? { ...current, name: event.target.value } : current))}
+                  />
+                </label>
+                {answerSave.error ? <div className="error" role="alert">{answerSave.error}</div> : null}
+                <div className="prompt-actions">
+                  <button type="button" onClick={() => setAnswerSave(null)} disabled={answerSave.busy}>{t("prompt.cancel")}</button>
+                  <button type="submit" className="primary" disabled={answerSave.busy || !answerSave.name.trim()} aria-busy={answerSave.busy}>
+                    {answerSave.busy ? t("copilot.answer.saveBusy") : t("copilot.answer.saveSubmit")}
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>,
+          document.body
+        )
+      : null;
 
   function renderCitationButtons(citations: Citation[], totalCount: number) {
     return (
@@ -1220,6 +1466,33 @@ export const CopilotView = memo(function CopilotView(props: {
           <div className="copilot-citation-more">{t("copilot.sources.moreCompact", { count: totalCount - citations.length })}</div>
         ) : null}
       </>
+    );
+  }
+
+  function renderAnswerActions(message: ChatMessage) {
+    if (message.role !== "assistant" || !message.content.trim()) return null;
+    if (state.loading && state.messages[state.messages.length - 1]?.id === message.id) return null;
+    return (
+      <div className="copilot-message-actions" role="group" aria-label={t("copilot.answer.actions")}>
+        <button
+          type="button"
+          className="icon-button copilot-answer-action"
+          onClick={() => copyAnswerMarkdown(message)}
+          aria-label={t("copilot.answer.copy")}
+          title={t("copilot.answer.copy")}
+        >
+          <CopyIcon />
+        </button>
+        <button
+          type="button"
+          className="icon-button copilot-answer-action"
+          onClick={() => openAnswerSave(message)}
+          aria-label={t("copilot.answer.save")}
+          title={t("copilot.answer.save")}
+        >
+          <SaveIcon />
+        </button>
+      </div>
     );
   }
 
@@ -1283,6 +1556,7 @@ export const CopilotView = memo(function CopilotView(props: {
                   {message.content || (message.role === "assistant" && state.loading ? t("copilot.status.thinking") : "")}
                 </div>
               )}
+              {renderAnswerActions(message)}
               {visibleMessageCitations.length > 0 ? (
                 <section className="copilot-message-sources" aria-label={t("copilot.sources")}>
                   <div className="copilot-message-sources-title">
@@ -1318,6 +1592,7 @@ export const CopilotView = memo(function CopilotView(props: {
       </div>
 
       {notePickerNode}
+      {answerSaveNode}
 
       <div className="copilot-composer">
         <div className="copilot-composer-toolbar" aria-label={t("copilot.toolbar")}>
@@ -1387,7 +1662,7 @@ export const CopilotView = memo(function CopilotView(props: {
                               type="button"
                               className="icon-button copilot-history-action danger"
                               onClick={() => deleteConversationHistory(conversation)}
-                              disabled={state.loading || loadingConversation || saving}
+                              disabled={state.loading || loadingConversation || saving || deletingConversationId === conversation.id}
                               aria-label={t("copilot.history.delete")}
                               title={t("copilot.history.delete")}
                             >
