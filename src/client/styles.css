@@ -21,3 +21,6 @@
 @import "./styles/09c-tonal-state-rules.css" layer(current-theme-overrides);
 @import "./styles/09d-document-theme.css" layer(current-theme-overrides);
 @import "./styles/10-copilot-panel.css" layer(current-theme-overrides);
+@import "./styles/10b-copilot-chat-messages.css" layer(current-theme-overrides);
+@import "./styles/10c-copilot-composer.css" layer(current-theme-overrides);
+@import "./styles/10d-copilot-mobile.css" layer(current-theme-overrides);

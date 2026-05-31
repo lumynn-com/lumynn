@@ -1,0 +1,255 @@
+/* Copilot note picker, composer, input shell, and save modal. */
+.copilot-note-picker {
+  display: grid;
+  max-height: min(420px, 48vh);
+  overflow: auto;
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  background: var(--owd-minimal-surface, var(--md-surface));
+  color: var(--md-text);
+  box-shadow: none;
+  position: relative;
+  z-index: var(--owd-z-status-toast, 12);
+}
+
+.copilot-note-picker-floating {
+  position: fixed;
+  z-index: var(--owd-z-top-popover, 120);
+  box-sizing: border-box;
+  border-radius: var(--owd-radius-card, 8px);
+  overscroll-behavior: contain;
+}
+
+.copilot-note-picker button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 72px;
+  width: 100%;
+  gap: 0.18rem 0.55rem;
+  justify-items: start;
+  align-items: center;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  background: transparent;
+  color: var(--md-text) !important;
+  padding: 0.7rem 0.8rem 0.7rem calc(0.8rem - 2px);
+  text-align: left;
+}
+
+.copilot-note-picker button:hover,
+.copilot-note-picker button:focus-visible,
+.copilot-note-picker button[data-active="true"] {
+  background: transparent !important;
+}
+
+.copilot-note-picker button[data-active="true"] {
+  border-left-color: var(--md-muted);
+  box-shadow: none !important;
+}
+
+.copilot-note-picker button:last-child {
+  border-bottom: 0;
+}
+
+.copilot-note-picker strong {
+  color: var(--md-text);
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-note-picker span {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.copilot-note-picker em {
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  padding: 0.08rem 0.35rem;
+  color: var(--md-muted);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 700;
+  justify-self: end;
+}
+
+.copilot-note-picker span,
+.copilot-note-picker-empty {
+  color: var(--md-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.copilot-note-picker-empty {
+  padding: 0.6rem 0.65rem;
+}
+
+.copilot-input-row {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.1rem;
+  margin-top: 0;
+}
+
+.copilot-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--owd-z-modal, 20);
+  display: grid;
+  gap: 0.18rem;
+  margin-top: auto;
+  border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  background: var(--owd-minimal-surface, var(--md-surface));
+  padding-top: 0.5rem;
+}
+
+.copilot-input-shell {
+  position: relative;
+  display: block;
+  min-height: 82px;
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.36rem 0.05rem 0.18rem;
+  box-shadow: none !important;
+  transition: background 160ms ease;
+}
+
+.copilot-input-shell:focus-within {
+  border-color: transparent !important;
+  background: transparent;
+  box-shadow: none !important;
+}
+
+.copilot-input-shell textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 62px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+  padding: 0.08rem 0 !important;
+  resize: none;
+  line-height: 1.45;
+}
+
+.copilot-submit-row {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 0.02rem;
+}
+
+.copilot-input-shell .copilot-context-chip {
+  min-height: 0;
+  align-items: baseline;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--md-primary, var(--accent-2));
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.copilot-input-shell .copilot-context-chip-attached > button {
+  display: inline-flex;
+  min-height: 0;
+  align-items: center;
+  gap: 0.12rem;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.copilot-input-shell .copilot-context-chip span {
+  color: inherit;
+  font-weight: 650;
+}
+
+.copilot-input-shell .copilot-context-chip strong {
+  max-width: 16ch;
+  font-weight: 650;
+}
+
+.copilot-input-shell .copilot-context-chip-attached .copilot-context-remove {
+  width: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  border-left: 0;
+  color: var(--md-muted);
+  opacity: 0.65;
+}
+
+.copilot-input-shell .copilot-context-remove svg {
+  width: 11px;
+  height: 11px;
+}
+
+.copilot-input-action {
+  position: static;
+  margin-left: auto;
+  display: inline-flex;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  align-items: center;
+  justify-content: center;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-muted);
+  padding: 0 !important;
+  transform: none !important;
+}
+
+.copilot-input-action:hover:not(:disabled),
+.copilot-input-action:focus-visible {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--md-text);
+}
+
+.copilot-input-action:disabled {
+  opacity: 0.36;
+}
+
+.copilot-input-action svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.copilot-citation-more {
+  color: var(--md-muted);
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.copilot-inline-status {
+  color: var(--md-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.copilot-answer-save-modal {
+  box-shadow: none !important;
+}
+
+.copilot-answer-save-modal input {
+  box-shadow: none !important;
+}
+
+.copilot-answer-save-modal .folder-picker {
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+  box-shadow: none !important;
+}

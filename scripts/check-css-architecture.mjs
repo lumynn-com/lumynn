@@ -41,7 +41,10 @@ const expectedImports = [
   ["./styles/09b-markdown-heading-scale.css", "current-theme-overrides"],
   ["./styles/09c-tonal-state-rules.css", "current-theme-overrides"],
   ["./styles/09d-document-theme.css", "current-theme-overrides"],
-  ["./styles/10-copilot-panel.css", "current-theme-overrides"]
+  ["./styles/10-copilot-panel.css", "current-theme-overrides"],
+  ["./styles/10b-copilot-chat-messages.css", "current-theme-overrides"],
+  ["./styles/10c-copilot-composer.css", "current-theme-overrides"],
+  ["./styles/10d-copilot-mobile.css", "current-theme-overrides"]
 ];
 
 const stylesText = read(stylesEntry);
@@ -85,7 +88,10 @@ const importantBudgets = {
   "src/client/styles/09b-markdown-heading-scale.css": 0,
   "src/client/styles/09c-tonal-state-rules.css": 19,
   "src/client/styles/09d-document-theme.css": 9,
-  "src/client/styles/10-copilot-panel.css": 87
+  "src/client/styles/10-copilot-panel.css": 36,
+  "src/client/styles/10b-copilot-chat-messages.css": 16,
+  "src/client/styles/10c-copilot-composer.css": 26,
+  "src/client/styles/10d-copilot-mobile.css": 9
 };
 
 for (const [file, budget] of Object.entries(importantBudgets)) {
@@ -115,7 +121,10 @@ const rootBlockBudgets = {
   "src/client/styles/09b-markdown-heading-scale.css": 0,
   "src/client/styles/09c-tonal-state-rules.css": 0,
   "src/client/styles/09d-document-theme.css": 0,
-  "src/client/styles/10-copilot-panel.css": 0
+  "src/client/styles/10-copilot-panel.css": 0,
+  "src/client/styles/10b-copilot-chat-messages.css": 0,
+  "src/client/styles/10c-copilot-composer.css": 0,
+  "src/client/styles/10d-copilot-mobile.css": 0
 };
 
 for (const [file, budget] of Object.entries(rootBlockBudgets)) {
