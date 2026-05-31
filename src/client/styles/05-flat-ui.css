@@ -29,9 +29,7 @@
   /* Single-row vault toolbar of icon-only actions. Each button
      uses .icon-button (28-32px) so the row stays compact and
      accommodates all five actions even at the narrowest pane
-     width. The first button (search) gets a subtle accent
-     tint to read as the primary action without needing a
-     localized text label. */
+     width. */
   .vault-toolbar {
     display: flex;
     flex-wrap: nowrap;
@@ -46,21 +44,6 @@
      hide-pane affordance lives at the far end. */
   .vault-toolbar > .pane-collapse-toggle {
     margin-left: auto;
-  }
-
-  /* Search becomes an icon-only button but keeps a tinted
-     accent surface so it's still the visually anchored primary
-     action in the row. Hover deepens the tint instead of
-     swapping to the plain icon-button hover gray. */
-  .vault-toolbar-search {
-    background: var(--md-primary-container, color-mix(in srgb, var(--md-primary, var(--accent-2)) 14%, transparent)) !important;
-    color: var(--md-primary, var(--accent-2)) !important;
-  }
-
-  .vault-toolbar-search:hover:not(:disabled),
-  .vault-toolbar-search:focus-visible {
-    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 22%, transparent) !important;
-    color: var(--md-primary, var(--accent-2)) !important;
   }
 
   /* Tiny breadcrumb-style caption that replaces the old

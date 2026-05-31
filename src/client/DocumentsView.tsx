@@ -2200,12 +2200,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             below the fold; file count now lives as a thin caption
             directly above the tree where it doesn't compete for
             attention. */}
-        {/* Single row of icon-only actions. Search is the visually
-            anchored primary action (kept first, with a subtle accent
-            tint) but no longer carries a localized label, so the
-            row never truncates regardless of language or pane
-            width. The full label still ships through aria-label /
-            title for assistive tech and tooltips. */}
+        {/* Single row of icon-only actions. Search stays first for
+            muscle memory, but shares the same chrome as the other
+            toolbar buttons. The full label still ships through
+            aria-label / title for assistive tech and tooltips. */}
         <div className="vault-toolbar desktop-only">
           <button
             type="button"

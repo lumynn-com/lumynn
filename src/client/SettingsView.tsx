@@ -669,13 +669,15 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
 
           {section === "providers" ? (
             <section className="provider-grid">
-              <div className="panel form-panel">
+              <div className="panel form-panel provider-card">
                 <div>
                   <p className="eyebrow">{t("settings.providers.embeddingEyebrow")}</p>
                   <h2>{t("settings.providers.embeddingTitle")}</h2>
                 </div>
-                <ProviderFields kind="embedding" value={settings.rag.embedding} onChange={(embedding) => setSettings({ ...settings, rag: { ...settings.rag, embedding } })} />
-                <div className="button-row">
+                <div className="provider-fields">
+                  <ProviderFields kind="embedding" value={settings.rag.embedding} onChange={(embedding) => setSettings({ ...settings, rag: { ...settings.rag, embedding } })} />
+                </div>
+                <div className="button-row provider-actions">
                   <button
                     className="primary"
                     onClick={() => saveRag("save-rag-embedding")}
@@ -693,13 +695,15 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   </button>
                 </div>
               </div>
-              <div className="panel form-panel">
+              <div className="panel form-panel provider-card">
                 <div>
                   <p className="eyebrow">{t("settings.providers.qaEyebrow")}</p>
                   <h2>{t("settings.providers.qaTitle")}</h2>
                 </div>
-                <ProviderFields kind="qa" value={settings.rag.qa} onChange={(qa) => setSettings({ ...settings, rag: { ...settings.rag, qa } })} />
-                <div className="button-row">
+                <div className="provider-fields">
+                  <ProviderFields kind="qa" value={settings.rag.qa} onChange={(qa) => setSettings({ ...settings, rag: { ...settings.rag, qa } })} />
+                </div>
+                <div className="button-row provider-actions">
                   <button
                     className="primary"
                     onClick={() => saveRag("save-rag-qa")}
@@ -1048,6 +1052,14 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
           onChange={(event) => props.onChange({ ...props.value, apiMode: mode, endpointPath: event.target.value })}
         />
       </label>
+      <label>
+        {t("settings.providers.model")}
+        <input name={`${props.kind}-model`} autoComplete="off" spellCheck={false} value={props.value.model} onChange={(event) => props.onChange({ ...props.value, model: event.target.value })} />
+      </label>
+      <label>
+        {t("settings.providers.apiKey")}
+        <input name={`${props.kind}-api-key`} type="password" autoComplete="off" spellCheck={false} placeholder={t("settings.providers.apiKeyPlaceholder")} onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
+      </label>
       {props.kind === "qa" ? (
         <label>
           {t("settings.providers.reasoning")}
@@ -1062,14 +1074,6 @@ function ProviderFields(props: { kind: "embedding" | "qa"; value: ProviderSettin
           <small className="muted">{t("settings.providers.reasoningHelp")}</small>
         </label>
       ) : null}
-      <label>
-        {t("settings.providers.model")}
-        <input name={`${props.kind}-model`} autoComplete="off" spellCheck={false} value={props.value.model} onChange={(event) => props.onChange({ ...props.value, model: event.target.value })} />
-      </label>
-      <label>
-        {t("settings.providers.apiKey")}
-        <input name={`${props.kind}-api-key`} type="password" autoComplete="off" spellCheck={false} placeholder={t("settings.providers.apiKeyPlaceholder")} onChange={(event) => props.onChange({ ...props.value, apiKey: event.target.value })} />
-      </label>
     </>
   );
 }

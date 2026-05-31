@@ -89,8 +89,7 @@
   align-content: center;
 }
 
-.empty-state::before,
-.blank-editor::before {
+.empty-state::before {
   content: "";
   display: block;
   width: 2.75rem;
