@@ -239,34 +239,6 @@ function folderRefreshTargetsForChangedPaths(paths: string[]): string[] {
   return Array.from(targets);
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function stylesheetMarkupForPrint(): string {
-  const linkMarkup = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"][href]'))
-    .map((link) => `<link rel="stylesheet" href="${escapeHtml(link.href)}" />`)
-    .join("\n");
-  const styleMarkup = Array.from(document.querySelectorAll<HTMLStyleElement>("style"))
-    .map((style) => `<style>${style.textContent?.replace(/<\/style/gi, "<\\/style") ?? ""}</style>`)
-    .join("\n");
-  return `${linkMarkup}\n${styleMarkup}`;
-}
-
-function rootThemeAttributes(): string {
-  const theme = document.documentElement.getAttribute("data-theme");
-  return theme ? ` data-theme="${escapeHtml(theme)}"` : "";
-}
-
-function bodyThemeAttributes(): string {
-  const theme = document.body.getAttribute("data-theme") || document.documentElement.getAttribute("data-theme");
-  return theme ? ` data-theme="${escapeHtml(theme)}"` : "";
-}
-
 async function waitForPrintableAssets(doc: Document): Promise<void> {
   const stylesheetReady = Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel~="stylesheet"]')).map(
     (link) =>
@@ -295,128 +267,43 @@ async function waitForPrintableAssets(doc: Document): Promise<void> {
 }
 
 async function printRenderedPreviewHtml(html: string, title: string): Promise<void> {
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.setAttribute("title", title);
-  Object.assign(iframe.style, {
-    position: "absolute",
-    left: "-10000px",
-    top: "0",
-    width: "960px",
-    height: "1200px",
-    border: "0",
-    opacity: "0",
-    pointerEvents: "none"
-  });
-  document.body.appendChild(iframe);
+  const surface = document.createElement("div");
+  surface.className = "print-surface active-print-surface";
+  surface.setAttribute("aria-hidden", "true");
+  surface.setAttribute("title", title);
+  surface.innerHTML = `<article>${html}</article>`;
 
-  const printWindow = iframe.contentWindow;
-  const printDocument = iframe.contentDocument ?? printWindow?.document;
-  if (!printWindow || !printDocument) {
-    iframe.remove();
-    throw new Error("Unable to prepare print document");
-  }
-
+  const previousTitle = document.title;
+  const previousPrintMode = document.body.dataset.printMode;
+  let cleaned = false;
   const cleanup = () => {
-    window.setTimeout(() => iframe.remove(), 0);
-    printWindow.removeEventListener("afterprint", cleanup);
+    if (cleaned) return;
+    cleaned = true;
+    surface.remove();
+    if (previousPrintMode === undefined) {
+      delete document.body.dataset.printMode;
+    } else {
+      document.body.dataset.printMode = previousPrintMode;
+    }
+    document.title = previousTitle;
+    window.removeEventListener("afterprint", cleanup);
   };
-  printWindow.addEventListener("afterprint", cleanup);
-  printDocument.open();
-  printDocument.write(`<!doctype html>
-<html${rootThemeAttributes()}>
-<head>
-  <meta charset="utf-8" />
-  <title></title>
-  ${stylesheetMarkupForPrint()}
-  <style>
-    html, body {
-      background: #fff !important;
-      color: #111 !important;
-      margin: 0 !important;
-      overflow: visible !important;
-      color-scheme: light !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .editor-pane,
-    .print-surface {
-      display: block !important;
-      position: static !important;
-      left: auto !important;
-      top: auto !important;
-      width: auto !important;
-      height: auto !important;
-      min-height: 0 !important;
-      max-height: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      overflow: visible !important;
-      background: transparent !important;
-      border: 0 !important;
-      box-shadow: none !important;
-    }
-    .editor-pane > *:not(.print-surface) {
-      display: none !important;
-    }
-    .print-surface article {
-      display: block !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      background: #fff !important;
-      color: #111 !important;
-      font-size: 11pt !important;
-      line-height: 1.55 !important;
-      box-shadow: none !important;
-    }
-    .print-surface article :where(p, li, blockquote, td, th) {
-      font-size: 11pt !important;
-      line-height: 1.55 !important;
-    }
-    .print-surface article :where(h1, h2, h3, h4, h5, h6) {
-      color: #111 !important;
-      break-after: avoid;
-      page-break-after: avoid;
-    }
-    .print-surface article :where(pre, table, figure, img, .katex-display) {
-      break-inside: avoid;
-      page-break-inside: avoid;
-    }
-    .print-surface article :where(p, li, blockquote) {
-      break-inside: auto;
-      page-break-inside: auto;
-      widows: 3;
-      orphans: 3;
-    }
-    .print-surface article a {
-      color: #1a4d8c;
-      text-decoration: underline;
-    }
-    .print-surface article pre {
-      white-space: pre-wrap;
-    }
-    .print-surface article img {
-      max-width: 100%;
-      height: auto;
-    }
-    @page { margin: 1.5cm 1.2cm; }
-  </style>
-</head>
-<body${bodyThemeAttributes()}>
-  <main class="editor-pane">
-    <div class="print-surface">
-      <article>${html}</article>
-    </div>
-  </main>
-</body>
-</html>`);
-  printDocument.close();
 
-  await waitForPrintableAssets(printDocument);
-  printWindow.focus();
-  printWindow.print();
-  window.setTimeout(cleanup, 6000);
+  document.body.dataset.printMode = "active";
+  document.title = "";
+  document.body.appendChild(surface);
+  window.addEventListener("afterprint", cleanup);
+
+  try {
+    await waitForPrintableAssets(document);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    window.focus();
+    window.print();
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+  window.setTimeout(cleanup, 60000);
 }
 
 // Default path for the New Note prompt. We pre-fill the dialog with
@@ -1601,10 +1488,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
   }, [offerUndo, t]);
 
-  // Print the rendered preview of the active document through an
-  // isolated temporary iframe. That keeps the print job scoped to the
-  // note article itself instead of relying on print CSS to hide the
-  // surrounding web app chrome.
+  // Print the rendered preview of the active document through a
+  // temporary top-level print surface. Android browsers often ignore
+  // iframe print targets and print the parent page instead, so the app
+  // print path makes the parent page itself contain only the note.
   async function printActive(): Promise<void> {
     if (!active) return;
     let html = cachedPreviewFor(active);
@@ -2597,8 +2484,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           </div>
         ) : null}
         {/* Hidden print surface: keeps Ctrl/Cmd+P as a best-effort
-            fallback, while the app Print command uses an isolated
-            iframe so only the rendered note article is printed. */}
+            fallback. The app Print command appends an active top-level
+            print surface so Android browsers print only the note. */}
         {active && activePreview ? (
           <div className="print-surface" aria-hidden="true">
             <article dangerouslySetInnerHTML={{ __html: activePreview }} />
