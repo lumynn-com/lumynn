@@ -187,6 +187,65 @@ for (const file of Object.keys(rootBlockBudgets)) {
   }
 }
 
+const printSurfaceFile = "src/client/styles/04-print-surface.css";
+const printSurfaceText = read(printSurfaceFile);
+const requiredPrintParitySelectors = [
+  ["active top-level surface", "body[data-print-mode=\"active\"] > .active-print-surface.print-surface"],
+  ["rendered article", ".print-surface article {"],
+  ["transparent print backgrounds", "body[data-print-mode=\"active\"] > .active-print-surface.print-surface article :where(*:not(pre):not(code))"],
+  ["first-child margin", ".print-surface article :first-child"],
+  ["last-child margin", ".print-surface article :last-child"],
+  ["paragraph/list/cell wrapping", ".print-surface article :where(p, li, blockquote, td, th)"],
+  ["heading scale", ".print-surface article :where(h1, h2, h3, h4, h5, h6)"],
+  ["h1 scale", ".print-surface article h1"],
+  ["h2 scale", ".print-surface article h2"],
+  ["h3 scale", ".print-surface article h3"],
+  ["h4 scale", ".print-surface article h4"],
+  ["h5 scale", ".print-surface article h5"],
+  ["h6 scale", ".print-surface article h6"],
+  ["page-break sensitive blocks", ".print-surface article :where(pre, table, figure, img, .katex-display)"],
+  ["blockquote layout", ".print-surface article blockquote"],
+  ["blockquote first child", ".print-surface article blockquote > :first-child"],
+  ["blockquote last child", ".print-surface article blockquote > :last-child"],
+  ["task list layout", ".print-surface article li:has(input[type=\"checkbox\"])"],
+  ["checked task state", ".print-surface article li:has(input[type=\"checkbox\"]:checked)"],
+  ["task paragraph flow", ".print-surface article li:has(input[type=\"checkbox\"]) > p"],
+  ["task checkbox", ".print-surface article input[type=\"checkbox\"]"],
+  ["unchecked task checkbox", ".print-surface article input[type=\"checkbox\"]:not(:checked)"],
+  ["links", ".print-surface article a"],
+  ["inline code", ".print-surface article code"],
+  ["code blocks", ".print-surface article pre"],
+  ["pre code reset", ".print-surface article pre code"],
+  ["tables", ".print-surface article table {"],
+  ["table sections", ".print-surface article table :where(thead, tbody)"],
+  ["table rows", ".print-surface article table tr"],
+  ["table cells", ".print-surface article table th,"],
+  ["table header cells", ".print-surface article table th"],
+  ["table body cells", ".print-surface article table td"],
+  ["table last column", ".print-surface article table :where(th, td):last-child"],
+  ["table last row", ".print-surface article table tr:last-child td"],
+  ["table cell first child", ".print-surface article table :where(th, td) > :first-child"],
+  ["table cell last child", ".print-surface article table :where(th, td) > :last-child"],
+  ["table code wrapping", ".print-surface article table code"],
+  ["images", ".print-surface article img"],
+  ["KaTeX display", ".print-surface article .katex-display"],
+  ["horizontal rules", ".print-surface article hr"]
+];
+
+for (const [feature, selector] of requiredPrintParitySelectors) {
+  if (!printSurfaceText.includes(selector)) {
+    fail(`${printSurfaceFile}: print surface must cover rendered Markdown ${feature} (${selector})`);
+  }
+}
+
+if (/body:not\(\[data-print-mode/.test(printSurfaceText)) {
+  fail(`${printSurfaceFile}: app print must use only explicit body[data-print-mode="active"] rules`);
+}
+
+if (/editor-pane\s*>\s*\.print-surface/.test(printSurfaceText)) {
+  fail(`${printSurfaceFile}: do not reintroduce a persistent editor-pane print surface fallback`);
+}
+
 if (failures.length > 0) {
   console.error("CSS architecture check failed:");
   for (const failure of failures) {

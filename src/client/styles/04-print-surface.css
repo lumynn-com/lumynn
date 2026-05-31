@@ -1,7 +1,7 @@
-/* Hidden print-only surface that mirrors the rendered preview so
-   window.print() works regardless of whether the user is in edit
-   or preview mode at the time. Off-screen by default; revealed by
-   the @media print rules below. */
+/* Temporary top-level print surface. The app print command appends
+   this node directly under body, waits for assets, calls
+   window.print(), then removes it after the print job. Off-screen
+   by default; revealed only while body[data-print-mode="active"]. */
 .print-surface {
   position: absolute;
   left: -10000px;
@@ -16,10 +16,8 @@
   /* Reset body so the print sheet starts on a clean white page. */
   html:root,
   html:root[data-theme],
-  body,
-  body[data-theme],
   body[data-print-mode],
-  body:not([data-print-mode]) {
+  body[data-print-mode][data-theme] {
     background: #ffffff !important;
     background-image: none !important;
     color: #111111 !important;
@@ -29,23 +27,17 @@
     color-scheme: light !important;
   }
 
-  /* Hide the entire app shell. We only want the active article that
-     the print command appends directly under body. Android Chrome
-     often ignores hidden-iframe print targets, so the top-level print
-     surface is the canonical print path on every browser. */
+  /* Hide the entire app shell only for explicit app print jobs. We
+     only want the active article appended directly under body.
+     Android Chrome often ignores iframe print targets, so the
+     top-level print surface is the canonical print path. */
   body[data-print-mode="active"] > *:not(.active-print-surface) {
     display: none !important;
   }
 
-  /* Legacy fallback for browser print shortcuts when no explicit
-     app print job is active. */
-  body:not([data-print-mode="active"]) > #root > * {
-    display: none !important;
-  }
-
-  /* Reveal the active print surface as the only visible element. */
-  .active-print-surface,
-  body:not([data-print-mode="active"]) .print-surface {
+  /* Reveal the temporary top-level print surface as the only visible
+     element for the active print job. */
+  body[data-print-mode="active"] > .active-print-surface.print-surface {
     position: static !important;
     left: auto !important;
     top: auto !important;
@@ -60,67 +52,80 @@
     box-shadow: none !important;
   }
 
-  /* Make sure ancestors of .print-surface are visible too, since
-     the body > #root > * rule above hid them. */
-  body:not([data-print-mode="active"]),
-  body:not([data-print-mode="active"]) #root,
-  body:not([data-print-mode="active"]) #root .obsidian-shell,
-  body:not([data-print-mode="active"]) #root .main-content,
-  body:not([data-print-mode="active"]) #root [hidden],
-  body:not([data-print-mode="active"]) #root .main-content > div,
-  body:not([data-print-mode="active"]) #root .obsidian-workspace,
-  body:not([data-print-mode="active"]) #root .editor-pane {
-    display: block !important;
-    background: transparent !important;
-    color: inherit !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    overflow: visible !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    height: auto !important;
-    position: static !important;
-  }
-
-  /* Anything inside the editor pane that is NOT the print surface
-     must stay hidden in print. */
-  body:not([data-print-mode="active"]) .editor-pane > *:not(.print-surface) {
-    display: none !important;
-  }
-
   /* Print article styling: comfortable reading column, real link
      URLs, page-break friendliness. */
   .print-surface article {
     display: block !important;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     margin: 0;
     padding: 0;
     color: #111111 !important;
+    font-family: var(--font-doc, Georgia, serif);
     font-size: 11pt !important;
     line-height: 1.55 !important;
     background: #ffffff !important;
     background-image: none !important;
     box-shadow: none !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
-  body[data-print-mode="active"] > .active-print-surface.print-surface article :where(*:not(pre):not(code)),
-  body:not([data-print-mode="active"]) #root .editor-pane > .print-surface article :where(*:not(pre):not(code)) {
+  body[data-print-mode="active"] > .active-print-surface.print-surface article :where(*:not(pre):not(code)) {
     background-color: transparent !important;
     background-image: none !important;
     box-shadow: none !important;
   }
 
+  .print-surface article :first-child {
+    margin-top: 0;
+  }
+
+  .print-surface article :last-child {
+    margin-bottom: 0;
+  }
+
   .print-surface article :where(p, li, blockquote, td, th) {
+    max-width: 100%;
     font-size: 11pt !important;
     line-height: 1.55 !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .print-surface article :where(h1, h2, h3, h4, h5, h6) {
-    color: #111;
+    margin: 1.35em 0 0.55em;
+    color: #111111 !important;
+    font-weight: 650;
+    line-height: 1.24;
+    letter-spacing: 0;
     page-break-after: avoid;
     break-after: avoid;
+  }
+
+  .print-surface article h1 {
+    font-size: 1.74rem;
+  }
+
+  .print-surface article h2 {
+    font-size: 1.5rem;
+  }
+
+  .print-surface article h3 {
+    font-size: 1.22rem;
+  }
+
+  .print-surface article h4 {
+    font-size: 1.1rem;
+  }
+
+  .print-surface article h5 {
+    font-size: 1rem;
+  }
+
+  .print-surface article h6 {
+    font-size: 0.94rem;
   }
 
   .print-surface article :where(pre, table, figure, img, .katex-display) {
@@ -135,9 +140,64 @@
     orphans: 3;
   }
 
+  .print-surface article blockquote {
+    margin: 1rem 0;
+    padding: 0.15rem 0 0.15rem 0.9rem;
+    border-left: 2px solid #b8b8b8;
+    color: #555555 !important;
+    background: transparent !important;
+  }
+
+  .print-surface article blockquote > :first-child {
+    margin-top: 0;
+  }
+
+  .print-surface article blockquote > :last-child {
+    margin-bottom: 0;
+  }
+
+  .print-surface article li:has(input[type="checkbox"]) {
+    position: relative;
+    display: flex !important;
+    gap: 0.65rem;
+    align-items: flex-start;
+    margin: 0.35rem 0;
+    padding: 0.1rem 0;
+    border: 0;
+    border-radius: 0;
+    list-style: none;
+    background: transparent !important;
+  }
+
+  .print-surface article li:has(input[type="checkbox"]:checked) {
+    color: #555555 !important;
+    text-decoration: line-through;
+    text-decoration-color: #777777;
+  }
+
+  .print-surface article li:has(input[type="checkbox"]) > p {
+    display: contents;
+    margin: 0;
+  }
+
+  .print-surface article input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0.22rem 0 0;
+    border-radius: 2px;
+    accent-color: #6f7655;
+  }
+
+  .print-surface article input[type="checkbox"]:not(:checked) {
+    accent-color: #6f7655;
+  }
+
   .print-surface article a {
     color: #1a4d8c;
     text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
   }
 
   .print-surface article pre,
@@ -148,31 +208,112 @@
     border: 1px solid #e2e2e2;
   }
 
+  .print-surface article code {
+    border-radius: 3px;
+    padding: 0.15rem 0.3rem;
+  }
+
   .print-surface article pre {
+    max-width: 100%;
     padding: 0.6em 0.85em;
+    overflow-x: auto;
     white-space: pre-wrap;
+    word-break: break-word;
   }
 
   .print-surface article pre code {
     background: transparent !important;
     border: 0 !important;
+    padding: 0;
+    border-radius: 0;
     color: inherit !important;
+    font-size: inherit;
+    line-height: inherit;
   }
 
   .print-surface article img {
+    display: block;
     max-width: 100%;
     height: auto;
+    margin: 1rem auto;
+    border: 1px solid #d0d0d0;
+    border-radius: 0;
+    box-shadow: none !important;
   }
 
   .print-surface article table {
-    border-collapse: collapse;
-    width: 100%;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid #d0d0d0;
+    border-spacing: 0;
+    border-collapse: separate;
+    margin: 1.15rem 0;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .print-surface article table :where(thead, tbody) {
+    display: table-row-group;
+    min-width: max-content;
+  }
+
+  .print-surface article table tr {
+    display: table-row;
   }
 
   .print-surface article table th,
   .print-surface article table td {
-    border: 1px solid #d0d0d0;
-    padding: 0.4em 0.6em;
+    display: table-cell;
+    min-width: 8rem;
+    border-right: 1px solid #d0d0d0;
+    border-bottom: 1px solid #d0d0d0;
+    padding: 0.72rem 0.85rem;
+    vertical-align: top;
+    text-align: left;
+    line-height: 1.55 !important;
+  }
+
+  .print-surface article table th {
+    color: #111111 !important;
+    font-size: 0.78rem !important;
+    font-weight: 650;
+    letter-spacing: 0.015em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .print-surface article table td {
+    color: #111111 !important;
+    font-size: 0.92rem !important;
+  }
+
+  .print-surface article table :where(th, td):last-child {
+    border-right: 0;
+  }
+
+  .print-surface article table tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .print-surface article table :where(th, td) > :first-child {
+    margin-top: 0;
+  }
+
+  .print-surface article table :where(th, td) > :last-child {
+    margin-bottom: 0;
+  }
+
+  .print-surface article table code {
+    white-space: nowrap;
+  }
+
+  .print-surface article .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.2rem;
   }
 
   .print-surface article hr {
@@ -183,13 +324,7 @@
 
   /* Hide any FABs / toasts / overlays / a11y skip link that might
      still be in the React tree at print time. */
-  .editor-fab,
-  .undo-toast,
-  .modal-backdrop,
-  .sheet-backdrop,
-  .mobile-overlay-backdrop,
-  .back-to-top,
-  .skip-link {
+  body[data-print-mode="active"] :where(.editor-fab, .undo-toast, .modal-backdrop, .sheet-backdrop, .mobile-overlay-backdrop, .back-to-top, .skip-link) {
     display: none !important;
   }
 

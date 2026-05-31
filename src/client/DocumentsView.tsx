@@ -290,7 +290,7 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
   };
 
   document.body.dataset.printMode = "active";
-  document.title = "";
+  document.title = title;
   document.body.appendChild(surface);
   window.addEventListener("afterprint", cleanup);
 
@@ -663,8 +663,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       const last = focusable[focusable.length - 1];
       const active = document.activeElement as HTMLElement | null;
       const node = settingsModalRef.current;
-      // If focus somehow escaped the dialog (rare; e.g. an
-      // iframe stole it) pull it back to the first element.
+      // If focus somehow escaped the dialog, pull it back to the
+      // first element.
       if (!node || !active || !node.contains(active)) {
         event.preventDefault();
         first.focus();
@@ -2479,14 +2479,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <p className="eyebrow">{t("editor.blankEyebrow")}</p>
             <h2>{t("editor.blankTitle")}</h2>
             <p className="muted">{t("editor.blankBody")}</p>
-          </div>
-        ) : null}
-        {/* Hidden print surface: keeps Ctrl/Cmd+P as a best-effort
-            fallback. The app Print command appends an active top-level
-            print surface so Android browsers print only the note. */}
-        {active && activePreview ? (
-          <div className="print-surface" aria-hidden="true">
-            <article dangerouslySetInnerHTML={{ __html: activePreview }} />
           </div>
         ) : null}
       </section>

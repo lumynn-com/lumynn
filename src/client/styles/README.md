@@ -22,7 +22,7 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `03-mobile-chrome.css`: mobile section headers, icon buttons, pane chrome, overflow menu, bottom action sheet, and desktop hide guard.
 - `03b-mobile-draft-tabs.css`: quick-note draft tab, tab-strip add button, image logo reset, selected folder cue, and draft pill rules.
 - `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, vault drawer, ask sheet, and mobile overlay backdrop.
-- `04-print-surface.css`: hidden print surface and print media rules.
+- `04-print-surface.css`: temporary top-level print surface and print media rules.
 - `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
 - `04c-focus-mode.css`: zen/focus mode layout and exit button rules.
 - `04d-syntax-highlighting.css`: highlight.js token colors for dark and light themes.
