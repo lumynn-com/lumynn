@@ -10,6 +10,13 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: "dist/client"
+    outDir: "dist/client",
+    rolldownOptions: {
+      transform: {
+        decorator: {
+          legacy: true
+        }
+      }
+    }
   }
 });

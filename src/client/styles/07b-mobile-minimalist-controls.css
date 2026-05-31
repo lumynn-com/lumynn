@@ -8,52 +8,52 @@
    ============================================================ */
 @media (max-width: 860px) {
   .editor-pane > .editor-tabbar {
-    display: flex !important;
-    align-items: stretch !important;
-    gap: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: inset 0 -1px 0 var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: inset 0 -1px 0 var(--owd-minimal-divider, var(--md-outline-soft));
   }
 
   .editor-pane .tab-strip {
-    display: flex !important;
-    align-items: stretch !important;
-    flex-wrap: nowrap !important;
-    gap: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 0;
+    margin: 0;
+    padding: 0;
     overflow-x: auto;
-    background: transparent !important;
-    box-shadow: none !important;
+    background: transparent;
+    box-shadow: none;
     scrollbar-width: thin;
     -webkit-overflow-scrolling: touch;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell {
     position: relative;
-    display: inline-flex !important;
-    align-items: center !important;
-    flex: 0 0 auto !important;
-    height: 36px !important;
-    max-width: min(220px, 62vw) !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    color: var(--md-muted, var(--muted)) !important;
-    box-shadow: none !important;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: 36px;
+    max-width: min(220px, 62vw);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    box-shadow: none;
     transition-property: color, transform;
     transition-duration: 140ms;
     transition-timing-function: ease;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell.active {
-    color: var(--md-text, var(--text)) !important;
-    background: transparent !important;
+    color: var(--md-text, var(--text));
+    background: transparent;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell.active::after {
@@ -69,19 +69,19 @@
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .editor-tab {
-    display: inline-flex !important;
-    align-items: center !important;
-    flex: 1 1 auto !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    max-width: none !important;
-    gap: 0.35rem !important;
-    padding: 0 0.35rem 0 0.6rem !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    color: inherit !important;
-    line-height: 1 !important;
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    max-width: none;
+    gap: 0.35rem;
+    padding: 0 0.35rem 0 0.6rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    line-height: 1;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell.active .editor-tab {
@@ -96,19 +96,19 @@
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .tab-path {
-    display: none !important;
+    display: none;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .tab-close {
-    width: 16px !important;
-    height: 16px !important;
-    margin-right: 0.4rem !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    padding: 0 !important;
-    background: transparent !important;
-    color: var(--md-muted, var(--muted)) !important;
-    opacity: 0 !important;
+    width: 16px;
+    height: 16px;
+    margin-right: 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    opacity: 0;
     transition-property: opacity, color, background-color;
     transition-duration: 120ms;
     transition-timing-function: ease;
@@ -116,31 +116,31 @@
 
   .editor-pane .tab-strip > .editor-tab-shell.active .tab-close,
   .editor-pane .tab-strip > .editor-tab-shell:focus-within .tab-close {
-    opacity: 1 !important;
+    opacity: 1;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
   .editor-pane .tab-strip > .editor-tab-shell .tab-close:focus-visible {
-    background: transparent !important;
-    color: var(--md-text, var(--text)) !important;
+    background: transparent;
+    color: var(--md-text, var(--text));
   }
 
   .editor-pane .tab-strip > .tab-strip-add {
-    align-self: center !important;
-    width: 28px !important;
-    height: 28px !important;
-    margin: 0 0.15rem 0 0.25rem !important;
-    border: 0 !important;
-    border-radius: 8px !important;
-    padding: 0 !important;
-    background: transparent !important;
-    color: var(--md-muted, var(--muted)) !important;
+    align-self: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 0.15rem 0 0.25rem;
+    border: 0;
+    border-radius: 8px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
   }
 
   .editor-pane .tab-strip > .tab-strip-add:hover,
   .editor-pane .tab-strip > .tab-strip-add:focus-visible {
-    background: transparent !important;
-    color: var(--md-text, var(--text)) !important;
+    background: transparent;
+    color: var(--md-text, var(--text));
   }
 
   .editor-pane .tab-strip > .tab-strip-add svg {
@@ -159,20 +159,20 @@
 @media (max-width: 860px) {
   .mobile-app-bar,
   .mobile-section-header {
-    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
-    background: var(--owd-minimal-surface, var(--md-surface)) !important;
-    box-shadow: none !important;
+    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+    background: var(--owd-minimal-surface, var(--md-surface));
+    box-shadow: none;
   }
 
   .mobile-app-bar .icon-button,
   .mobile-section-actions .icon-button,
   .action-sheet-header button,
   .back-to-top {
-    border: 0 !important;
-    border-radius: 8px !important;
-    background: transparent !important;
-    color: var(--md-muted, var(--muted)) !important;
-    box-shadow: none !important;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    box-shadow: none;
   }
 
   .mobile-app-bar .icon-button:hover:not(:disabled),
@@ -183,137 +183,137 @@
   .action-sheet-header button:focus-visible,
   .back-to-top:hover:not(:disabled),
   .back-to-top:focus-visible {
-    background: transparent !important;
-    color: var(--md-text, var(--text)) !important;
-    transform: none !important;
+    background: transparent;
+    color: var(--md-text, var(--text));
+    transform: none;
   }
 
   .mobile-app-bar .icon-button[aria-expanded="true"],
   .mobile-app-bar .icon-button[aria-pressed="true"],
   .mobile-section-actions .icon-button[aria-expanded="true"],
   .mobile-section-actions .icon-button[aria-pressed="true"] {
-    color: var(--md-primary, var(--accent-2)) !important;
+    color: var(--md-primary, var(--accent-2));
   }
 
   .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
   .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet {
-    background: var(--owd-minimal-surface, var(--md-surface)) !important;
-    box-shadow: none !important;
+    background: var(--owd-minimal-surface, var(--md-surface));
+    box-shadow: none;
   }
 
   .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"] {
-    border-right: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    border-right: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   }
 
   .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet {
-    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   }
 
   .modal-backdrop.sheet-backdrop {
-    background: rgba(17, 16, 15, 0.34) !important;
+    background: rgba(17, 16, 15, 0.34);
   }
 
   :root[data-theme="light"] .modal-backdrop.sheet-backdrop {
-    background: rgba(47, 52, 55, 0.16) !important;
+    background: rgba(47, 52, 55, 0.16);
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet {
-    gap: 0 !important;
-    border-radius: 10px 10px 0 0 !important;
-    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.9rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left)) !important;
+    gap: 0;
+    border-radius: 10px 10px 0 0;
+    padding: 0.75rem max(0.9rem, env(safe-area-inset-right)) max(0.9rem, env(safe-area-inset-bottom)) max(0.9rem, env(safe-area-inset-left));
   }
 
   .action-sheet-header {
-    min-height: 42px !important;
-    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
-    padding: 0 0 0.55rem !important;
+    min-height: 42px;
+    border-bottom: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+    padding: 0 0 0.55rem;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group,
   .action-sheet-group {
-    gap: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft)) !important;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group:first-of-type,
   .action-sheet-group:first-of-type {
-    border-top: 0 !important;
+    border-top: 0;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button,
   .action-sheet-group button {
-    min-height: 44px !important;
-    border-width: 0 0 1px !important;
-    border-color: var(--owd-minimal-divider, var(--md-outline-soft)) !important;
-    border-radius: 0 !important;
-    padding: 0.65rem 0.1rem !important;
-    background: transparent !important;
-    color: var(--md-text, var(--text)) !important;
-    box-shadow: none !important;
+    min-height: 44px;
+    border-width: 0 0 1px;
+    border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+    border-radius: 0;
+    padding: 0.65rem 0.1rem;
+    background: transparent;
+    color: var(--md-text, var(--text));
+    box-shadow: none;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button:last-child,
   .action-sheet-group button:last-child {
-    border-bottom: 0 !important;
+    border-bottom: 0;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
   .modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible,
   .action-sheet-group button:hover:not(:disabled),
   .action-sheet-group button:focus-visible {
-    background: transparent !important;
-    color: var(--md-primary, var(--accent-2)) !important;
+    background: transparent;
+    color: var(--md-primary, var(--accent-2));
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button.active,
   .action-sheet-group button.active {
-    background: transparent !important;
-    box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2)) !important;
-    color: var(--md-primary, var(--accent-2)) !important;
+    background: transparent;
+    box-shadow: inset 2px 0 0 var(--md-primary, var(--accent-2));
+    color: var(--md-primary, var(--accent-2));
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon,
   .action-sheet-icon {
-    color: var(--md-muted, var(--muted)) !important;
+    color: var(--md-muted, var(--muted));
   }
 
   .qa-panel .ask-row {
-    gap: 0.5rem !important;
+    gap: 0.5rem;
   }
 
   .qa-panel .ask-row input,
   .qa-panel .query-button {
-    border-radius: 6px !important;
-    box-shadow: none !important;
+    border-radius: 6px;
+    box-shadow: none;
   }
 
   .editor-fab {
-    min-height: 44px !important;
-    border-radius: 8px !important;
-    padding: 0.55rem 0.75rem !important;
-    background: var(--owd-minimal-surface, var(--md-surface)) !important;
-    border-color: var(--owd-minimal-divider-strong, var(--md-outline)) !important;
-    color: var(--md-text, var(--text)) !important;
-    box-shadow: none !important;
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+    background: var(--owd-minimal-surface, var(--md-surface));
+    border-color: var(--owd-minimal-divider-strong, var(--md-outline));
+    color: var(--md-text, var(--text));
+    box-shadow: none;
   }
 
   .editor-fab:hover:not(:disabled),
   .editor-fab:focus-visible {
-    background: var(--owd-minimal-surface, var(--md-surface)) !important;
-    border-color: var(--md-primary, var(--accent-2)) !important;
-    color: var(--md-primary, var(--accent-2)) !important;
-    transform: none !important;
+    background: var(--owd-minimal-surface, var(--md-surface));
+    border-color: var(--md-primary, var(--accent-2));
+    color: var(--md-primary, var(--accent-2));
+    transform: none;
   }
 
   .editor-fab:active:not(:disabled) {
-    transform: scale(0.98) !important;
+    transform: scale(0.98);
   }
 
   .desktop-only,
@@ -321,6 +321,6 @@
   .pane-collapsed-rail.desktop-only,
   .vault-meta.desktop-only,
   .editor-tabbar-actions.desktop-only {
-    display: none !important;
+    display: none;
   }
 }

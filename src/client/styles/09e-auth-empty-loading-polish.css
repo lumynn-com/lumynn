@@ -1,0 +1,136 @@
+/* Final auth, empty, and loading state polish. */
+.login-shell {
+  min-height: var(--owd-viewport-h, 100dvh);
+  padding: clamp(1rem, 4vw, 3rem);
+  background:
+    linear-gradient(color-mix(in srgb, var(--md-outline-soft) 22%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--md-outline-soft) 18%, transparent) 1px, transparent 1px),
+    var(--md-bg);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  border-radius: var(--owd-radius-overlay);
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  background: color-mix(in srgb, var(--md-surface) 94%, transparent);
+}
+
+.login-card-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.login-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--md-outline-soft);
+  border-radius: var(--owd-radius-overlay);
+  background: var(--md-surface-2);
+  color: var(--md-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.login-card .eyebrow {
+  margin-bottom: 0.2rem;
+  color: var(--md-muted);
+}
+
+.login-card h1 {
+  font-size: clamp(1.55rem, 4vw, 2rem);
+}
+
+.login-description {
+  max-width: 34rem;
+  margin: 1rem 0 0;
+  line-height: 1.58;
+  text-wrap: pretty;
+}
+
+.login-card form {
+  margin-top: 1.35rem;
+}
+
+.login-card label {
+  gap: 0.38rem;
+}
+
+.login-card input {
+  min-height: 42px;
+}
+
+.login-card .primary {
+  min-height: 42px;
+  width: 100%;
+}
+
+.empty-state,
+.blank-editor,
+.info-box,
+.tree-row-placeholder,
+.folder-picker-loading {
+  border-style: solid;
+  border-color: var(--owd-minimal-divider, var(--md-outline-soft));
+  background: color-mix(in srgb, var(--md-surface-2) 58%, transparent);
+  color: var(--md-muted);
+}
+
+.empty-state,
+.blank-editor,
+.info-box {
+  min-height: 8rem;
+  align-content: center;
+}
+
+.empty-state::before,
+.blank-editor::before {
+  content: "";
+  display: block;
+  width: 2.75rem;
+  height: 2px;
+  margin-bottom: 0.65rem;
+  background: var(--md-primary);
+}
+
+.query-loading,
+.muya-editor-loading,
+.folder-picker-loading,
+.tree-row-placeholder {
+  position: relative;
+  overflow: hidden;
+}
+
+.query-loading::after,
+.muya-editor-loading::after,
+.folder-picker-loading::after,
+.tree-row-placeholder::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--md-primary) 9%, transparent), transparent);
+  animation: owd-loading-sheen 1200ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes owd-loading-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .query-loading::after,
+  .muya-editor-loading::after,
+  .folder-picker-loading::after,
+  .tree-row-placeholder::after {
+    animation: none;
+  }
+}

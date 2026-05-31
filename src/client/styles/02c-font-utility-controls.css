@@ -1,6 +1,8 @@
 /* Font clarity pass: prefer native system fonts and avoid soft custom smoothing. */
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "STHeiti", "Heiti SC", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: Aptos, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: Aptos, "SF Pro Display", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  --font-doc: "Iowan Old Style", "Charter", "Source Serif 4", "STSong", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
   --font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 }
 
@@ -25,6 +27,7 @@ body {
 
 h1,
 h2 {
+  font-family: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.01em;
 }

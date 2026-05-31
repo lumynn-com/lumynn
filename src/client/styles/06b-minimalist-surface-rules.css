@@ -13,8 +13,8 @@ body,
 .obsidian-workspace,
 .workspace-grid,
 .login-shell {
-  background: var(--owd-minimal-canvas) !important;
-  color: var(--md-text) !important;
+  background: var(--owd-minimal-canvas);
+  color: var(--md-text);
 }
 
 .vault-pane,
@@ -27,34 +27,34 @@ body,
 .login-card,
 .single-view.panel,
 .modal-backdrop.sheet-backdrop .action-sheet {
-  border-color: var(--owd-minimal-divider) !important;
-  background: var(--owd-minimal-surface) !important;
+  border-color: var(--owd-minimal-divider);
+  background: var(--owd-minimal-surface);
 }
 
 .vault-pane,
 .editor-pane,
 .qa-panel {
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .vault-pane {
-  border-width: 0 1px 0 0 !important;
+  border-width: 0 1px 0 0;
 }
 
 .editor-pane {
-  border-width: 0 !important;
+  border-width: 0;
 }
 
 .qa-panel {
-  border-width: 0 0 0 1px !important;
+  border-width: 0 0 0 1px;
 }
 
 .modal-backdrop {
-  background: rgba(17, 16, 15, 0.44) !important;
+  background: rgba(17, 16, 15, 0.44);
 }
 
 :root[data-theme="light"] .modal-backdrop {
-  background: rgba(47, 52, 55, 0.18) !important;
+  background: rgba(47, 52, 55, 0.18);
 }
 
 .search-modal,
@@ -64,41 +64,41 @@ body,
 .tree-context-menu,
 .anchored-menu,
 .modal-backdrop.sheet-backdrop .action-sheet {
-  box-shadow: var(--md-elevation-2) !important;
+  box-shadow: var(--md-elevation-2);
 }
 
 .editor-fab {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 :root[data-theme="light"] .editor-fab {
-  box-shadow: 0 2px 8px rgba(47, 52, 55, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(47, 52, 55, 0.08);
 }
 
 button.primary,
 .primary,
 .editor-fab {
-  border: 1px solid var(--md-primary) !important;
-  background: var(--md-primary) !important;
-  background-image: none !important;
-  color: var(--md-on-primary) !important;
-  box-shadow: none !important;
+  border: 1px solid var(--md-primary);
+  background: var(--md-primary);
+  background-image: none;
+  color: var(--md-on-primary);
+  box-shadow: none;
 }
 
 button.primary:hover:not(:disabled),
 .primary:hover:not(:disabled),
 .editor-fab:hover:not(:disabled),
 .editor-fab:focus-visible {
-  border-color: var(--md-primary) !important;
-  background: color-mix(in srgb, var(--md-primary) 88%, var(--md-surface)) !important;
-  color: var(--md-on-primary) !important;
+  border-color: var(--md-primary);
+  background: color-mix(in srgb, var(--md-primary) 88%, var(--md-surface));
+  color: var(--md-on-primary);
 }
 
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
 .file-button,
 .search-form button,
 .qa-panel .query-button {
-  border-radius: 6px !important;
+  border-radius: 6px;
 }
 
 .icon-button,
@@ -108,42 +108,42 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .pane-expand-toggle,
 .pane-collapse-toggle,
 .settings-modal-close {
-  border-radius: 8px !important;
+  border-radius: 8px;
 }
 
 .status-pill,
 .draft-pill {
-  border-color: transparent !important;
-  background: var(--md-primary-container) !important;
-  color: var(--md-muted) !important;
-  box-shadow: none !important;
+  border-color: transparent;
+  background: var(--md-primary-container);
+  color: var(--md-muted);
+  box-shadow: none;
 }
 
 .error {
-  border-color: color-mix(in srgb, var(--md-danger) 30%, transparent) !important;
-  background: var(--owd-minimal-danger-bg) !important;
-  color: var(--md-danger) !important;
+  border-color: color-mix(in srgb, var(--md-danger) 30%, transparent);
+  background: var(--owd-minimal-danger-bg);
+  color: var(--md-danger);
 }
 
 .success {
-  border-color: color-mix(in srgb, var(--md-success) 30%, transparent) !important;
-  background: var(--owd-minimal-success-bg) !important;
-  color: var(--md-success) !important;
+  border-color: color-mix(in srgb, var(--md-success) 30%, transparent);
+  background: var(--owd-minimal-success-bg);
+  color: var(--md-success);
 }
 
 .vault-toolbar {
-  display: flex !important;
-  gap: 0.25rem !important;
-  padding: 0 0 0.55rem !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--owd-minimal-divider) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0 0.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--owd-minimal-divider);
+  border-radius: 0;
+  background: transparent;
 }
 
 .vault-toolbar-search {
-  background: transparent !important;
-  color: var(--md-text) !important;
+  background: transparent;
+  color: var(--md-text);
 }
 
 .vault-toolbar-action,
@@ -154,9 +154,9 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .back-to-top,
 .mobile-section-actions .icon-button,
 .action-sheet-header button {
-  background: transparent !important;
-  border-color: transparent !important;
-  color: var(--md-muted) !important;
+  background: transparent;
+  border-color: transparent;
+  color: var(--md-muted);
 }
 
 .vault-toolbar-action:hover:not(:disabled),
@@ -173,15 +173,15 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .mobile-section-actions .icon-button:hover:not(:disabled),
 .action-sheet-header button:hover:not(:disabled),
 .action-sheet-header button:focus-visible {
-  background: transparent !important;
-  border-color: transparent !important;
-  color: var(--md-text) !important;
+  background: transparent;
+  border-color: transparent;
+  color: var(--md-text);
 }
 
 .editor-tabbar-actions .mode-toggle[aria-pressed="true"],
 .editor-pane .tab-strip > .editor-tab-shell.active,
 .action-sheet-group button.active {
-  color: var(--md-primary) !important;
+  color: var(--md-primary);
 }
 
 .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
@@ -192,8 +192,8 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
 .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
 :root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
-  background: transparent !important;
-  color: var(--md-text) !important;
+  background: transparent;
+  color: var(--md-text);
 }
 
 .tree-row:hover,
@@ -204,51 +204,51 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .action-sheet-group button:hover:not(:disabled),
 .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
 .modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
-  background: transparent !important;
-  color: var(--md-text) !important;
+  background: transparent;
+  color: var(--md-text);
 }
 
 .tree-row.selected,
 .file-row.selected,
 .folder-row.selected,
 .folder-picker-row.selected .folder-picker-label {
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: inset 2px 0 0 var(--md-primary) !important;
-  color: var(--md-primary) !important;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--md-primary);
+  color: var(--md-primary);
 }
 
 .tree-row.folder-row.drop-target {
-  outline: 1px solid var(--owd-minimal-divider-strong) !important;
+  outline: 1px solid var(--owd-minimal-divider-strong);
   outline-offset: -1px;
-  background: transparent !important;
+  background: transparent;
 }
 
 .search-results {
-  gap: 0 !important;
-  padding-right: 0 !important;
+  gap: 0;
+  padding-right: 0;
 }
 
 .search-result {
-  min-height: 42px !important;
-  border-width: 1px 0 0 !important;
-  border-color: var(--owd-minimal-divider) !important;
-  border-radius: 0 !important;
-  padding: 0.72rem 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: var(--md-text) !important;
+  min-height: 42px;
+  border-width: 1px 0 0;
+  border-color: var(--owd-minimal-divider);
+  border-radius: 0;
+  padding: 0.72rem 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--md-text);
 }
 
 .search-result:first-child {
-  border-top-color: transparent !important;
+  border-top-color: transparent;
 }
 
 .search-result:hover,
 .search-result:focus-visible {
-  background: transparent !important;
-  border-color: var(--owd-minimal-divider) !important;
-  color: var(--md-primary) !important;
+  background: transparent;
+  border-color: var(--owd-minimal-divider);
+  color: var(--md-primary);
 }
 
 .qa-panel .citation,
@@ -257,14 +257,14 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {
-  border-color: var(--owd-minimal-divider) !important;
+  border-color: var(--owd-minimal-divider);
 }
 
 .blank-editor,
 .empty-state,
 .info-box {
-  background: transparent !important;
-  box-shadow: none !important;
+  background: transparent;
+  box-shadow: none;
 }
 
 .search-form input,
@@ -272,34 +272,34 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
-  border-color: var(--owd-minimal-divider) !important;
-  background: var(--owd-minimal-subtle) !important;
-  color: var(--md-text) !important;
-  box-shadow: none !important;
+  border-color: var(--owd-minimal-divider);
+  background: var(--owd-minimal-subtle);
+  color: var(--md-text);
+  box-shadow: none;
 }
 
 input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
 select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
 textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible {
-  border-color: var(--owd-minimal-divider-strong) !important;
+  border-color: var(--owd-minimal-divider-strong);
 }
 
 .zen-exit-button {
-  border-color: var(--owd-minimal-divider-strong) !important;
-  background: var(--owd-minimal-surface) !important;
-  color: var(--md-text) !important;
+  border-color: var(--owd-minimal-divider-strong);
+  background: var(--owd-minimal-surface);
+  color: var(--md-text);
 }
 
 .zen-exit-button:hover {
-  border-color: var(--md-primary) !important;
-  background: var(--owd-minimal-surface) !important;
-  color: var(--md-primary) !important;
+  border-color: var(--md-primary);
+  background: var(--owd-minimal-surface);
+  color: var(--md-primary);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   button.primary:active:not(:disabled),
   .primary:active:not(:disabled),
   .editor-fab:active:not(:disabled) {
-    transform: scale(0.98) !important;
+    transform: scale(0.98);
   }
 }

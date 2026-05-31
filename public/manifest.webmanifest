@@ -2,15 +2,15 @@
   "id": "/?source=pwa",
   "name": "Obsidian Web Docs",
   "short_name": "OW Docs",
-  "description": "A modern web interface for a plain-text Markdown vault, with preview, settings, and RAG-powered Q&A.",
+  "description": "A private web workspace for editing, searching, and asking questions over a Markdown vault.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "lang": "en",
   "dir": "ltr",
-  "background_color": "#121212",
-  "theme_color": "#121212",
+  "background_color": "#10110e",
+  "theme_color": "#10110e",
   "categories": ["productivity", "utilities"],
   "icons": [
     {

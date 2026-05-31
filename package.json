@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "npm run lint:css && tsc --noEmit",
     "lint:css": "node scripts/check-css-architecture.mjs",
+    "visual:check": "node scripts/visual-check.mjs",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
@@ -63,10 +64,11 @@
     "@types/react-dom": "latest",
     "@types/sanitize-html": "latest",
     "@types/turndown": "^5.0.6",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "concurrently": "latest",
+    "playwright": "^1.60.0",
     "tsx": "latest",
     "typescript": "latest",
-    "vite": "^5.4.21"
+    "vite": "^8.0.14"
   }
 }

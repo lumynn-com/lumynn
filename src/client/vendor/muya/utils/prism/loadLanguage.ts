@@ -19,6 +19,7 @@ export const loadedLanguages = new Set([
 ]);
 
 const { languages } = components;
+const prismLanguageModules = import.meta.glob('/node_modules/prismjs/components/prism-*.js');
 
 // Look for the origin language by alias
 export function transformAliasToOrigin(langs: string[]) {
@@ -98,9 +99,15 @@ function initLoadLanguage(Prism: IPrismLike) {
             }
             else {
                 delete Prism.languages[lang];
-                await import(
-                    `../../../node_modules/prismjs/components/prism-${lang}.js`,
-                );
+                const loadLanguageModule = prismLanguageModules[`/node_modules/prismjs/components/prism-${lang}.js`];
+                if (!loadLanguageModule) {
+                    defer.resolve({
+                        lang,
+                        status: 'noexist',
+                    });
+                    return;
+                }
+                await loadLanguageModule();
                 defer.resolve({
                     lang,
                     status: 'loaded',

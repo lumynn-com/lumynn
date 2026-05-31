@@ -113,9 +113,14 @@ function LoginPage(props: {
   return (
     <main className="login-shell">
       <section className="login-card">
-        <p className="eyebrow" translate="no">{t("login.eyebrow")}</p>
-        <h1>{props.needsSetup ? t("login.titleSetup") : t("login.titleWelcome")}</h1>
-        <p className="muted">{t("login.description")}</p>
+        <div className="login-card-header">
+          <div className="login-mark" aria-hidden="true">OW</div>
+          <div>
+            <p className="eyebrow" translate="no">{t("login.eyebrow")}</p>
+            <h1>{props.needsSetup ? t("login.titleSetup") : t("login.titleWelcome")}</h1>
+          </div>
+        </div>
+        <p className="muted login-description">{t("login.description")}</p>
         <form
           onSubmit={(event) => {
             event.preventDefault();

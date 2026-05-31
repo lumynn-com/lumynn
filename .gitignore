@@ -5,3 +5,4 @@ dist
 data
 sample-vault/.obsidian
 *.log
+artifacts/

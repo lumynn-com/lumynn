@@ -9,65 +9,65 @@
 :root {
   color-scheme: dark;
 
-  --owd-theme-bg: #121212;
-  --owd-theme-bg-soft: #1e1e1e;
-  --owd-theme-surface: #1e1e1e;
-  --owd-theme-surface-strong: #242424;
-  --owd-theme-surface-2: #242424;
-  --owd-theme-surface-3: #2a2a2a;
-  --owd-theme-legacy-border-soft: rgba(224, 224, 224, 0.10);
-  --owd-theme-legacy-border: rgba(224, 224, 224, 0.18);
-  --owd-theme-outline-soft: rgba(224, 224, 224, 0.10);
-  --owd-theme-outline: rgba(224, 224, 224, 0.18);
-  --owd-theme-text: #e0e0e0;
-  --owd-theme-muted: #a8a8a8;
-  --owd-theme-accent: #bb86fc;
-  --owd-theme-accent-secondary: #80cbc4;
-  --owd-theme-md-primary: #bb86fc;
-  --owd-theme-md-secondary: #80cbc4;
-  --owd-theme-primary-container: rgba(187, 134, 252, 0.13);
-  --owd-theme-on-primary: #121212;
-  --owd-theme-on-secondary: #121212;
-  --owd-theme-danger: #cf6679;
-  --owd-theme-success: #80cbc4;
-  --owd-theme-state-hover: rgba(187, 134, 252, 0.08);
-  --owd-theme-state-selected: rgba(128, 203, 196, 0.12);
-  --owd-theme-danger-bg: rgba(207, 102, 121, 0.12);
-  --owd-theme-success-bg: rgba(128, 203, 196, 0.12);
-  --owd-theme-editor-focus-bg: #242424;
-  --owd-theme-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.36);
+  --owd-theme-bg: #10110e;
+  --owd-theme-bg-soft: #171912;
+  --owd-theme-surface: #191b15;
+  --owd-theme-surface-strong: #20231b;
+  --owd-theme-surface-2: #22251d;
+  --owd-theme-surface-3: #2a2e23;
+  --owd-theme-legacy-border-soft: rgba(219, 213, 194, 0.11);
+  --owd-theme-legacy-border: rgba(219, 213, 194, 0.20);
+  --owd-theme-outline-soft: rgba(219, 213, 194, 0.12);
+  --owd-theme-outline: rgba(219, 213, 194, 0.24);
+  --owd-theme-text: #e5dfcf;
+  --owd-theme-muted: #aaa38f;
+  --owd-theme-accent: #9ba66d;
+  --owd-theme-accent-secondary: #c0925e;
+  --owd-theme-md-primary: #9ba66d;
+  --owd-theme-md-secondary: #c0925e;
+  --owd-theme-primary-container: rgba(155, 166, 109, 0.16);
+  --owd-theme-on-primary: #10110e;
+  --owd-theme-on-secondary: #10110e;
+  --owd-theme-danger: #d47a68;
+  --owd-theme-success: #9ba66d;
+  --owd-theme-state-hover: rgba(155, 166, 109, 0.08);
+  --owd-theme-state-selected: rgba(155, 166, 109, 0.14);
+  --owd-theme-danger-bg: rgba(212, 122, 104, 0.12);
+  --owd-theme-success-bg: rgba(155, 166, 109, 0.13);
+  --owd-theme-editor-focus-bg: #20231b;
+  --owd-theme-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.32);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --owd-theme-bg: #f4f1ea;
-  --owd-theme-bg-soft: #eae4d9;
-  --owd-theme-surface: #f7f4ec;
-  --owd-theme-surface-strong: #faf7f1;
-  --owd-theme-surface-2: #eae4d9;
-  --owd-theme-surface-3: #ded6c7;
-  --owd-theme-legacy-border-soft: rgba(80, 67, 48, 0.13);
-  --owd-theme-legacy-border: rgba(80, 67, 48, 0.22);
-  --owd-theme-outline-soft: #ddd4c5;
-  --owd-theme-outline: #cfc3b3;
-  --owd-theme-text: #1c1c1c;
-  --owd-theme-muted: #706e6b;
-  --owd-theme-accent: #800020;
-  --owd-theme-accent-secondary: #2e4f4f;
-  --owd-theme-md-primary: #2e4f4f;
-  --owd-theme-md-secondary: #800020;
-  --owd-theme-primary-container: rgba(46, 79, 79, 0.13);
-  --owd-theme-on-primary: #f4f1ea;
-  --owd-theme-on-secondary: #f4f1ea;
-  --owd-theme-danger: #9f2f2d;
-  --owd-theme-success: #346538;
-  --owd-theme-state-hover: rgba(46, 79, 79, 0.06);
-  --owd-theme-state-selected: rgba(46, 79, 79, 0.11);
-  --owd-theme-danger-bg: #f1ddd7;
-  --owd-theme-success-bg: #e2eadc;
-  --owd-theme-editor-focus-bg: #fbf8f1;
-  --owd-theme-elevation-2: 0 4px 10px rgba(28, 28, 28, 0.045);
+  --owd-theme-bg: #f4f0e7;
+  --owd-theme-bg-soft: #e9e0d2;
+  --owd-theme-surface: #f9f5ec;
+  --owd-theme-surface-strong: #fffaf1;
+  --owd-theme-surface-2: #ece4d6;
+  --owd-theme-surface-3: #ded3c1;
+  --owd-theme-legacy-border-soft: rgba(63, 55, 38, 0.13);
+  --owd-theme-legacy-border: rgba(63, 55, 38, 0.24);
+  --owd-theme-outline-soft: #d9cfbd;
+  --owd-theme-outline: #c9bba6;
+  --owd-theme-text: #202219;
+  --owd-theme-muted: #6f6a5c;
+  --owd-theme-accent: #68734a;
+  --owd-theme-accent-secondary: #8a5f37;
+  --owd-theme-md-primary: #68734a;
+  --owd-theme-md-secondary: #8a5f37;
+  --owd-theme-primary-container: rgba(104, 115, 74, 0.14);
+  --owd-theme-on-primary: #fffaf1;
+  --owd-theme-on-secondary: #fffaf1;
+  --owd-theme-danger: #9b4535;
+  --owd-theme-success: #68734a;
+  --owd-theme-state-hover: rgba(104, 115, 74, 0.065);
+  --owd-theme-state-selected: rgba(104, 115, 74, 0.12);
+  --owd-theme-danger-bg: #eedcd2;
+  --owd-theme-success-bg: #e4e7d8;
+  --owd-theme-editor-focus-bg: #fffbf3;
+  --owd-theme-elevation-2: 0 4px 10px rgba(32, 34, 25, 0.055);
 }
 
 /* Legacy application tokens mapped to the current theme. */
@@ -121,10 +121,10 @@
 }
 
 :root[data-theme="light"] {
-  --owd-flat-divider: rgba(80, 67, 48, 0.10);
-  --owd-flat-divider-strong: rgba(80, 67, 48, 0.18);
-  --owd-flat-muted: #706e6b;
-  --owd-flat-ink-hover: #2e4f4f;
+  --owd-flat-divider: rgba(63, 55, 38, 0.10);
+  --owd-flat-divider-strong: rgba(63, 55, 38, 0.18);
+  --owd-flat-muted: #6f6a5c;
+  --owd-flat-ink-hover: #68734a;
 }
 
 /* Shape tokens used by the flat UI pass. */
@@ -171,12 +171,12 @@
 }
 
 :root[data-theme="light"] {
-  --owd-tonal-hover: rgba(46, 79, 79, 0.052);
-  --owd-tonal-hover-strong: rgba(46, 79, 79, 0.082);
-  --owd-tonal-selected: rgba(46, 79, 79, 0.09);
-  --owd-tonal-selected-strong: rgba(46, 79, 79, 0.125);
-  --owd-tonal-rail: #2e4f4f;
-  --owd-tonal-ink: #1c1c1c;
+  --owd-tonal-hover: rgba(104, 115, 74, 0.056);
+  --owd-tonal-hover-strong: rgba(104, 115, 74, 0.088);
+  --owd-tonal-selected: rgba(104, 115, 74, 0.096);
+  --owd-tonal-selected-strong: rgba(104, 115, 74, 0.132);
+  --owd-tonal-rail: #68734a;
+  --owd-tonal-ink: #202219;
 }
 
 /* Shared Markdown document tokens. */
@@ -196,13 +196,13 @@
 }
 
 :root[data-theme="light"] {
-  --owd-doc-muted: #706e6b;
-  --owd-doc-heading: #1c1c1c;
-  --owd-doc-link: #800020;
-  --owd-doc-subtle: rgba(234, 228, 217, 0.72);
-  --owd-doc-code-bg: rgba(234, 228, 217, 0.82);
-  --owd-doc-inline-code-bg: rgba(234, 228, 217, 0.62);
-  --owd-doc-quote-bg: rgba(234, 228, 217, 0.58);
-  --owd-doc-table-head-bg: rgba(234, 228, 217, 0.7);
-  --owd-doc-table-row-alt: rgba(234, 228, 217, 0.34);
+  --owd-doc-muted: #6f6a5c;
+  --owd-doc-heading: #202219;
+  --owd-doc-link: #68734a;
+  --owd-doc-subtle: rgba(233, 224, 210, 0.72);
+  --owd-doc-code-bg: rgba(233, 224, 210, 0.82);
+  --owd-doc-inline-code-bg: rgba(233, 224, 210, 0.62);
+  --owd-doc-quote-bg: rgba(233, 224, 210, 0.58);
+  --owd-doc-table-head-bg: rgba(233, 224, 210, 0.7);
+  --owd-doc-table-row-alt: rgba(233, 224, 210, 0.34);
 }

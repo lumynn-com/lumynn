@@ -31,14 +31,15 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `05a-flat-desktop-sheets.css`: desktop command sheet, Q&A response spacing, flat panel surface cleanup, and reduced-motion guard for flat UI components.
 - `05b-flat-site-cleanup.css`: site-wide flat UI cleanup, anti-glass reset, primary actions, light-mode interaction states, and anchor scroll margins. It stays in the same `flat-ui` layer as `05` so the split does not change cascade priority.
 - `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, vault tree rendering optimization, and early flat state cleanup.
-- `06b-minimalist-surface-rules.css`: current minimalist surface, button, row, modal, input, and status rules. It stays in the same `minimalist` layer as `06` so the split does not change cascade priority.
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
-- `07b-mobile-minimalist-controls.css`: mobile tab strip, sheet, app-bar, and FAB polish. It stays in the same `type-mobile-polish` layer as `07` so the split does not change cascade priority.
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
 - `09-current-theme-overrides.css`: final app chrome, radius, command menu, mobile containment, focus exit, and Muya loading rules.
 - `09b-markdown-heading-scale.css`: final rendered Markdown heading scale for preview and Q&A.
 - `09c-tonal-state-rules.css`: final hover, focus, selected, and active tonal state rules.
 - `09d-document-theme.css`: final rendered Markdown document theme and light-mode reading cleanup.
+- `06b-minimalist-surface-rules.css`: current minimalist surface, button, row, modal, input, and status rules. It imports into `current-theme-overrides` so current surface styling can win by layer order instead of `!important`.
+- `07b-mobile-minimalist-controls.css`: mobile tab strip, sheet, app-bar, and FAB polish. It imports into `current-theme-overrides` so mobile polish can win by layer order instead of `!important`.
+- `09e-auth-empty-loading-polish.css`: final login, empty, and loading state polish.
 - `10-copilot-panel.css`: Copilot panel shell, toolbar, history, and context chip rules.
 - `10b-copilot-chat-messages.css`: Copilot chat log, messages, sources, tool cards, and proposal rules.
 - `10c-copilot-composer.css`: Copilot note picker, composer, input shell, and save modal rules.
@@ -60,10 +61,10 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Historical legacy-base rules are split across `00`, `00b`, `00c`, and `00d`. Prefer editing current equivalents in later layers; only touch these files when preserving or untangling the original app styling.
 - Historical redesign workspace rules are split across `01`, `01b`, `01c`, `01d`, and `01e`. Prefer editing current equivalents in later layers; only touch these files when preserving or untangling the first redesign pass.
 - Historical material-layer rules are split across `02`, `02b`, `02c`, and `02d`. Prefer editing current equivalents in later layers; only touch these files when preserving or untangling the old material pass.
-- Current minimalist surface/component rules belong in `06b-minimalist-surface-rules.css`.
-- Final app chrome rules belong in `09-current-theme-overrides.css`; Markdown heading scale belongs in `09b-markdown-heading-scale.css`; tonal state rules belong in `09c-tonal-state-rules.css`; rendered document theme rules belong in `09d-document-theme.css`.
+- Current minimalist surface/component rules belong in `06b-minimalist-surface-rules.css`; keep them in `current-theme-overrides` unless deliberately changing cascade order.
+- Final app chrome rules belong in `09-current-theme-overrides.css`; Markdown heading scale belongs in `09b-markdown-heading-scale.css`; tonal state rules belong in `09c-tonal-state-rules.css`; rendered document theme rules belong in `09d-document-theme.css`; login/empty/loading polish belongs in `09e-auth-empty-loading-polish.css`.
 - Copilot shell/history/context rules belong in `10-copilot-panel.css`; chat/message rules belong in `10b-copilot-chat-messages.css`; composer/note-picker rules belong in `10c-copilot-composer.css`; mobile overrides belong in `10d-copilot-mobile.css`.
-- Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish.
+- Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish. `07b` is a current override partial, not a historical compatibility layer.
 - Mobile draft tab and editor-first overlay rules belong in `03b-mobile-draft-tabs.css` and `03c-editor-first-mobile.css`; keep them in the `mobile-chrome` layer unless deliberately changing cascade order.
 - Print rules belong in `04-print-surface.css`; file-management rules belong in `04b-file-management.css`; focus mode belongs in `04c-focus-mode.css`; syntax highlighting belongs in `04d-syntax-highlighting.css`.
 - Desktop toolbar and anchored menu rules belong in `05-flat-ui.css`; editor tabbar rules belong in `05a-flat-editor-tabbar.css`; desktop command sheet and flat panel cleanup rules belong in `05a-flat-desktop-sheets.css`; site-wide anti-glass and flat interaction cleanup belongs in `05b-flat-site-cleanup.css`.
@@ -95,12 +96,12 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Keep the first redesign pass split by ownership. Global shell and legacy grid rules stay in `01-redesign-workspace.css`; settings/indexing task IA stays in `01b-task-ia.css`; Obsidian workbench shell and pane sizing stay in `01c-workbench-shell.css`; rendered preview rules stay in `01d-preview-reading.css`; Q&A, modal, prompt, and search rules stay in `01e-qa-modal-search.css`.
 - Keep the material compatibility pass split by concern. Baseline desktop visuals stay in `02-visual-material.css`; material comfort surfaces stay in `02b-material-comfort.css`; font and utility controls stay in `02c-font-utility-controls.css`; mobile workbench feedback stays in `02d-mobile-workbench.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
-- Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, and Copilot panel rules back into one shared override file. Keep Copilot shell, chat messages, composer, and mobile rules separate.
+- Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, auth/empty/loading polish, and Copilot panel rules back into one shared override file. Keep Copilot shell, chat messages, composer, and mobile rules separate.
 - Keep feature-rules partials scoped by behavior. Avoid putting print, file-management, focus mode, or syntax highlighting back into one shared patch file.
 - Keep mobile chrome split by model. Section-header and action-sheet rules stay in `03-mobile-chrome.css`; quick-note/draft affordances stay in `03b-mobile-draft-tabs.css`; editor-first app-bar/drawer/sheet rules stay in `03c-editor-first-mobile.css`.
 - Keep desktop flat UI mechanics and site-wide flat cleanup separate. Toolbar/menu work belongs in `05-flat-ui.css`; tabbar work belongs in `05a-flat-editor-tabbar.css`; desktop sheet and local panel cleanup belongs in `05a-flat-desktop-sheets.css`; global anti-glass, primary action, and light-mode cleanup belongs in `05b-flat-site-cleanup.css`.
 - Keep typography and mobile visual cleanup separate. Type-size changes belong in `07-typography-mobile-polish.css`; mobile tabs, sheets, app-bar, and FAB rules belong in `07b-mobile-minimalist-controls.css`.
-- Keep minimalist compatibility and current surface rules separate. Layout/performance compatibility remains in `06-minimalist-theme.css`; active minimalist surface rules belong in `06b-minimalist-surface-rules.css`.
+- Keep minimalist compatibility and current surface rules separate. Layout/performance compatibility remains in `06-minimalist-theme.css`; active minimalist surface rules belong in `06b-minimalist-surface-rules.css` and should rely on current layer position rather than `!important`.
 - Keep third-party/editor isolation out of global app rules. Muya selectors should stay under `.muya-editor-shell` or its known floating wrappers.
 - Any new z-index value should first become a token in `08-current-theme-tokens.css` unless it is isolated inside third-party editor CSS.
 
