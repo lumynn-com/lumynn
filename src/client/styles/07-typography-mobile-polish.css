@@ -1,20 +1,12 @@
 /* ============================================================
    21. Minimalist type-size normalization.
 
-   Font family is intentionally untouched. This only reduces the
+   Font family is intentionally untouched. Tokens live in
+   08-current-theme-tokens.css; this layer only applies them to
+   existing app surfaces. This reduces the
    number of competing UI text sizes and raises the smallest
    labels so the flat interface stays clear.
    ============================================================ */
-:root {
-  --owd-type-app: 15px;
-  --owd-type-readable: 16px;
-  --owd-type-row: 14px;
-  --owd-type-meta: 13px;
-  --owd-type-small: 12px;
-  --owd-line-readable: 1.68;
-  --owd-line-ui: 1.45;
-}
-
 body {
   font-size: var(--owd-type-app) !important;
   line-height: 1.56;

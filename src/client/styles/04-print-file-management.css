@@ -531,7 +531,7 @@ body[data-zen="true"] .editor-pane .preview-surface {
   /* 2.5rem keeps the pill clear of the textarea scrollbar and
      well inside the editor text column even on small windows. */
   right: calc(env(safe-area-inset-right, 0px) + 2.5rem);
-  z-index: 50;
+  z-index: var(--owd-z-focus-exit, 50);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;

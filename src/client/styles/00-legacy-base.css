@@ -780,7 +780,7 @@ progress::-webkit-progress-value {
   .sidebar {
     position: sticky;
     top: 0;
-    z-index: 2;
+    z-index: var(--owd-z-raised, 2);
   }
 
   .editor,

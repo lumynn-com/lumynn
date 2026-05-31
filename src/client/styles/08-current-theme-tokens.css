@@ -131,6 +131,33 @@
 :root {
   --owd-radius-control: 4px;
   --owd-radius-overlay: 8px;
+  --owd-z-raised: 2;
+  --owd-z-sticky-pane: 4;
+  --owd-z-sticky-chrome: 5;
+  --owd-z-mobile-switcher: 6;
+  --owd-z-editor-fab: 7;
+  --owd-z-mobile-appbar: 8;
+  --owd-z-skip-link: 10;
+  --owd-z-status-toast: 12;
+  --owd-z-modal: 20;
+  --owd-z-mobile-backdrop: 24;
+  --owd-z-mobile-sheet: 25;
+  --owd-z-mobile-sheet-header: 26;
+  --owd-z-floating-command: 30;
+  --owd-z-focus-exit: 50;
+  --owd-z-popover: 70;
+  --owd-z-top-popover: 120;
+}
+
+/* Shared UI typography scale. */
+:root {
+  --owd-type-app: 15px;
+  --owd-type-readable: 16px;
+  --owd-type-row: 14px;
+  --owd-type-meta: 13px;
+  --owd-type-small: 12px;
+  --owd-line-readable: 1.68;
+  --owd-line-ui: 1.45;
 }
 
 /* Tonal state layer tokens. */

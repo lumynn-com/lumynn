@@ -1,11 +1,14 @@
-@import "katex/dist/katex.min.css";
-@import "./styles/00-legacy-base.css";
-@import "./styles/01-redesign-workspace.css";
-@import "./styles/02-visual-material.css";
-@import "./styles/03-mobile-chrome.css";
-@import "./styles/04-print-file-management.css";
-@import "./styles/05-flat-ui.css";
-@import "./styles/06-minimalist-theme.css";
-@import "./styles/07-typography-mobile-polish.css";
-@import "./styles/08-current-theme-tokens.css";
-@import "./styles/09-current-theme-overrides.css";
+@layer vendor, legacy-base, redesign-workspace, material, mobile-chrome, feature-rules, flat-ui, minimalist, type-mobile-polish, theme-tokens, current-theme-overrides;
+
+@import "katex/dist/katex.min.css" layer(vendor);
+@import "./styles/00-legacy-base.css" layer(legacy-base);
+@import "./styles/01-redesign-workspace.css" layer(redesign-workspace);
+@import "./styles/02-visual-material.css" layer(material);
+@import "./styles/03-mobile-chrome.css" layer(mobile-chrome);
+@import "./styles/04-print-file-management.css" layer(feature-rules);
+@import "./styles/05-flat-ui.css" layer(flat-ui);
+@import "./styles/06-minimalist-theme.css" layer(minimalist);
+@import "./styles/07-typography-mobile-polish.css" layer(type-mobile-polish);
+@import "./styles/08-current-theme-tokens.css" layer(theme-tokens);
+@import "./styles/09-current-theme-overrides.css" layer(current-theme-overrides);
+@import "./styles/10-copilot-panel.css" layer(current-theme-overrides);

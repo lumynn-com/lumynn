@@ -136,7 +136,7 @@ select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   position: fixed;
   top: 0.75rem;
   left: 0.75rem;
-  z-index: 10;
+  z-index: var(--owd-z-skip-link, 10);
   transform: translateY(-160%);
   border-radius: 999px;
   padding: 0.65rem 0.9rem;
@@ -800,7 +800,7 @@ progress::-webkit-progress-bar {
 .workspace-topbar {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: var(--owd-z-sticky-chrome, 5);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 1rem;
@@ -1431,7 +1431,7 @@ progress::-webkit-progress-bar {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: var(--owd-z-modal, 20);
   display: grid;
   place-items: center;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));

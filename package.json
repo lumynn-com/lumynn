@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "concurrently \"tsx watch src/server/server.ts\" \"vite --host 0.0.0.0\"",
     "server": "tsx src/server/server.ts",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run lint:css && tsc --noEmit && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit",
+    "lint": "npm run lint:css && tsc --noEmit",
+    "lint:css": "node scripts/check-css-architecture.mjs",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {

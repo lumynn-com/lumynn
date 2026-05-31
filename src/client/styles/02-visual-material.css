@@ -742,7 +742,7 @@ button[aria-busy="true"] > .button-spinner {
    on mobile when the editor pane is active and a document is open. */
 .editor-fab {
   position: fixed;
-  z-index: 7;
+  z-index: var(--owd-z-editor-fab, 7);
   right: max(0.85rem, env(safe-area-inset-right));
   bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 0.15rem);
   display: inline-flex;
@@ -791,7 +791,7 @@ button[aria-busy="true"] > .button-spinner {
 /* "Back to top" floating button for the vault list on mobile. */
 .back-to-top {
   position: absolute;
-  z-index: 4;
+  z-index: var(--owd-z-sticky-pane, 4);
   right: 0.7rem;
   bottom: 0.7rem;
   display: grid;
@@ -1160,7 +1160,7 @@ button[aria-busy="true"] > .button-spinner {
   .mobile-segmented {
     position: sticky;
     top: 0;
-    z-index: 6;
+    z-index: var(--owd-z-mobile-switcher, 6);
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1233,7 +1233,7 @@ button[aria-busy="true"] > .button-spinner {
    does not dismiss; the toast auto-dismisses after a few seconds. */
 .undo-toast {
   position: fixed;
-  z-index: 30;
+  z-index: var(--owd-z-floating-command, 30);
   right: max(1rem, env(safe-area-inset-right));
   bottom: max(1rem, env(safe-area-inset-bottom));
   display: inline-flex;

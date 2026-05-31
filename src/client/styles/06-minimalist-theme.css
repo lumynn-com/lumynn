@@ -185,12 +185,7 @@
    State is carried by ink, hairline dividers, and selection rails
    rather than extra panels, hover boxes, shadows, or gradients.
    ============================================================ */
-:root {
-  --owd-flat-divider: color-mix(in srgb, var(--md-outline-soft, var(--border)) 76%, transparent);
-  --owd-flat-divider-strong: color-mix(in srgb, var(--md-outline, var(--border)) 88%, transparent);
-  --owd-flat-muted: color-mix(in srgb, var(--md-muted, var(--muted)) 88%, var(--md-text, var(--text)) 12%);
-  --owd-flat-ink-hover: color-mix(in srgb, var(--md-primary, var(--accent-2)) 82%, var(--md-text, var(--text)) 18%);
-}
+/* Flat state tokens now live in 08-current-theme-tokens.css. */
 
 .obsidian-workspace {
   background: var(--md-bg, var(--bg)) !important;
@@ -444,31 +439,7 @@ button[aria-busy="true"] .button-spinner {
    surfaces, scarce accent color, divider-led rows, low/no
    elevation, and crisp radii.
    ============================================================ */
-:root {
-  --md-bg: #11100f;
-  --md-surface: #171615;
-  --md-surface-2: #201f1d;
-  --md-surface-3: #2a2825;
-  --md-outline-soft: rgba(245, 242, 235, 0.09);
-  --md-outline: rgba(245, 242, 235, 0.16);
-  --md-text: #ebe7dd;
-  --md-muted: #a8a096;
-  --md-primary: #f4f1e8;
-  --md-primary-container: rgba(244, 241, 232, 0.09);
-  --md-on-primary: #11100f;
-  --md-danger: #f0aaa3;
-  --md-success: #9fc7a3;
-  --owd-minimal-canvas: var(--md-bg);
-  --owd-minimal-surface: var(--md-surface);
-  --owd-minimal-subtle: var(--md-surface-2);
-  --owd-minimal-divider: var(--md-outline-soft);
-  --owd-minimal-divider-strong: var(--md-outline);
-  --owd-minimal-hover: rgba(245, 242, 235, 0.055);
-  --owd-minimal-danger-bg: rgba(240, 170, 163, 0.10);
-  --owd-minimal-success-bg: rgba(159, 199, 163, 0.10);
-  --md-elevation-1: 0 0 0 1px var(--owd-minimal-divider);
-  --md-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.28);
-}
+/* Minimalist theme tokens now live in 08-current-theme-tokens.css. */
 
 html,
 body,

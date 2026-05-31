@@ -644,16 +644,7 @@
      8. Clean focus ring using the accent color.
    ============================================================ */
 
-/* 1. Solid surface tokens. Replace the translucent panel base
-      that required backdrop-filter blur to look correct. */
-:root {
-  --panel: #0e1521;
-  --panel-strong: #141c2c;
-  --shadow: 0 0 0 0 transparent;
-  --shadow-workspace: 0 0 0 0 transparent;
-  --md-elevation-1: 0 0 0 1px var(--md-outline-soft);
-  --md-elevation-2: 0 8px 24px rgba(0, 0, 0, 0.22);
-}
+/* 1. Solid surface tokens now live in 08-current-theme-tokens.css. */
 
 /* 2. Anti-glass: drop every backdrop-filter blur. The new tokens
       give surfaces enough contrast that blur is no longer needed
