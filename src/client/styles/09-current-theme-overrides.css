@@ -242,22 +242,45 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   }
 
   .modal-backdrop.sheet-backdrop {
+    inset: 0 auto auto 0 !important;
+    display: grid !important;
     width: 100vw !important;
+    height: var(--owd-viewport-h, 100dvh) !important;
+    min-height: 0 !important;
+    max-height: var(--owd-viewport-h, 100dvh) !important;
     max-width: 100vw !important;
-    overflow-x: hidden !important;
-    padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right)) !important;
+    place-items: end center !important;
+    overflow: hidden !important;
+    padding: 0 max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left)) !important;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet {
+    align-self: end !important;
+    justify-self: center !important;
     width: min(440px, 100%) !important;
     max-width: 100% !important;
+    max-height: min(82dvh, calc(var(--owd-viewport-h, 100dvh) - 0.75rem)) !important;
     min-width: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button,
   .action-sheet-group button {
+    justify-content: flex-start !important;
+    gap: 0.65rem !important;
     max-width: 100% !important;
     min-width: 0 !important;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon,
+  .action-sheet-group .action-sheet-icon {
+    flex: 0 0 18px !important;
+    width: 18px !important;
+    min-width: 18px !important;
   }
 
   .modal-backdrop.sheet-backdrop .action-sheet-group button > span:last-child,
