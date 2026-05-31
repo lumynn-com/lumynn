@@ -1,0 +1,398 @@
+/* Q&A panel, modal, prompt, and search rules for the redesign layer. */
+.qa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: none;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 20rem),
+    var(--panel);
+}
+
+.qa-panel .qa-hero,
+.qa-panel .qa-response,
+.qa-panel .citation {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.qa-panel .qa-hero {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.qa-panel .qa-hero .muted {
+  margin: 0;
+}
+
+.qa-panel .ask-row {
+  grid-template-columns: 1fr;
+}
+
+.qa-panel .ask-row input,
+.qa-panel .ask-row button {
+  min-height: 48px;
+  border-radius: 16px;
+}
+
+.query-button {
+  min-width: 112px;
+}
+
+.query-loading,
+.query-loading:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: color-mix(in srgb, var(--muted) 18%, var(--panel-strong));
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.qa-query-state {
+  width: fit-content;
+}
+
+.qa-panel .qa-response {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.qa-panel .panel-header {
+  margin-bottom: 0;
+}
+
+.qa-panel .citation-grid {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.qa-panel .citation {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.85rem;
+  background: rgba(148, 163, 184, 0.07);
+}
+
+.citation-source {
+  display: grid;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0.35rem 0.45rem;
+  background: transparent;
+  text-align: left;
+}
+
+.citation-source:not(:disabled):hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.citation-source:disabled {
+  opacity: 1;
+}
+
+.citation-source strong,
+.citation-source span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qa-panel .citation p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--owd-z-modal, 20);
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+}
+
+.search-modal {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 1rem;
+  width: min(760px, 100%);
+  max-height: min(760px, 90dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Settings / indexing overlay modal (desktop only). The
+   embedded SettingsView ships its own internal navigation
+   chrome (eyebrow + h1, side nav for settings); we put a
+   compact pill header on top with eyebrow + title + close
+   button so the user always has a single dismiss target. The
+   body owns the scroll so the header / close stay sticky as
+   the content overflows. */
+.settings-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1100px, 100%);
+  height: min(780px, 90dvh);
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 16px;
+}
+
+.settings-modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  border-bottom: 1px solid transparent;
+  background: var(--md-surface, var(--panel));
+  /* Animate only the divider color so the header slips quietly
+     into a state with a visible separator once the user scrolls. */
+  transition-property: border-color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.settings-modal-header[data-scrolled="true"] {
+  border-bottom-color: var(--md-outline-soft, var(--border));
+  /* Soft shadow that fades content under the header once it is
+     no longer flush with the top of the body. Layered above the
+     hairline border so the seam reads as a single edge. */
+  box-shadow: 0 1px 0 0 transparent, 0 6px 12px -10px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-modal-header {
+    transition: none;
+  }
+}
+
+.settings-modal-titles {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.settings-modal-titles .eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--md-text-muted, var(--text-muted));
+}
+
+.settings-modal-titles h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: var(--md-text, var(--text));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-modal-close {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.settings-modal-body {
+  min-height: 0;
+  overflow: auto;
+  /* Keep wheel scroll bound to the modal so it never
+     accidentally scrolls the workspace behind the dialog. */
+  overscroll-behavior: contain;
+  /* The embedded SettingsView assumes a viewport-sized
+     container. Reset its outer padding because the modal
+     already has chrome and let the inner layout breathe. */
+  padding: 0;
+}
+
+/* SettingsView is rendered as <main className="settings-view">
+   with its own padding / hero. When embedded inside the modal
+   we want it to use up the available width with a slimmer
+   gutter and no top-of-page hero block since the modal header
+   already shows the title. */
+.settings-modal-body .settings-view {
+  padding: 1rem 1.25rem 1.5rem;
+  background: transparent;
+}
+
+.settings-modal-body .settings-view > .settings-hero {
+  display: none;
+}
+
+.settings-modal-body .settings-view > .settings-back-bar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  /* Defensive: even if the modal is briefly rendered during a
+     resize, fall back to a near-fullscreen sheet. */
+  .settings-modal {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
+.prompt-modal {
+  display: grid;
+  gap: 1rem;
+  width: min(520px, 100%);
+  max-height: min(720px, 90dvh);
+  padding: 1.25rem;
+  overflow: auto;
+}
+
+.prompt-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.prompt-actions button {
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .prompt-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .prompt-actions button {
+    width: 100%;
+  }
+}
+
+.search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.search-form button {
+  min-width: 120px;
+}
+
+.search-results {
+  display: grid;
+  align-content: start;
+  gap: 0.65rem;
+  min-height: 160px;
+  max-height: min(52dvh, 520px);
+  overflow: auto;
+  padding-right: 0.25rem;
+  overscroll-behavior: contain;
+}
+
+.search-result {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 0.85rem 0.95rem;
+  text-align: left;
+}
+
+.search-result strong {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+@media (max-width: 1180px) {
+  .workspace-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .top-nav,
+  .topbar-actions {
+    justify-content: start;
+  }
+
+  .obsidian-workspace {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+
+  .qa-panel {
+    grid-column: 1 / -1;
+    min-height: 440px;
+    max-height: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .workspace-topbar {
+    position: static;
+  }
+
+  .topbar-brand {
+    width: 100%;
+  }
+
+  .top-nav,
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top-nav button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0.6rem;
+    text-align: center;
+  }
+
+  .obsidian-workspace {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .vault-pane,
+  .editor-pane,
+  .qa-panel {
+    min-height: auto;
+    max-height: none;
+  }
+
+  .vault-pane .doc-tree {
+    max-height: 45vh;
+  }
+
+  .search-form,
+  .search-result {
+    grid-template-columns: 1fr;
+  }
+}

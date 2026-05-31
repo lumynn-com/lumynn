@@ -3,6 +3,10 @@
 @import "katex/dist/katex.min.css" layer(vendor);
 @import "./styles/00-legacy-base.css" layer(legacy-base);
 @import "./styles/01-redesign-workspace.css" layer(redesign-workspace);
+@import "./styles/01b-task-ia.css" layer(redesign-workspace);
+@import "./styles/01c-workbench-shell.css" layer(redesign-workspace);
+@import "./styles/01d-preview-reading.css" layer(redesign-workspace);
+@import "./styles/01e-qa-modal-search.css" layer(redesign-workspace);
 @import "./styles/02-visual-material.css" layer(material);
 @import "./styles/02b-material-comfort.css" layer(material);
 @import "./styles/02c-font-utility-controls.css" layer(material);

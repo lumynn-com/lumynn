@@ -1,0 +1,153 @@
+/* Task-first IA refinements. */
+.settings-hero {
+  display: grid;
+  gap: 0.45rem;
+  padding: clamp(1.35rem, 2.4vw, 2rem);
+}
+
+.settings-hero .muted {
+  max-width: 72ch;
+  margin: 0;
+}
+
+.indexing-view {
+  max-width: 1080px;
+}
+
+.indexing-view .settings-layout {
+  grid-template-columns: 1fr;
+}
+
+.indexing-view .settings-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.indexing-view .form-panel {
+  gap: 1.1rem;
+}
+
+.indexing-view .field-grid {
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+.indexing-view .button-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.indexing-view .button-row button {
+  min-height: 48px;
+}
+
+.settings-nav {
+  align-self: start;
+}
+
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-nav button::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.settings-nav button.active::after {
+  background: currentColor;
+}
+
+.qa-view .hero {
+  min-height: 280px;
+  align-content: center;
+}
+
+.qa-view .ask-row {
+  margin-top: 0.4rem;
+}
+
+.qa-view .ask-row input {
+  min-height: 54px;
+  border-radius: 18px;
+  font-size: 1rem;
+}
+
+.qa-view .ask-row button {
+  min-height: 54px;
+  padding-inline: 1.2rem;
+}
+
+.document-list .panel-header,
+.editor .panel-header,
+.preview .panel-header {
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.document-list {
+  background:
+    linear-gradient(180deg, rgba(148, 163, 184, 0.06), transparent 15rem),
+    var(--panel);
+}
+
+.editor {
+  background:
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 22rem),
+    var(--panel);
+}
+
+.preview {
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 22rem),
+    var(--panel);
+}
+
+.blank-editor,
+.empty-state {
+  text-wrap: pretty;
+}
+
+.citation-grid {
+  align-items: start;
+}
+
+.citation {
+  border-radius: 20px;
+}
+
+.citation p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .indexing-view .field-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
+  .indexing-view .button-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  nav {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .indexing-view .field-grid,
+  .indexing-view .button-row,
+  .ask-row {
+    grid-template-columns: 1fr;
+  }
+
+  .qa-view .hero {
+    min-height: auto;
+  }
+}
