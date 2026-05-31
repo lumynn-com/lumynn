@@ -9,6 +9,7 @@
 @import "./styles/05-flat-ui.css" layer(flat-ui);
 @import "./styles/06-minimalist-theme.css" layer(minimalist);
 @import "./styles/07-typography-mobile-polish.css" layer(type-mobile-polish);
+@import "./styles/07b-mobile-minimalist-controls.css" layer(type-mobile-polish);
 @import "./styles/08-current-theme-tokens.css" layer(theme-tokens);
 @import "./styles/09-current-theme-overrides.css" layer(current-theme-overrides);
 @import "./styles/10-copilot-panel.css" layer(current-theme-overrides);

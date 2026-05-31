@@ -30,6 +30,7 @@ const expectedImports = [
   ["./styles/05-flat-ui.css", "flat-ui"],
   ["./styles/06-minimalist-theme.css", "minimalist"],
   ["./styles/07-typography-mobile-polish.css", "type-mobile-polish"],
+  ["./styles/07b-mobile-minimalist-controls.css", "type-mobile-polish"],
   ["./styles/08-current-theme-tokens.css", "theme-tokens"],
   ["./styles/09-current-theme-overrides.css", "current-theme-overrides"],
   ["./styles/10-copilot-panel.css", "current-theme-overrides"]
@@ -64,7 +65,8 @@ const importantBudgets = {
   "src/client/styles/04-print-file-management.css": 74,
   "src/client/styles/05-flat-ui.css": 28,
   "src/client/styles/06-minimalist-theme.css": 143,
-  "src/client/styles/07-typography-mobile-polish.css": 142,
+  "src/client/styles/07-typography-mobile-polish.css": 15,
+  "src/client/styles/07b-mobile-minimalist-controls.css": 127,
   "src/client/styles/08-current-theme-tokens.css": 0,
   "src/client/styles/09-current-theme-overrides.css": 107,
   "src/client/styles/10-copilot-panel.css": 87
@@ -86,6 +88,7 @@ const rootBlockBudgets = {
   "src/client/styles/05-flat-ui.css": 0,
   "src/client/styles/06-minimalist-theme.css": 0,
   "src/client/styles/07-typography-mobile-polish.css": 0,
+  "src/client/styles/07b-mobile-minimalist-controls.css": 0,
   "src/client/styles/08-current-theme-tokens.css": 10,
   "src/client/styles/09-current-theme-overrides.css": 0,
   "src/client/styles/10-copilot-panel.css": 0
