@@ -38,6 +38,9 @@ const expectedImports = [
   ["./styles/07b-mobile-minimalist-controls.css", "type-mobile-polish"],
   ["./styles/08-current-theme-tokens.css", "theme-tokens"],
   ["./styles/09-current-theme-overrides.css", "current-theme-overrides"],
+  ["./styles/09b-markdown-heading-scale.css", "current-theme-overrides"],
+  ["./styles/09c-tonal-state-rules.css", "current-theme-overrides"],
+  ["./styles/09d-document-theme.css", "current-theme-overrides"],
   ["./styles/10-copilot-panel.css", "current-theme-overrides"]
 ];
 
@@ -78,7 +81,10 @@ const importantBudgets = {
   "src/client/styles/07-typography-mobile-polish.css": 15,
   "src/client/styles/07b-mobile-minimalist-controls.css": 127,
   "src/client/styles/08-current-theme-tokens.css": 0,
-  "src/client/styles/09-current-theme-overrides.css": 107,
+  "src/client/styles/09-current-theme-overrides.css": 79,
+  "src/client/styles/09b-markdown-heading-scale.css": 0,
+  "src/client/styles/09c-tonal-state-rules.css": 19,
+  "src/client/styles/09d-document-theme.css": 9,
   "src/client/styles/10-copilot-panel.css": 87
 };
 
@@ -106,6 +112,9 @@ const rootBlockBudgets = {
   "src/client/styles/07b-mobile-minimalist-controls.css": 0,
   "src/client/styles/08-current-theme-tokens.css": 10,
   "src/client/styles/09-current-theme-overrides.css": 0,
+  "src/client/styles/09b-markdown-heading-scale.css": 0,
+  "src/client/styles/09c-tonal-state-rules.css": 0,
+  "src/client/styles/09d-document-theme.css": 0,
   "src/client/styles/10-copilot-panel.css": 0
 };
 

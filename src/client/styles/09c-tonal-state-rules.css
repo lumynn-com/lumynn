@@ -1,0 +1,83 @@
+/* ============================================================
+   31. Tonal flat state layer.
+
+   Keep the interface flat: no new cards, shadows, gradients, or
+   rounded containers. Interactive state gets a low-opacity tonal
+   surface so selected/hovered rows are easier to scan.
+   ============================================================ */
+.tree-row:hover,
+:root[data-theme="light"] .tree-row:hover,
+.folder-picker-label:hover:not(:disabled),
+.citation-source:hover:not(:disabled),
+.settings-nav button:hover:not(:disabled),
+.search-result:hover,
+.search-result:focus-visible,
+.action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+.modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+  background: var(--owd-tonal-hover) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.tree-row:focus-visible,
+.folder-picker-label:focus-visible,
+.citation-source:focus-visible,
+.settings-nav button:focus-visible,
+.action-sheet-group button:focus-visible {
+  background: var(--owd-tonal-hover-strong) !important;
+  outline: 1px solid var(--owd-minimal-divider-strong, var(--md-outline)) !important;
+  outline-offset: -1px;
+}
+
+.tree-row.selected,
+.file-row.selected,
+.folder-row.selected,
+.doc-item.selected,
+.folder-picker-row.selected .folder-picker-label {
+  background: var(--owd-tonal-selected) !important;
+  border-color: transparent !important;
+  box-shadow: inset 2px 0 0 var(--owd-tonal-rail) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.tree-row.folder-row.drop-target {
+  background: var(--owd-tonal-selected-strong) !important;
+  outline-color: var(--owd-tonal-rail) !important;
+}
+
+.file-row.selected .tree-file-name,
+.folder-row.selected .tree-label,
+.folder-picker-row.selected .folder-picker-name {
+  color: var(--owd-tonal-ink) !important;
+}
+
+.pane-expand-toggle:hover:not(:disabled),
+.pane-expand-toggle:focus-visible,
+.pane-collapse-toggle:hover:not(:disabled),
+.pane-collapse-toggle:focus-visible,
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible,
+.editor-tabbar-actions .icon-button:hover:not(:disabled),
+.editor-tabbar-actions .icon-button:focus-visible,
+.mobile-section-actions .icon-button:hover:not(:disabled),
+.mobile-section-actions .icon-button:focus-visible {
+  color: var(--owd-tonal-ink) !important;
+}
+
+.editor-tabbar-actions .source-toggle[aria-pressed="true"] {
+  background: var(--owd-tonal-selected) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.settings-nav button.active,
+.settings-nav button.active:hover:not(:disabled),
+.settings-nav button.active:focus-visible {
+  border-color: transparent !important;
+  background: var(--owd-tonal-selected) !important;
+  box-shadow: inset 2px 0 0 var(--owd-tonal-rail) !important;
+  color: var(--owd-tonal-ink) !important;
+}
+
+.settings-nav button.active::after {
+  background: var(--owd-tonal-rail) !important;
+}

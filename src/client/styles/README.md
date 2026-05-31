@@ -21,7 +21,10 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
 - `07b-mobile-minimalist-controls.css`: mobile tab strip, sheet, app-bar, and FAB polish. It stays in the same `type-mobile-polish` layer as `07` so the split does not change cascade priority.
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
-- `09-current-theme-overrides.css`: final shared component rules that consume the current theme tokens.
+- `09-current-theme-overrides.css`: final app chrome, radius, command menu, mobile containment, focus exit, and Muya loading rules.
+- `09b-markdown-heading-scale.css`: final rendered Markdown heading scale for preview and Q&A.
+- `09c-tonal-state-rules.css`: final hover, focus, selected, and active tonal state rules.
+- `09d-document-theme.css`: final rendered Markdown document theme and light-mode reading cleanup.
 - `10-copilot-panel.css`: Copilot panel, composer, history, source, and mobile panel rules. It imports into the same final layer as `09` so its cascade position stays equivalent to the old monolithic override file.
 
 ## Layer Contract
@@ -38,7 +41,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 
 - Current light/dark theme values belong in `08-current-theme-tokens.css`.
 - Current minimalist surface/component rules belong in `06b-minimalist-surface-rules.css`.
-- New shared final app-level component rules belong in `09-current-theme-overrides.css`.
+- Final app chrome rules belong in `09-current-theme-overrides.css`; Markdown heading scale belongs in `09b-markdown-heading-scale.css`; tonal state rules belong in `09c-tonal-state-rules.css`; rendered document theme rules belong in `09d-document-theme.css`.
 - Copilot-specific panel rules belong in `10-copilot-panel.css`.
 - Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish.
 - Print rules belong in `04-print-surface.css`; file-management rules belong in `04b-file-management.css`; focus mode belongs in `04c-focus-mode.css`; syntax highlighting belongs in `04d-syntax-highlighting.css`.
@@ -68,6 +71,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 
 - Collapse duplicate token definitions into `08-current-theme-tokens.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
+- Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, and Copilot panel rules back into one shared override file.
 - Keep feature-rules partials scoped by behavior. Avoid putting print, file-management, focus mode, or syntax highlighting back into one shared patch file.
 - Keep desktop flat UI mechanics and site-wide flat cleanup separate. Toolbar/tab/menu work belongs in `05-flat-ui.css`; global anti-glass, primary action, and light-mode cleanup belongs in `05b-flat-site-cleanup.css`.
 - Keep typography and mobile visual cleanup separate. Type-size changes belong in `07-typography-mobile-polish.css`; mobile tabs, sheets, app-bar, and FAB rules belong in `07b-mobile-minimalist-controls.css`.
