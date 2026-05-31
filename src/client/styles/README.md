@@ -19,7 +19,9 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `02b-material-comfort.css`: historical material comfort pass for flatter surfaces, relaxed spacing, core app controls, and modal/search foundations.
 - `02c-font-utility-controls.css`: historical font clarity, spinner, language switcher, editor FAB, back-to-top, and mobile input/toolbar utility rules.
 - `02d-mobile-workbench.css`: historical mobile workbench refinements, segmented view controls, undo toast, tactile press feedback, and modal entrance motion.
-- `03-mobile-chrome.css`: mobile section headers, overflow menu, and action sheet chrome.
+- `03-mobile-chrome.css`: mobile section headers, icon buttons, pane chrome, overflow menu, bottom action sheet, and desktop hide guard.
+- `03b-mobile-draft-tabs.css`: quick-note draft tab, tab-strip add button, image logo reset, selected folder cue, and draft pill rules.
+- `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, vault drawer, ask sheet, and mobile overlay backdrop.
 - `04-print-surface.css`: hidden print surface and print media rules.
 - `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
 - `04c-focus-mode.css`: zen/focus mode layout and exit button rules.
@@ -60,6 +62,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Final app chrome rules belong in `09-current-theme-overrides.css`; Markdown heading scale belongs in `09b-markdown-heading-scale.css`; tonal state rules belong in `09c-tonal-state-rules.css`; rendered document theme rules belong in `09d-document-theme.css`.
 - Copilot shell/history/context rules belong in `10-copilot-panel.css`; chat/message rules belong in `10b-copilot-chat-messages.css`; composer/note-picker rules belong in `10c-copilot-composer.css`; mobile overrides belong in `10d-copilot-mobile.css`.
 - Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish.
+- Mobile draft tab and editor-first overlay rules belong in `03b-mobile-draft-tabs.css` and `03c-editor-first-mobile.css`; keep them in the `mobile-chrome` layer unless deliberately changing cascade order.
 - Print rules belong in `04-print-surface.css`; file-management rules belong in `04b-file-management.css`; focus mode belongs in `04c-focus-mode.css`; syntax highlighting belongs in `04d-syntax-highlighting.css`.
 - Desktop toolbar, tab strip, and desktop command sheet rules belong in `05-flat-ui.css`; site-wide anti-glass and flat interaction cleanup belongs in `05b-flat-site-cleanup.css`.
 - Muya-specific rules should stay in `../MuyaMarkdownEditor.css` when they only target the embedded editor.
@@ -92,6 +95,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
 - Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, and Copilot panel rules back into one shared override file. Keep Copilot shell, chat messages, composer, and mobile rules separate.
 - Keep feature-rules partials scoped by behavior. Avoid putting print, file-management, focus mode, or syntax highlighting back into one shared patch file.
+- Keep mobile chrome split by model. Section-header and action-sheet rules stay in `03-mobile-chrome.css`; quick-note/draft affordances stay in `03b-mobile-draft-tabs.css`; editor-first app-bar/drawer/sheet rules stay in `03c-editor-first-mobile.css`.
 - Keep desktop flat UI mechanics and site-wide flat cleanup separate. Toolbar/tab/menu work belongs in `05-flat-ui.css`; global anti-glass, primary action, and light-mode cleanup belongs in `05b-flat-site-cleanup.css`.
 - Keep typography and mobile visual cleanup separate. Type-size changes belong in `07-typography-mobile-polish.css`; mobile tabs, sheets, app-bar, and FAB rules belong in `07b-mobile-minimalist-controls.css`.
 - Keep minimalist compatibility and current surface rules separate. Layout/performance compatibility remains in `06-minimalist-theme.css`; active minimalist surface rules belong in `06b-minimalist-surface-rules.css`.
