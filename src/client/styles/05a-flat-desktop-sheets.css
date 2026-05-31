@@ -1,0 +1,150 @@
+/* Desktop command sheet, Q&A response, and flat panel surface rules. */
+@media (min-width: 861px) {
+  /* The vault sort sheet is now shared with desktop. Render it as
+     a centred modal (like the search modal) instead of the mobile
+     bottom sheet. The .modal-backdrop class already handles the
+     centring; we just need to override the default-hidden rules
+     that were scoped to keep mobile chrome off desktop. */
+  .modal-backdrop.sheet-backdrop {
+    display: grid !important;
+    place-items: center;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.55rem;
+    width: min(440px, 90vw);
+    max-width: 440px;
+    max-height: min(640px, 80dvh);
+    padding: 1rem 1rem 1.1rem;
+    border-radius: 18px;
+    background: var(--md-surface, var(--panel-strong));
+    box-shadow: var(--md-elevation-2, 0 12px 32px rgba(0, 0, 0, 0.32));
+    animation: owd-fade-in 140ms ease;
+    overflow: hidden;
+  }
+
+  /* Scroll the dense command sheet body so headers stay pinned
+     and we don't blow past 80dvh when every section is rendered. */
+  .modal-backdrop.sheet-backdrop .action-sheet > .action-sheet-group:first-of-type {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 650;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-header button {
+    min-height: 32px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.3rem 0.65rem;
+    background: transparent;
+    color: var(--md-primary, var(--accent-2));
+    font-weight: 650;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group {
+    display: grid;
+    gap: 0.1rem;
+    border-top: 1px solid var(--md-outline-soft, var(--border));
+    padding-top: 0.45rem;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    min-height: 38px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    background: transparent;
+    color: var(--md-text, var(--text));
+    text-align: left;
+    font-weight: 500;
+  }
+
+  /* Icons in the command sheet sit on a fixed-width gutter so
+     labels align in a column, like a native menu. */
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--md-muted, var(--muted));
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group .action-sheet-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
+  .modal-backdrop.sheet-backdrop .action-sheet-group button:focus-visible {
+    background: var(--surface-hover, color-mix(in srgb, var(--md-primary, var(--accent-2)) 10%, transparent));
+    transform: none;
+  }
+
+  .modal-backdrop.sheet-backdrop .action-sheet-group button.active {
+    color: var(--md-primary, var(--accent-2));
+    font-weight: 600;
+  }
+
+  /* Q&A response: when the eyebrow + h2 panel-header is gone the
+     section needs a tiny top breathing space so the answer body
+     doesn't slam into the question form above. */
+  .qa-response-meta {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Flat-UI pass on the three workspace panels: drop the
+     decorative radial / linear gradients on .document-list /
+     .editor / .preview so the chrome reads as one cohesive flat
+     surface. The panel base color (--panel) carries the visual
+     separation from --bg; gradients added a "glassy" depth that
+     fights with the new flat tab strip. */
+  .editor-pane.editor,
+  .document-list,
+  .preview {
+    background: var(--panel);
+  }
+}
+
+/* Honor prefers-reduced-motion across the new flat-UI components
+   added in the toolbar/tab refactor. The page already has a
+   global reduced-motion override earlier in the file; this scope
+   makes sure the explicit transition-property declarations on
+   the tab strip and toolbar buttons are also neutralised when
+   the user opts out. */
+@media (prefers-reduced-motion: reduce) {
+  .editor-pane .tab-strip > .editor-tab-shell,
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close,
+  .editor-pane .tab-strip > .tab-strip-add,
+  .editor-toolbar-thin .icon-button,
+  .anchored-menu,
+  .anchored-menu button,
+  .modal-backdrop.sheet-backdrop .action-sheet {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

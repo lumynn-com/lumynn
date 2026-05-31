@@ -1,0 +1,262 @@
+/* Desktop combined editor tab bar and flat tab strip rules. */
+@media (min-width: 861px) {
+  /* ----------------------------------------------------------
+     Combined editor tab bar (desktop)
+
+     Tabs and the trailing action cluster (mode toggle, focus,
+     "\u22ef" command sheet trigger) share a single 36px row above
+     the editor content. The previous separate .editor-toolbar
+     row collapses into this band: tabs scroll horizontally on
+     the left while the action cluster stays anchored on the
+     right. The hairline divider lives on .editor-tabbar so it
+     spans the entire band, including the action area.
+     ---------------------------------------------------------- */
+  .editor-pane > .editor-tabbar {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin: 0;
+    box-shadow: inset 0 -1px 0 var(--md-outline-soft, var(--border));
+  }
+
+  .editor-tabbar-actions {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.2rem;
+    padding-right: 0.15rem;
+  }
+
+  /* Inline status text floats just before the action buttons.
+     Truncates instead of wrapping so the bar height is fixed,
+     and keeps tabular numerals so width doesn't jitter while
+     the autosave countdown ticks. */
+  .editor-tabbar-status {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 160px;
+    margin-right: 0.4rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.74rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+  }
+
+  /* Compact 28px icon buttons match the tab height so the
+     cluster reads as part of the strip, not an extra band. */
+  .editor-tabbar-actions .icon-button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+
+  .editor-tabbar-actions .icon-button > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .editor-tabbar-actions .mode-toggle[aria-pressed="true"] {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  /* ----------------------------------------------------------
+     Flat underline tab strip (desktop)
+
+     Modern flat-UI pattern used by Linear / Stripe / Vercel /
+     GitHub: each tab is just a text label; the active tab is
+     marked by a 2px accent underline that sits on top of the
+     strip's hairline divider so the line never breaks. No
+     borders, no boxes, no surfaces \u2014 the only thing visually
+     "above" the page is the underline itself. The close glyph
+     fades in on hover or focus, matching the industry norm of
+     hiding the affordance until intent is signalled. Mobile
+     keeps its existing pill style (different media query).
+
+     All transitions list properties explicitly (per Vercel's
+     Web Interface Guidelines: never `transition: all`), and
+     `prefers-reduced-motion` is honored just below.
+     ---------------------------------------------------------- */
+  .editor-pane .tab-strip {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    /* Hairline lives on .editor-tabbar so the divider reaches
+       under the action cluster too; tab-strip itself stays clean. */
+    box-shadow: none;
+    scrollbar-width: thin;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    height: 36px;
+    max-width: 200px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    transition-property: color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover {
+    color: var(--md-text, var(--text));
+    background: color-mix(in srgb, var(--md-text, var(--text)) 4%, transparent);
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active {
+    color: var(--md-text, var(--text));
+    background: transparent;
+  }
+
+  /* Active underline: 2px accent bar overlapping the strip's
+     1px hairline so the divider never breaks under the tab. */
+  .editor-pane .tab-strip > .editor-tab-shell.active::after {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    right: 0.35rem;
+    bottom: 0;
+    height: 2px;
+    background: var(--md-primary, var(--accent-2));
+    border-radius: 2px 2px 0 0;
+    pointer-events: none;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab {
+    display: inline-flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    max-width: none;
+    gap: 0.35rem;
+    padding: 0 0.35rem 0 0.6rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.active .editor-tab {
+    font-weight: 600;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* The full path is redundant in a flat tab; keep it in the DOM
+     for the tooltip but hide it visually. */
+  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > .tab-path {
+    display: none;
+  }
+
+  /* Close glyph: a 16px circular hover target that fades in on
+     tab hover, focus, or when the tab is active. Stays muted
+     unless directly hovered, then turns into a subtle danger-
+     leaning dot so destructive intent is clear. */
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.4rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    font-size: 13px;
+    line-height: 1;
+    opacity: 0;
+    transition-property: opacity, color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell:hover .tab-close,
+  .editor-pane .tab-strip > .editor-tab-shell.active .tab-close,
+  .editor-pane .tab-strip > .editor-tab-shell:focus-within .tab-close {
+    opacity: 1;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
+    background: color-mix(in srgb, var(--md-text, var(--text)) 12%, transparent);
+    color: var(--md-text, var(--text));
+  }
+
+  /* "+" new-tab affordance: matches the tab height, ghost button,
+     muted by default, surface-2 fill on hover. */
+  .editor-pane .tab-strip > .tab-strip-add {
+    align-self: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 0.15rem 0 0.25rem;
+    border: 0;
+    border-radius: 6px;
+    padding: 0;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    transition-property: color, background-color;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add:hover,
+  .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+    background: color-mix(in srgb, var(--md-text, var(--text)) 6%, transparent);
+    color: var(--md-text, var(--text));
+  }
+
+  .editor-pane .tab-strip > .tab-strip-add svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Draft (unsaved quick-note) tabs read in italics so the
+     ephemeral state is glanceable without an extra glyph. */
+  .editor-pane .tab-strip > .editor-tab-shell.draft .editor-tab > span:first-child {
+    font-style: italic;
+  }
+
+  /* Flat surfaces: drop the inset highlight + radial gradients
+     from the editor surface so the tab strip sits on a clean
+     panel. The hairline above (from the tab strip's box-shadow)
+     is the only divider in this region. */
+  .editor-pane .editor-field,
+  .editor-pane .editor textarea,
+  .editor-pane .preview-surface {
+    margin-top: 0.75rem;
+    box-shadow: none;
+  }
+
+  .editor-pane .editor textarea {
+    background: transparent;
+    border: 1px solid var(--md-outline-soft, var(--border));
+  }
+
+  .editor-pane .preview-surface {
+    background: transparent;
+    border: 1px solid var(--md-outline-soft, var(--border));
+  }
+}
