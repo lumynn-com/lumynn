@@ -1,0 +1,373 @@
+/* Material comfort pass: flatter surfaces, relaxed spacing, lighter typography. */
+:root {
+  --md-bg: #101318;
+  --md-surface: #171b22;
+  --md-surface-2: #1e242c;
+  --md-surface-3: #252b35;
+  --md-outline: #3f4652;
+  --md-outline-soft: rgba(148, 163, 184, 0.2);
+  --md-primary: #9ccaff;
+  --md-primary-container: rgba(156, 202, 255, 0.14);
+  --md-on-primary: #061d36;
+  --md-text: #e3e6eb;
+  --md-muted: #b3bac5;
+  --md-danger: #ffb4ab;
+  --md-radius-sm: 10px;
+  --md-radius-md: 14px;
+  --md-radius-lg: 20px;
+  --md-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.18);
+  --md-elevation-2: 0 2px 6px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+
+html,
+body {
+  background: var(--md-bg);
+  color: var(--md-text);
+}
+
+body {
+  font-size: 15px;
+  line-height: 1.55;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--md-primary) 7%, transparent), transparent 22rem),
+    var(--md-bg);
+}
+
+h1,
+h2 {
+  color: var(--md-text);
+  letter-spacing: -0.018em;
+}
+
+h1 {
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+h2 {
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.file-button {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-md);
+  color: var(--md-text);
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.file-button {
+  background: var(--md-surface-2);
+  box-shadow: none;
+  font-weight: 560;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):hover:not(:disabled),
+.file-button:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 38%, var(--md-outline));
+  background: var(--md-surface-3);
+  box-shadow: none;
+  transform: none;
+}
+
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-md);
+  background: var(--md-surface);
+  color: var(--md-text);
+}
+
+label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.muted,
+.status,
+.tree-file-text small,
+.citation span {
+  color: var(--md-muted);
+}
+
+.primary {
+  border: 0;
+  background: var(--md-primary);
+  color: var(--md-on-primary);
+  box-shadow: none;
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--md-primary) 88%, white);
+  box-shadow: var(--md-elevation-1);
+}
+
+.panel,
+.login-card,
+.obsidian-workspace .panel,
+.vault-pane,
+.editor-pane,
+.qa-panel {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface);
+  box-shadow: var(--md-elevation-1);
+  backdrop-filter: none;
+}
+
+.workspace-topbar {
+  min-height: 60px;
+  border-bottom-color: var(--md-outline-soft);
+  background: color-mix(in srgb, var(--md-surface) 94%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+.topbar-brand {
+  color: var(--md-text);
+}
+
+.topbar-brand .logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+  box-shadow: none;
+}
+
+.brand span:last-child {
+  color: var(--md-muted);
+}
+
+.top-nav button {
+  min-height: 40px;
+  padding: 0.4rem 0.75rem 0.4rem 0.45rem;
+  background: transparent;
+  color: var(--md-muted);
+}
+
+.top-nav button > span:first-child {
+  background: transparent;
+  color: currentColor;
+}
+
+.top-nav .active {
+  border-color: transparent;
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+}
+
+.topbar-actions .ghost {
+  background: transparent;
+}
+
+.obsidian-workspace {
+  grid-template-columns: minmax(260px, 310px) minmax(440px, 1fr) minmax(320px, 380px);
+  gap: 0.7rem;
+  padding: 0.7rem;
+  background: var(--md-bg);
+}
+
+.obsidian-workspace .eyebrow {
+  color: var(--md-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+}
+
+.obsidian-workspace .muted {
+  font-size: 0.82rem;
+}
+
+.document-list .panel-header,
+.editor-pane .panel-header,
+.qa-panel .qa-hero {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.vault-toolbar,
+.editor-toolbar {
+  padding: 0.55rem;
+  border: 1px solid var(--md-outline-soft);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface-2);
+}
+
+.vault-toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.sort-row {
+  border-top: 0;
+  padding-top: 0;
+  margin-bottom: 0.65rem;
+}
+
+.sort-row select {
+  min-height: 40px;
+}
+
+.tree-row {
+  min-height: 34px;
+  border-radius: var(--md-radius-sm);
+  color: var(--md-text);
+}
+
+.tree-row:hover {
+  background: var(--md-surface-2);
+}
+
+.folder-row {
+  font-weight: 620;
+}
+
+.file-row.selected {
+  border-color: transparent;
+  background: var(--md-primary-container);
+  color: var(--md-text);
+}
+
+.tree-count {
+  background: var(--md-surface-3);
+  color: var(--md-muted);
+}
+
+.tree-caret {
+  color: var(--md-muted);
+}
+
+.tree-file-dot {
+  background: var(--md-primary);
+}
+
+.editor-toolbar {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--md-outline-soft);
+}
+
+.mode-switch {
+  border-color: var(--md-outline-soft);
+  background: var(--md-surface);
+}
+
+.mode-switch button {
+  color: var(--md-muted);
+}
+
+.mode-switch button.active {
+  background: var(--md-primary-container);
+  color: var(--md-primary);
+  box-shadow: none;
+}
+
+.status-pill {
+  border-color: var(--md-outline-soft);
+  background: var(--md-surface-2);
+  color: var(--md-muted);
+}
+
+.danger {
+  border-color: color-mix(in srgb, var(--md-danger) 36%, transparent);
+  background: transparent;
+  color: var(--md-danger);
+}
+
+.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--md-danger) 54%, transparent);
+  background: color-mix(in srgb, var(--md-danger) 10%, transparent);
+}
+
+.editor textarea {
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface-2);
+  box-shadow: none;
+  color: var(--md-text);
+  font-size: 0.92rem;
+  line-height: 1.68;
+}
+
+.blank-editor,
+.empty-state,
+.info-box {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface-2);
+  color: var(--md-muted);
+}
+
+.preview-surface {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface-2);
+}
+
+.preview-surface article,
+.qa-answer {
+  color: var(--md-text);
+}
+
+.qa-panel {
+  gap: 0.75rem;
+}
+
+.qa-panel .qa-hero {
+  gap: 0.55rem;
+}
+
+.qa-panel .ask-row input,
+.qa-panel .ask-row button {
+  min-height: 44px;
+  border-radius: var(--md-radius-md);
+}
+
+.qa-panel .qa-response {
+  border-bottom-color: var(--md-outline-soft);
+}
+
+.qa-panel .citation,
+.search-result {
+  border-color: var(--md-outline-soft);
+  border-radius: var(--md-radius-lg);
+  background: var(--md-surface-2);
+}
+
+.qa-panel .citation:hover,
+.search-result:hover {
+  background: var(--md-surface-3);
+}
+
+.query-loading,
+.query-loading:hover:not(:disabled) {
+  background: var(--md-surface-3);
+  color: var(--md-muted);
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.44);
+  backdrop-filter: blur(4px);
+}
+
+.search-modal {
+  border-radius: 24px;
+  background: var(--md-surface);
+  box-shadow: var(--md-elevation-2);
+}
+
+@media (max-width: 860px) {
+  body {
+    font-size: 16px;
+  }
+
+  .workspace-topbar {
+    min-height: auto;
+  }
+
+  .obsidian-workspace {
+    gap: 0.6rem;
+    padding: 0.6rem;
+  }
+}

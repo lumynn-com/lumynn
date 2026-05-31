@@ -1,0 +1,436 @@
+/* Font clarity pass: prefer native system fonts and avoid soft custom smoothing. */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "STHeiti", "Heiti SC", "PingFang SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+}
+
+html {
+  font-family: var(--font-sans);
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+body,
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
+  font-family: var(--font-sans);
+}
+
+body {
+  font-size: 15.5px;
+}
+
+h1,
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+.file-button,
+.top-nav button,
+.file-actions button,
+.vault-toolbar button,
+.topbar-actions button,
+.search-form button {
+  font-weight: 500;
+}
+
+.obsidian-workspace .eyebrow {
+  font-weight: 600;
+}
+
+.folder-row {
+  font-weight: 500;
+}
+
+.tree-file-name {
+  font-weight: 400;
+}
+
+.editor textarea {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+/* Inline spinner used inside buttons (Saving\u2026, Logging In\u2026, etc.).
+   Honors prefers-reduced-motion via the global override above. */
+.spinner {
+  animation: owd-spin 800ms linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes owd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Buttons that include a spinner alongside the label. */
+button[aria-busy="true"] {
+  --owd-busy-gap: 0.4rem;
+}
+
+button[aria-busy="true"] > .spinner,
+button[aria-busy="true"] > .button-spinner {
+  margin-right: var(--owd-busy-gap);
+}
+
+/* Language switcher: a small segmented pill in the topbar actions
+   area. Visually distinct from the primary nav so users see it as a
+   secondary control. */
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0.15rem;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+.lang-switch button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lang-switch button:hover:not(:disabled),
+.lang-switch button:focus-visible {
+  transform: none;
+  background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 12%, transparent);
+}
+
+.lang-switch button.active {
+  background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 18%, transparent));
+  color: var(--md-primary, var(--accent-2));
+}
+
+@media (max-width: 860px) {
+  .lang-switch {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+}
+
+/* Mobile editor FAB: a persistent floating Save button so the action
+   is reachable without scrolling back to the toolbar. Only renders
+   on mobile when the editor pane is active and a document is open. */
+.editor-fab {
+  position: fixed;
+  z-index: var(--owd-z-editor-fab, 7);
+  right: max(0.85rem, env(safe-area-inset-right));
+  bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 0.15rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1rem 0.65rem 0.85rem;
+  background: var(--md-primary, #9ccaff);
+  color: var(--md-on-primary, #061d36);
+  font-weight: 650;
+  box-shadow: var(--md-elevation-2, 0 8px 24px rgba(0, 0, 0, 0.28));
+  transition: transform 160ms ease, opacity 160ms ease, background-color 160ms ease;
+}
+
+/* In preview mode the FAB swaps into an "Edit" toggle. Same shape
+   but visually secondary so the user understands it isn't the
+   primary commit-the-doc action. */
+.editor-fab.editor-fab-edit {
+  background: var(--md-surface, var(--panel));
+  color: var(--md-text, var(--text));
+  border: 1px solid var(--md-outline-soft, var(--border));
+}
+
+.editor-fab[disabled] {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.editor-fab:not([disabled]):hover,
+.editor-fab:not([disabled]):focus-visible {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--md-primary, #9ccaff) 85%, white);
+}
+
+.editor-fab.editor-fab-edit:not([disabled]):hover,
+.editor-fab.editor-fab-edit:not([disabled]):focus-visible {
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+.editor-fab-label {
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Back to top" floating button for the vault list on mobile. */
+.back-to-top {
+  position: absolute;
+  z-index: var(--owd-z-sticky-pane, 4);
+  right: 0.7rem;
+  bottom: 0.7rem;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-text, var(--text));
+  box-shadow: var(--md-elevation-2, var(--shadow));
+  animation: owd-fade-in 160ms ease;
+}
+
+.back-to-top:hover {
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+@keyframes owd-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (max-width: 860px) {
+  .vault-pane {
+    position: relative;
+  }
+}
+
+/* The vault scroll wrapper hosts the doc tree and the pull-to-search
+   indicator. On desktop it is a passive wrapper; on mobile it becomes
+   the actual scroll container so we can read scrollTop for pull. */
+.vault-scroll {
+  display: block;
+  min-height: 0;
+}
+
+/* Mobile / iPhone polish: stable viewport heights, safe areas, touch sizing,
+   and prevent iOS Safari from auto-zooming when focusing inputs. */
+.obsidian-shell,
+.app-shell {
+  min-height: 100dvh;
+}
+
+.obsidian-workspace,
+.workspace-grid {
+  /* See the earlier .obsidian-workspace rule that uses the
+     JS-measured `--owd-topbar-h` variable; this used to be a
+     buggy `calc(100dvh - 64px)` that overshot by a few pixels
+     and produced a permanent outer scrollbar. */
+  min-height: calc(100dvh - var(--owd-topbar-h, 64px));
+}
+
+@supports (padding: max(0px)) {
+  .workspace-topbar {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .obsidian-workspace,
+  .workspace-grid,
+  .qa-view,
+  .settings-view {
+    padding-left: max(0.7rem, env(safe-area-inset-left));
+    padding-right: max(0.7rem, env(safe-area-inset-right));
+    padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 860px) {
+  /* iOS Safari auto-zooms on focus when input font-size < 16px. */
+  input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+  .editor textarea,
+  .qa-panel .ask-row input,
+  .search-form input {
+    font-size: 16px;
+  }
+
+  /* Stable, usable pane heights on mobile. With dynamic viewport units the
+     URL bar collapse no longer causes layout jumps. */
+  .obsidian-workspace {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding: 0.55rem;
+    min-height: auto;
+  }
+
+  .vault-pane {
+    min-height: auto;
+    max-height: none;
+  }
+
+  .vault-pane .doc-tree {
+    max-height: 50dvh;
+  }
+
+  .editor-pane {
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* Let the editor field and textarea grow to fill the editor pane.
+     The pane itself flexes against the viewport (see the editor-first
+     mobile rules further down) and exposes a flex-column layout, so
+     min-height: 0 is enough; the textarea then takes height: 100%. */
+  .editor-field {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .editor textarea {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .preview-surface {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .qa-panel {
+    min-height: 60dvh;
+    max-height: none;
+  }
+
+  /* Tighten the topbar so it doesn't dominate small screens. */
+  .workspace-topbar {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.5rem;
+    min-height: auto;
+  }
+
+  .topbar-brand {
+    width: 100%;
+  }
+
+  .top-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .top-nav button {
+    min-height: 40px;
+    padding: 0.45rem 0.5rem;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .topbar-actions .ghost {
+    width: 100%;
+  }
+
+  /* Avoid horizontal scrolling at the page level. */
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .panel,
+  .login-card {
+    border-radius: 16px;
+  }
+
+  .login-shell {
+    padding: 1rem;
+  }
+
+  /* Search modal full-bleed on phones. */
+  .search-modal {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 18px;
+  }
+
+  /* Modal backdrop already accounts for safe-area; tighten paddings. */
+  .modal-backdrop {
+    padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+  }
+
+  /* Tab strip should scroll horizontally instead of wrapping into many rows. */
+  .tab-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-tab-shell {
+    flex: 0 0 auto;
+  }
+
+  /* Citation source buttons can wrap freely on narrow screens so the
+     full path is readable. */
+  .citation-source strong,
+  .citation-source span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Settings page controls breathing room on small screens. */
+  .settings-layout,
+  .settings-grid,
+  .provider-grid,
+  .import-export-grid,
+  .field-grid,
+  .button-row {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .top-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .top-nav button .nav-label {
+    font-size: 0.8rem;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .editor-tab {
+    max-width: 60vw;
+  }
+
+  .editor-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .file-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .file-actions button {
+    flex: 1 1 auto;
+  }
+
+  .vault-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .sort-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

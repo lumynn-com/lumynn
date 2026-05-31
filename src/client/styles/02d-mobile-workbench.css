@@ -1,0 +1,332 @@
+/* Native-feeling mobile experience: top segmented control between Vault /
+   Editor / Ask, pull-down-to-search affordance on the vault list, and
+   swipe-left to close editor tabs. None of these styles activate above
+   the mobile breakpoint, so desktop is untouched. */
+.mobile-segmented {
+  display: none;
+}
+
+.qa-section-wrapper {
+  display: contents;
+}
+
+@media (max-width: 860px) {
+  /* The vault-scroll element becomes the mobile scroll container so the
+     pull-to-search gesture can reliably read scrollTop. The legacy
+     .doc-tree height/overflow is neutralized inside it. */
+  .vault-scroll {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vault-scroll .doc-tree {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pull-indicator {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+    padding-bottom: 0.4rem;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: color 160ms ease;
+    pointer-events: none;
+  }
+
+  .pull-indicator.ready {
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  .pull-indicator span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pull-indicator span::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 5px 7px 5px;
+    border-color: transparent transparent currentColor transparent;
+    transform: rotate(0deg);
+    transition: transform 160ms ease;
+  }
+
+  .pull-indicator.ready span::before {
+    transform: rotate(180deg);
+  }
+
+  /* Show only the active mobile section. State is preserved because the
+     other sections are merely hidden, not unmounted. */
+  .obsidian-workspace[data-mobile-section] > [data-section] {
+    display: none;
+  }
+
+  .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
+  .obsidian-workspace[data-mobile-section="editor"] > [data-section="editor"] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* QaView is rendered through .qa-section-wrapper which uses display:contents,
+     so [data-section="ask"] lives directly on .qa-panel inside QaView via
+     the wrapper. Apply the same hide/show via the wrapper's parent rule. */
+  .obsidian-workspace[data-mobile-section] > .qa-section-wrapper {
+    display: none;
+  }
+
+  .obsidian-workspace[data-mobile-section="ask"] > .qa-section-wrapper {
+    display: contents;
+  }
+
+  /* Active section fills the viewport beneath the topbar and the
+     segmented control. The mobile-segmented bar is ~52px tall, the
+     topbar collapses to ~64px, so panes claim the rest. */
+  .obsidian-workspace[data-mobile-section] > [data-section],
+  .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
+    min-height: calc(100dvh - 64px - 60px - env(safe-area-inset-bottom, 0px));
+    max-height: none;
+  }
+
+  /* Top segmented control: sticky right under the global topbar, easy
+     thumb reach, and visually distinct from the topbar nav so the
+     hierarchy is obvious. */
+  .mobile-segmented {
+    position: sticky;
+    top: 0;
+    z-index: var(--owd-z-mobile-switcher, 6);
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.25rem;
+    margin: -0.55rem -0.55rem 0.55rem;
+    padding: 0.45rem max(0.55rem, env(safe-area-inset-left));
+    padding-right: max(0.55rem, env(safe-area-inset-right));
+    border-bottom: 1px solid var(--md-outline-soft, var(--border));
+    background: color-mix(in srgb, var(--md-surface, var(--panel)) 94%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-segmented button {
+    min-height: 40px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.35rem 0.55rem;
+    background: transparent;
+    color: var(--md-muted, var(--muted));
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .mobile-segmented button:hover:not(:disabled),
+  .mobile-segmented button:focus-visible {
+    transform: none;
+  }
+
+  .mobile-segmented button.active {
+    background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 16%, transparent));
+    color: var(--md-primary, var(--accent-2));
+  }
+
+  /* Swipeable tab affordance: a soft red trail behind the tab so the
+     swipe-to-close intent is visually obvious. */
+  .editor-tab-shell {
+    position: relative;
+    transition: transform 160ms ease;
+    will-change: transform;
+    touch-action: pan-y;
+  }
+
+  .editor-tab-shell::before {
+    content: "Close";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    display: grid;
+    align-items: center;
+    padding-right: 0.85rem;
+    color: var(--md-danger, var(--danger));
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+  }
+
+  .editor-tab-shell:not(.closing)[style*="translateX"]::before {
+    opacity: 1;
+  }
+}
+
+/* Undo toast: appears after a destructive action (close tab, delete
+   document) and offers a quick way to revert. Tapping anywhere outside
+   does not dismiss; the toast auto-dismisses after a few seconds. */
+.undo-toast {
+  position: fixed;
+  z-index: var(--owd-z-floating-command, 30);
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 999px;
+  padding: 0.55rem 0.65rem 0.55rem 1.1rem;
+  background: var(--md-surface, var(--panel-strong));
+  color: var(--md-text, var(--text));
+  box-shadow: var(--md-elevation-2, var(--shadow));
+  animation: undo-toast-in 200ms ease;
+}
+
+@keyframes undo-toast-in {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.undo-toast-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.undo-toast-action {
+  min-height: 36px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 18%, transparent));
+  color: var(--md-primary, var(--accent-2));
+  font-weight: 650;
+}
+
+.undo-toast-action:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--md-primary-container, var(--accent-2)) 80%, var(--md-primary, var(--accent-2)));
+}
+
+.undo-toast-dismiss {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.95rem;
+}
+
+.undo-toast-dismiss:hover:not(:disabled) {
+  transform: none;
+  background: var(--md-surface-2, rgba(148, 163, 184, 0.12));
+}
+
+@media (max-width: 860px) {
+  .undo-toast {
+    /* Float just above the home indicator. The segmented control lives
+       at the top now, so the bottom is free for content + toast. */
+    right: max(0.6rem, env(safe-area-inset-right));
+    left: max(0.6rem, env(safe-area-inset-left));
+    bottom: max(0.8rem, env(safe-area-inset-bottom));
+    justify-content: space-between;
+  }
+
+  .undo-toast-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Tactile press feedback: a quick scale-down on :active gives tappable
+   surfaces a sense of physicality. Gated by prefers-reduced-motion so
+   motion-sensitive users get no scale effect. The global reduced-motion
+   override above also caps transition-duration to 0.01ms, which keeps
+   this rule from firing visibly even if the cascade lets it through. */
+@media (prefers-reduced-motion: no-preference) {
+  .editor-fab,
+  .editor-fab:disabled,
+  .undo-toast-action,
+  .mobile-segmented button,
+  .lang-switch button,
+  .top-nav button,
+  .search-result,
+  .file-row,
+  .citation-source,
+  .back-to-top,
+  .tab-close,
+  .message-dismiss {
+    transition:
+      transform 140ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .editor-fab:not(:disabled):active,
+  .undo-toast-action:active,
+  .mobile-segmented button:active,
+  .lang-switch button:active,
+  .top-nav button:active,
+  .search-result:active,
+  .file-row:active,
+  .citation-source:not(:disabled):active,
+  .back-to-top:active,
+  .tab-close:active,
+  .message-dismiss:active {
+    transform: scale(0.97);
+  }
+
+  .editor-fab:not(:disabled):active {
+    /* Slightly stronger press feedback for the FAB since it's larger. */
+    transform: scale(0.95);
+  }
+}
+
+/* Modal entrance animation: scale-fade in over 160ms. The exit is
+   instant since dismissing a modal should feel responsive. */
+@media (prefers-reduced-motion: no-preference) {
+  .modal-backdrop {
+    animation: owd-modal-backdrop-in 140ms ease-out;
+  }
+
+  .search-modal,
+  .prompt-modal,
+  .settings-modal {
+    animation: owd-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center;
+  }
+
+  @keyframes owd-modal-backdrop-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes owd-modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+}

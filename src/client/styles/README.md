@@ -8,7 +8,10 @@ The partials are split by historical layer and behavior area. Their cascade orde
 
 - `00-legacy-base.css`: original base styles and early light-mode overrides.
 - `01-redesign-workspace.css`: first redesign layer and workspace layout.
-- `02-visual-material.css`: visual polish, material comfort, font clarity, and early mobile refinements.
+- `02-visual-material.css`: original visual polish baseline for desktop editor, vault, preview, and Q&A surfaces.
+- `02b-material-comfort.css`: historical material comfort pass for flatter surfaces, relaxed spacing, core app controls, and modal/search foundations.
+- `02c-font-utility-controls.css`: historical font clarity, spinner, language switcher, editor FAB, back-to-top, and mobile input/toolbar utility rules.
+- `02d-mobile-workbench.css`: historical mobile workbench refinements, segmented view controls, undo toast, tactile press feedback, and modal entrance motion.
 - `03-mobile-chrome.css`: mobile section headers, overflow menu, and action sheet chrome.
 - `04-print-surface.css`: hidden print surface and print media rules.
 - `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
@@ -43,6 +46,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 ## Where To Edit
 
 - Current light/dark theme values belong in `08-current-theme-tokens.css`.
+- Historical material-layer rules are split across `02`, `02b`, `02c`, and `02d`. Prefer editing current equivalents in later layers; only touch these files when preserving or untangling the old material pass.
 - Current minimalist surface/component rules belong in `06b-minimalist-surface-rules.css`.
 - Final app chrome rules belong in `09-current-theme-overrides.css`; Markdown heading scale belongs in `09b-markdown-heading-scale.css`; tonal state rules belong in `09c-tonal-state-rules.css`; rendered document theme rules belong in `09d-document-theme.css`.
 - Copilot shell/history/context rules belong in `10-copilot-panel.css`; chat/message rules belong in `10b-copilot-chat-messages.css`; composer/note-picker rules belong in `10c-copilot-composer.css`; mobile overrides belong in `10d-copilot-mobile.css`.
@@ -73,6 +77,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 ## Refactor Direction
 
 - Collapse duplicate token definitions into `08-current-theme-tokens.css`.
+- Keep the material compatibility pass split by concern. Baseline desktop visuals stay in `02-visual-material.css`; material comfort surfaces stay in `02b-material-comfort.css`; font and utility controls stay in `02c-font-utility-controls.css`; mobile workbench feedback stays in `02d-mobile-workbench.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
 - Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, and Copilot panel rules back into one shared override file. Keep Copilot shell, chat messages, composer, and mobile rules separate.
 - Keep feature-rules partials scoped by behavior. Avoid putting print, file-management, focus mode, or syntax highlighting back into one shared patch file.
