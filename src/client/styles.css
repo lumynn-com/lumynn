@@ -8,6 +8,7 @@
 @import "./styles/04-print-file-management.css" layer(feature-rules);
 @import "./styles/05-flat-ui.css" layer(flat-ui);
 @import "./styles/06-minimalist-theme.css" layer(minimalist);
+@import "./styles/06b-minimalist-surface-rules.css" layer(minimalist);
 @import "./styles/07-typography-mobile-polish.css" layer(type-mobile-polish);
 @import "./styles/07b-mobile-minimalist-controls.css" layer(type-mobile-polish);
 @import "./styles/08-current-theme-tokens.css" layer(theme-tokens);

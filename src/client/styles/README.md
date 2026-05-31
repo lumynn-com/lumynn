@@ -12,7 +12,8 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `03-mobile-chrome.css`: mobile section headers, overflow menu, and action sheet chrome.
 - `04-print-file-management.css`: print surface, file-management UI, focus mode, and syntax highlighting.
 - `05-flat-ui.css`: flat UI refactor and anti-glass component cleanup.
-- `06-minimalist-theme.css`: minimalist theme unification and token-driven component surface rules.
+- `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, vault tree rendering optimization, and early flat state cleanup.
+- `06b-minimalist-surface-rules.css`: current minimalist surface, button, row, modal, input, and status rules. It stays in the same `minimalist` layer as `06` so the split does not change cascade priority.
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
 - `07b-mobile-minimalist-controls.css`: mobile tab strip, sheet, app-bar, and FAB polish. It stays in the same `type-mobile-polish` layer as `07` so the split does not change cascade priority.
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
@@ -32,6 +33,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 ## Where To Edit
 
 - Current light/dark theme values belong in `08-current-theme-tokens.css`.
+- Current minimalist surface/component rules belong in `06b-minimalist-surface-rules.css`.
 - New shared final app-level component rules belong in `09-current-theme-overrides.css`.
 - Copilot-specific panel rules belong in `10-copilot-panel.css`.
 - Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish.
@@ -62,6 +64,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Collapse duplicate token definitions into `08-current-theme-tokens.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
 - Keep typography and mobile visual cleanup separate. Type-size changes belong in `07-typography-mobile-polish.css`; mobile tabs, sheets, app-bar, and FAB rules belong in `07b-mobile-minimalist-controls.css`.
+- Keep minimalist compatibility and current surface rules separate. Layout/performance compatibility remains in `06-minimalist-theme.css`; active minimalist surface rules belong in `06b-minimalist-surface-rules.css`.
 - Keep third-party/editor isolation out of global app rules. Muya selectors should stay under `.muya-editor-shell` or its known floating wrappers.
 - Any new z-index value should first become a token in `08-current-theme-tokens.css` unless it is isolated inside third-party editor CSS.
 
