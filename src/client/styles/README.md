@@ -10,7 +10,10 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `01-redesign-workspace.css`: first redesign layer and workspace layout.
 - `02-visual-material.css`: visual polish, material comfort, font clarity, and early mobile refinements.
 - `03-mobile-chrome.css`: mobile section headers, overflow menu, and action sheet chrome.
-- `04-print-file-management.css`: print surface, file-management UI, focus mode, and syntax highlighting.
+- `04-print-surface.css`: hidden print surface and print media rules.
+- `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
+- `04c-focus-mode.css`: zen/focus mode layout and exit button rules.
+- `04d-syntax-highlighting.css`: highlight.js token colors for dark and light themes.
 - `05-flat-ui.css`: flat UI refactor and anti-glass component cleanup.
 - `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, vault tree rendering optimization, and early flat state cleanup.
 - `06b-minimalist-surface-rules.css`: current minimalist surface, button, row, modal, input, and status rules. It stays in the same `minimalist` layer as `06` so the split does not change cascade priority.
@@ -37,7 +40,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - New shared final app-level component rules belong in `09-current-theme-overrides.css`.
 - Copilot-specific panel rules belong in `10-copilot-panel.css`.
 - Mobile chrome rules should stay in `03-mobile-chrome.css` for structural layout, or `07b-mobile-minimalist-controls.css` for final mobile visual polish.
-- File tree, print, focus mode, and file-management rules should stay in `04-print-file-management.css`.
+- Print rules belong in `04-print-surface.css`; file-management rules belong in `04b-file-management.css`; focus mode belongs in `04c-focus-mode.css`; syntax highlighting belongs in `04d-syntax-highlighting.css`.
 - Muya-specific rules should stay in `../MuyaMarkdownEditor.css` when they only target the embedded editor.
 - Legacy partials `00` through `07` are compatibility layers. Avoid adding new theme direction there unless the change is explicitly local to that historical layer.
 
@@ -63,6 +66,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 
 - Collapse duplicate token definitions into `08-current-theme-tokens.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
+- Keep feature-rules partials scoped by behavior. Avoid putting print, file-management, focus mode, or syntax highlighting back into one shared patch file.
 - Keep typography and mobile visual cleanup separate. Type-size changes belong in `07-typography-mobile-polish.css`; mobile tabs, sheets, app-bar, and FAB rules belong in `07b-mobile-minimalist-controls.css`.
 - Keep minimalist compatibility and current surface rules separate. Layout/performance compatibility remains in `06-minimalist-theme.css`; active minimalist surface rules belong in `06b-minimalist-surface-rules.css`.
 - Keep third-party/editor isolation out of global app rules. Muya selectors should stay under `.muya-editor-shell` or its known floating wrappers.

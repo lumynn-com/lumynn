@@ -1,0 +1,230 @@
+/* ---------------- File-management UI -----------------------------
+   FolderPicker, tree context menu, drag-and-drop highlights. */
+
+.folder-picker {
+  display: block;
+  overflow-y: auto;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: var(--md-radius-md, 12px);
+  padding: 0.35rem 0.25rem;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+.folder-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  border-radius: 8px;
+  min-height: 32px;
+}
+
+.folder-picker-row.selected {
+  background: var(--md-primary-container, color-mix(in srgb, var(--accent-2) 18%, transparent));
+}
+
+.folder-picker-row.disabled .folder-picker-label {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.folder-picker-caret {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--md-muted, var(--muted));
+  cursor: pointer;
+}
+
+.folder-picker-caret:hover {
+  background: var(--surface-hover, rgba(148, 163, 184, 0.12));
+  transform: none;
+}
+
+.folder-picker-caret svg {
+  width: 14px;
+  height: 14px;
+}
+
+.folder-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  color: var(--md-text, var(--text));
+  text-align: left;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.folder-picker-label:hover:not(:disabled) {
+  background: var(--surface-hover, rgba(148, 163, 184, 0.12));
+  transform: none;
+}
+
+.folder-picker-glyph {
+  flex: 0 0 auto;
+  color: var(--md-primary, var(--accent-2));
+  opacity: 0.85;
+}
+
+.folder-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-picker-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.5rem;
+  color: var(--md-muted, var(--muted));
+  font-size: 0.85rem;
+}
+
+.path-picker-modal {
+  width: min(620px, 100%);
+  max-height: min(80dvh, 720px);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.path-picker-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.path-picker-section-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--md-muted, var(--muted));
+}
+
+.path-picker-current {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 860px) {
+  .path-picker-modal {
+    width: 100%;
+    max-height: min(85dvh, 720px);
+  }
+  .folder-picker {
+    max-height: min(38dvh, 280px) !important;
+  }
+}
+
+/* ---- Tree row context menu (right-click / long-press) ---------- */
+.tree-context-menu {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 200px;
+  max-width: min(280px, 90vw);
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 12px;
+  padding: 0.3rem;
+  background: var(--md-surface, var(--panel-strong));
+  box-shadow: var(--md-elevation-2, 0 8px 24px rgba(0, 0, 0, 0.32));
+  animation: owd-fade-in 0.12s ease;
+}
+
+.tree-context-menu hr {
+  margin: 0.2rem 0;
+  border: 0;
+  border-top: 1px solid var(--md-outline-soft, var(--border));
+}
+
+.tree-context-menu button {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  background: transparent;
+  color: var(--md-text, var(--text));
+  text-align: left;
+  font-weight: 500;
+}
+
+.tree-context-menu button:hover:not(:disabled),
+.tree-context-menu button:focus-visible {
+  background: var(--surface-hover, rgba(148, 163, 184, 0.12));
+  transform: none;
+}
+
+.tree-context-menu button.danger {
+  color: var(--md-danger, var(--danger));
+}
+
+.tree-context-menu button.danger:hover:not(:disabled),
+.tree-context-menu button.danger:focus-visible {
+  background: color-mix(in srgb, var(--md-danger, var(--danger)) 12%, transparent);
+}
+
+@media (max-width: 860px) {
+  .tree-context-menu button {
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+}
+
+/* ---- Drag-and-drop drop target highlight ----------------------- */
+.tree-row.folder-row.drop-target {
+  outline: 2px solid color-mix(in srgb, var(--md-primary, var(--accent-2)) 60%, transparent);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 16%, transparent);
+}
+
+/* Vault toolbar refresh: one row, primary search button stretches
+   to fill, the two creation actions become icon-only round
+   buttons sitting on the right.  Wins over the earlier two-column
+   grid declaration via source order. */
+.vault-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: var(--md-radius-lg, 16px);
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+}
+
+/* All vault toolbar buttons are now icon-only (the search
+   text label was dropped to avoid truncation across locales).
+   They share the .icon-button base sizing (32px square via the
+   override below) and just tweak the icon size + hover tint. */
+.vault-toolbar-action {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--md-text, var(--text));
+}
+
+.vault-toolbar-action:hover:not(:disabled),
+.vault-toolbar-action:focus-visible {
+  background: var(--surface-hover, color-mix(in srgb, var(--md-primary, var(--accent-2)) 14%, transparent));
+  color: var(--md-primary, var(--accent-2));
+  transform: none;
+}
+
+.vault-toolbar-action svg {
+  width: 16px;
+  height: 16px;
+}

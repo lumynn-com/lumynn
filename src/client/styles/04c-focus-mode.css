@@ -1,0 +1,148 @@
+/* ---- Zen / Focus mode --------------------------------------------
+   Hides the global topbar, vault sidebar and AI Q&A panel so the
+   editor takes the whole window. Triggered by the `data-zen="true"`
+   attribute set on <body> when the user toggles focus mode. A small
+   floating button lets the user leave focus mode at any time. */
+body[data-zen="true"] .workspace-topbar,
+body[data-zen="true"] .obsidian-workspace > .vault-pane,
+body[data-zen="true"] .obsidian-workspace > .qa-section-wrapper,
+body[data-zen="true"] .obsidian-workspace > .qa-panel,
+body[data-zen="true"] .editor-pane > .panel-header,
+body[data-zen="true"] .editor-pane > .editor-toolbar,
+body[data-zen="true"] .editor-pane > .editor-tabbar {
+  display: none !important;
+}
+
+body[data-zen="true"] .obsidian-workspace {
+  grid-template-columns: minmax(0, 1fr) !important;
+  /* Edge-to-edge: in zen / focus mode the editor takes the
+     entire viewport. We zero the workspace padding, gap, and
+     background so there's no inset chrome between the page
+     edge and the editor surface. The topbar is already hidden
+     by the rule above so we own the full 100dvh. */
+  gap: 0 !important;
+  padding: 0 !important;
+  min-height: 100dvh;
+  background: transparent !important;
+}
+
+body[data-zen="true"] .editor-pane {
+  /* Drop the centered max-width column from the previous
+     "reading-friendly" zen variant. The user wants the editor
+     to fill the whole webpage, so width = 100% of the workspace
+     and the panel-card chrome (border / radius / padding) is
+     flattened so the textarea / preview reaches every edge. */
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--panel) !important;
+  box-shadow: none !important;
+}
+
+/* Inner editor surfaces in zen mode go edge-to-edge too. The
+   padding shrinks to a comfortable reading inset so text isn't
+   pinned against the viewport edge, but no decorative borders /
+   radii / shadows interrupt the immersive surface. */
+body[data-zen="true"] .editor-pane .editor-field,
+body[data-zen="true"] .editor-pane .editor textarea,
+body[data-zen="true"] .editor-pane .preview-surface {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-zen="true"] .editor-pane .editor textarea {
+  padding: 1.5rem clamp(1rem, 4vw, 4rem) !important;
+}
+
+body[data-zen="true"] .editor-pane .preview-surface {
+  padding: 1.5rem clamp(1rem, 4vw, 4rem) !important;
+}
+
+/* Compact, icon-only focus toggle that sits in the editor toolbar
+   without stretching to fill at narrow widths (the surrounding
+   `.file-actions button { flex: 1 1 auto }` rule would otherwise
+   blow it up to its own row). */
+.focus-toggle {
+  flex: 0 0 auto !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+}
+
+.focus-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Zen / focus mode exit button. Positioned well inside the
+   editor area so the textarea's overlay scrollbar (browsers
+   render that on the rightmost ~17px of the viewport in zen
+   mode) never visually clips the pill. It is intentionally
+   larger than the tabbar icon controls because it is the only
+   visible way out of focus mode. */
+.zen-exit-button {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 1.25rem);
+  /* 2.5rem keeps the pill clear of the textarea scrollbar and
+     well inside the editor text column even on small windows. */
+  right: calc(env(safe-area-inset-right, 0px) + 2.5rem);
+  z-index: var(--owd-z-focus-exit, 50);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 0.85rem 0 0.75rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--md-surface, var(--panel-strong)) 96%, var(--md-primary, var(--accent-2)) 4%);
+  color: var(--md-text, var(--text));
+  font-weight: 650;
+  cursor: pointer;
+  box-shadow: none;
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+
+.zen-exit-button:hover {
+  background: color-mix(in srgb, var(--md-surface-2, var(--panel-strong)) 90%, var(--md-primary, var(--accent-2)) 10%);
+  border-color: var(--md-outline, var(--border-strong));
+  color: var(--md-primary, var(--accent-2));
+  box-shadow: none;
+}
+
+.zen-exit-button:focus-visible {
+  outline: 2px solid var(--md-primary, var(--accent-2));
+  outline-offset: 2px;
+}
+
+.zen-exit-button > svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+body[data-theme="light"] .zen-exit-button {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+  box-shadow: none;
+}
+
+body[data-theme="light"] .zen-exit-button:hover {
+  background: #f8fafc;
+  box-shadow: none;
+}

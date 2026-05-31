@@ -5,7 +5,10 @@
 @import "./styles/01-redesign-workspace.css" layer(redesign-workspace);
 @import "./styles/02-visual-material.css" layer(material);
 @import "./styles/03-mobile-chrome.css" layer(mobile-chrome);
-@import "./styles/04-print-file-management.css" layer(feature-rules);
+@import "./styles/04-print-surface.css" layer(feature-rules);
+@import "./styles/04b-file-management.css" layer(feature-rules);
+@import "./styles/04c-focus-mode.css" layer(feature-rules);
+@import "./styles/04d-syntax-highlighting.css" layer(feature-rules);
 @import "./styles/05-flat-ui.css" layer(flat-ui);
 @import "./styles/06-minimalist-theme.css" layer(minimalist);
 @import "./styles/06b-minimalist-surface-rules.css" layer(minimalist);
