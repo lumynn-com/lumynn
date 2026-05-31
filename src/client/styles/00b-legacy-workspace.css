@@ -1,0 +1,340 @@
+/* Legacy workspace, vault, editor, preview, and Q&A answer rules. */
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  /* No min-height: the shell fills body naturally, and any
+     extra min-height here would *add* to whatever sticky topbar
+     sits above it, leaving a few pixels of permanent overflow
+     and a useless scrollbar at the right edge. */
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 11, 18, 0.72);
+}
+
+.brand {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.75rem;
+}
+
+.brand div {
+  display: grid;
+}
+
+.brand span:last-child {
+  color: #9da7b3;
+  font-size: 0.82rem;
+}
+
+.logo {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  font-weight: 800;
+}
+
+nav {
+  display: grid;
+  gap: 0.5rem;
+}
+
+nav button {
+  text-align: left;
+}
+
+nav .active {
+  background: rgba(124, 58, 237, 0.22);
+  border-color: rgba(124, 58, 237, 0.45);
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: 300px minmax(320px, 1fr) minmax(320px, 0.9fr);
+  gap: 1rem;
+  padding: 1rem;
+  min-width: 0;
+}
+
+.panel {
+  min-width: 0;
+  padding: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.sort-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.doc-tree {
+  display: block;
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
+
+.tree-group {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 38px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+}
+
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.folder-row {
+  color: #d7dee8;
+  font-weight: 700;
+}
+
+.tree-caret {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--md-muted, #9da7b3);
+}
+
+.tree-file-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #8b5cf6;
+  opacity: 0.8;
+}
+
+.tree-file-text {
+  display: grid;
+  min-width: 0;
+}
+
+.tree-file-text strong,
+.tree-file-name,
+.tree-file-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-row.selected {
+  border-color: rgba(37, 99, 235, 0.55);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.empty-state,
+.info-box {
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 1rem;
+  color: #9da7b3;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.doc-item {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  text-align: left;
+}
+
+.doc-item.selected {
+  border-color: rgba(37, 99, 235, 0.6);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.editor,
+.preview {
+  display: flex;
+  flex-direction: column;
+  /* Same fix as .workspace-grid: never pin to viewport height
+     because we sit below a sticky topbar. The flex layout of
+     the parent supplies the height; internal scrolling is
+     handled by .preview / .editor textarea individually. */
+  min-height: 0;
+}
+
+.editor textarea {
+  flex: 1;
+  resize: none;
+  line-height: 1.65;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.tab-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  gap: 0.55rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.75rem;
+  border-radius: 999px;
+}
+
+.editor-tab span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-tab.active {
+  border-color: rgba(37, 99, 235, 0.55);
+  background: rgba(37, 99, 235, 0.18);
+}
+
+.tab-close {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  color: #9da7b3;
+}
+
+.tab-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.blank-editor {
+  display: grid;
+  flex: 1;
+  place-content: center;
+  gap: 0.65rem;
+  padding: 2rem;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.preview article {
+  overflow: auto;
+  line-height: 1.72;
+  color: #d7dee8;
+}
+
+.preview article code {
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.preview article pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.preview article pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: #c9d1d9;
+}
+
+.qa-answer {
+  line-height: 1.72;
+  color: #d7dee8;
+}
+
+.qa-answer :first-child {
+  margin-top: 0;
+}
+
+.qa-answer :last-child {
+  margin-bottom: 0;
+}
+
+.qa-answer code {
+  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.qa-answer pre.hljs {
+  background: rgba(13, 17, 23, 0.85);
+  border-radius: 8px;
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+}
+
+.qa-answer pre.hljs code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: #c9d1d9;
+}
+
+.qa-answer a[href^="#source-"] {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--accent-2) 34%, transparent);
+  border-radius: 999px;
+  padding: 0.05rem 0.38rem;
+  color: var(--accent-2);
+  background: color-mix(in srgb, var(--accent-2) 10%, transparent);
+  font-size: 0.86em;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.qa-answer a[href^="#source-"]:hover {
+  border-color: color-mix(in srgb, var(--accent-2) 56%, transparent);
+  background: color-mix(in srgb, var(--accent-2) 18%, transparent);
+}

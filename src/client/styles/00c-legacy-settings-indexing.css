@@ -1,0 +1,276 @@
+/* Legacy settings, indexing, form, message, and Q&A view rules. */
+.settings-view,
+.qa-view {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  padding: 1rem;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.settings-nav {
+  display: grid;
+  gap: 0.5rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.settings-nav button {
+  text-align: left;
+}
+
+.settings-nav .active {
+  background: rgba(124, 58, 237, 0.22);
+  border-color: rgba(124, 58, 237, 0.45);
+}
+
+.settings-content {
+  min-width: 0;
+}
+
+.provider-grid,
+.import-export-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.index-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.index-status-card {
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.index-status-card.ready {
+  border-color: rgba(63, 185, 80, 0.28);
+  background: rgba(63, 185, 80, 0.07);
+}
+
+.index-status-card.empty {
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.index-status-card h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+}
+
+.index-status-card small {
+  color: #9da7b3;
+}
+
+.index-status-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.index-status-metrics span {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  color: #d7dee8;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.86rem;
+}
+
+.index-progress {
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.index-progress.completed {
+  border-color: rgba(63, 185, 80, 0.35);
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.index-progress.failed {
+  border-color: rgba(248, 81, 73, 0.35);
+  background: rgba(248, 81, 73, 0.08);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.progress-header div {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.progress-header span,
+.progress-header small,
+.progress-details {
+  color: #9da7b3;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 0.75rem;
+  align-items: center;
+  color: #d7dee8;
+  font-size: 0.9rem;
+}
+
+progress {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+}
+
+.progress-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.86rem;
+}
+
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.65rem 0.9rem;
+  color: #e6edf3;
+  background: rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.file-button:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.file-button input {
+  display: none;
+}
+
+.form-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+}
+
+.check input {
+  width: auto;
+}
+
+.config-box {
+  min-height: 180px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.message {
+  white-space: pre-wrap;
+  border-radius: 16px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0;
+}
+
+.message-bar {
+  position: relative;
+  display: grid;
+}
+
+.message-dismiss {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--md-text, var(--text));
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.message-dismiss:hover:not(:disabled) {
+  transform: none;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.hero {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.ask-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.citation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.citation {
+  display: grid;
+  gap: 0.5rem;
+}

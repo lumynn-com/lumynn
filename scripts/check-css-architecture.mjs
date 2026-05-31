@@ -23,6 +23,9 @@ const expectedLayerLine =
 const expectedImports = [
   ["katex/dist/katex.min.css", "vendor"],
   ["./styles/00-legacy-base.css", "legacy-base"],
+  ["./styles/00b-legacy-workspace.css", "legacy-base"],
+  ["./styles/00c-legacy-settings-indexing.css", "legacy-base"],
+  ["./styles/00d-legacy-responsive-light.css", "legacy-base"],
   ["./styles/01-redesign-workspace.css", "redesign-workspace"],
   ["./styles/01b-task-ia.css", "redesign-workspace"],
   ["./styles/01c-workbench-shell.css", "redesign-workspace"],
@@ -77,6 +80,9 @@ const importantBudgets = {
   "src/client/MuyaMarkdownEditor.css": 17,
   "src/client/MarkdownSourceEditor.css": 0,
   "src/client/styles/00-legacy-base.css": 0,
+  "src/client/styles/00b-legacy-workspace.css": 0,
+  "src/client/styles/00c-legacy-settings-indexing.css": 0,
+  "src/client/styles/00d-legacy-responsive-light.css": 0,
   "src/client/styles/01-redesign-workspace.css": 4,
   "src/client/styles/01b-task-ia.css": 0,
   "src/client/styles/01c-workbench-shell.css": 0,
@@ -117,6 +123,9 @@ for (const [file, budget] of Object.entries(importantBudgets)) {
 
 const rootBlockBudgets = {
   "src/client/styles/00-legacy-base.css": 1,
+  "src/client/styles/00b-legacy-workspace.css": 0,
+  "src/client/styles/00c-legacy-settings-indexing.css": 0,
+  "src/client/styles/00d-legacy-responsive-light.css": 0,
   "src/client/styles/01-redesign-workspace.css": 1,
   "src/client/styles/01b-task-ia.css": 0,
   "src/client/styles/01c-workbench-shell.css": 0,

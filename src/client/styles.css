@@ -2,6 +2,9 @@
 
 @import "katex/dist/katex.min.css" layer(vendor);
 @import "./styles/00-legacy-base.css" layer(legacy-base);
+@import "./styles/00b-legacy-workspace.css" layer(legacy-base);
+@import "./styles/00c-legacy-settings-indexing.css" layer(legacy-base);
+@import "./styles/00d-legacy-responsive-light.css" layer(legacy-base);
 @import "./styles/01-redesign-workspace.css" layer(redesign-workspace);
 @import "./styles/01b-task-ia.css" layer(redesign-workspace);
 @import "./styles/01c-workbench-shell.css" layer(redesign-workspace);
