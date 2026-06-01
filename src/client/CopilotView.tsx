@@ -1601,89 +1601,6 @@ export const CopilotView = memo(function CopilotView(props: {
       {answerSaveNode}
 
       <div className="copilot-composer">
-        <div className="copilot-composer-toolbar" aria-label={t("copilot.toolbar")}>
-          <div className="copilot-mode-label">
-            <span>{t("copilot.mode.vaultQa")}</span>
-          </div>
-          <div className="copilot-composer-actions">
-            <button
-              type="button"
-              className="icon-button copilot-icon-button copilot-new-chat"
-              onClick={newChat}
-              disabled={state.loading}
-              aria-label={t("copilot.new")}
-              title={t("copilot.new")}
-            >
-              <PlusIcon />
-            </button>
-            <div className="copilot-history-menu" ref={historyMenuRef}>
-              <button
-                type="button"
-                className="icon-button copilot-icon-button copilot-history-trigger"
-                aria-haspopup="dialog"
-                aria-expanded={historyMenuOpen}
-                aria-label={t("copilot.history")}
-                title={t("copilot.history")}
-                onClick={() => {
-                  const nextOpen = !historyMenuOpen;
-                  setHistoryMenuOpen(nextOpen);
-                  if (nextOpen) void refreshConversations();
-                }}
-              >
-                <HistoryIcon />
-              </button>
-              {historyMenuOpen ? (
-                <div className="copilot-history-popover" role="dialog" aria-label={t("copilot.history")} aria-busy={saving || loadingConversation}>
-                  {conversations.length === 0 ? (
-                    <div className="copilot-history-empty">{t("copilot.history.empty")}</div>
-                  ) : (
-                    <div className="copilot-history-list">
-                      {conversations.map((conversation) => (
-                        <div
-                          className="copilot-history-item"
-                          key={conversation.id}
-                          data-active={conversation.id === state.conversationId ? "true" : undefined}
-                        >
-                          <button
-                            type="button"
-                            className="copilot-history-load"
-                            onClick={() => loadConversation(conversation.id)}
-                            disabled={state.loading || loadingConversation}
-                          >
-                            <strong translate="no">{conversation.title}</strong>
-                            <span>{formatHistoryTime(conversation.updatedAt)}</span>
-                          </button>
-                          <div className="copilot-history-item-actions">
-                            <button
-                              type="button"
-                              className="icon-button copilot-history-action"
-                              onClick={() => conversation.path && props.onOpenSource?.(conversation.path)}
-                              disabled={!conversation.path || !props.onOpenSource}
-                              aria-label={t("copilot.history.open")}
-                              title={t("copilot.history.open")}
-                            >
-                              <EyeIcon />
-                            </button>
-                            <button
-                              type="button"
-                              className="icon-button copilot-history-action danger"
-                              onClick={() => deleteConversationHistory(conversation)}
-                              disabled={state.loading || loadingConversation || saving || deletingConversationId === conversation.id}
-                              aria-label={t("copilot.history.delete")}
-                              title={t("copilot.history.delete")}
-                            >
-                              <TrashIcon />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
         <form className="copilot-input-row" onSubmit={sendMessage}>
           <div className="copilot-input-shell">
             <label className="sr-only" htmlFor="copilot-message">{t("copilot.input")}</label>
@@ -1738,23 +1655,105 @@ export const CopilotView = memo(function CopilotView(props: {
               }}
             />
           </div>
-          <div className="copilot-submit-row">
-            {state.status ? <div className="copilot-inline-status">{state.status}</div> : null}
-            {state.loading ? (
-              <button type="button" className="icon-button copilot-input-action" onClick={stop} aria-label={t("copilot.stop")} title={t("copilot.stop")}>
-                <StopIcon />
-              </button>
-            ) : (
+          <div className="copilot-composer-toolbar" role="toolbar" aria-label={t("copilot.toolbar")}>
+            <div className="copilot-composer-leading">
+              {state.loading ? (
+                <button type="button" className="icon-button copilot-input-action" onClick={stop} aria-label={t("copilot.stop")} title={t("copilot.stop")}>
+                  <StopIcon />
+                </button>
+              ) : (
+                <button
+                  className="icon-button copilot-input-action"
+                  type="submit"
+                  disabled={!state.input.trim() || providerUnavailable}
+                  aria-label={t("copilot.send")}
+                  title={t("copilot.send")}
+                >
+                  <SendIcon />
+                </button>
+              )}
+              <div className="copilot-mode-label" aria-live="polite">
+                <span>{state.status || t("copilot.mode.vaultQa")}</span>
+              </div>
+            </div>
+            <div className="copilot-composer-actions">
               <button
-                className="icon-button copilot-input-action"
-                type="submit"
-                disabled={!state.input.trim() || providerUnavailable}
-                aria-label={t("copilot.send")}
-                title={t("copilot.send")}
+                type="button"
+                className="icon-button copilot-icon-button copilot-new-chat"
+                onClick={newChat}
+                disabled={state.loading}
+                aria-label={t("copilot.new")}
+                title={t("copilot.new")}
               >
-                <SendIcon />
+                <PlusIcon />
               </button>
-            )}
+              <div className="copilot-history-menu" ref={historyMenuRef}>
+                <button
+                  type="button"
+                  className="icon-button copilot-icon-button copilot-history-trigger"
+                  aria-haspopup="dialog"
+                  aria-expanded={historyMenuOpen}
+                  aria-label={t("copilot.history")}
+                  title={t("copilot.history")}
+                  onClick={() => {
+                    const nextOpen = !historyMenuOpen;
+                    setHistoryMenuOpen(nextOpen);
+                    if (nextOpen) void refreshConversations();
+                  }}
+                >
+                  <HistoryIcon />
+                </button>
+                {historyMenuOpen ? (
+                  <div className="copilot-history-popover" role="dialog" aria-label={t("copilot.history")} aria-busy={saving || loadingConversation}>
+                    {conversations.length === 0 ? (
+                      <div className="copilot-history-empty">{t("copilot.history.empty")}</div>
+                    ) : (
+                      <div className="copilot-history-list">
+                        {conversations.map((conversation) => (
+                          <div
+                            className="copilot-history-item"
+                            key={conversation.id}
+                            data-active={conversation.id === state.conversationId ? "true" : undefined}
+                          >
+                            <button
+                              type="button"
+                              className="copilot-history-load"
+                              onClick={() => loadConversation(conversation.id)}
+                              disabled={state.loading || loadingConversation}
+                            >
+                              <strong translate="no">{conversation.title}</strong>
+                              <span>{formatHistoryTime(conversation.updatedAt)}</span>
+                            </button>
+                            <div className="copilot-history-item-actions">
+                              <button
+                                type="button"
+                                className="icon-button copilot-history-action"
+                                onClick={() => conversation.path && props.onOpenSource?.(conversation.path)}
+                                disabled={!conversation.path || !props.onOpenSource}
+                                aria-label={t("copilot.history.open")}
+                                title={t("copilot.history.open")}
+                              >
+                                <EyeIcon />
+                              </button>
+                              <button
+                                type="button"
+                                className="icon-button copilot-history-action danger"
+                                onClick={() => deleteConversationHistory(conversation)}
+                                disabled={state.loading || loadingConversation || saving || deletingConversationId === conversation.id}
+                                aria-label={t("copilot.history.delete")}
+                                title={t("copilot.history.delete")}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </form>
         {state.error ? <div className="error" aria-live="polite">{state.error}</div> : null}

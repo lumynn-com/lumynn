@@ -19,11 +19,19 @@
 .copilot-composer-toolbar {
   position: relative;
   display: flex;
-  min-height: 22px;
-  gap: 0.3rem;
+  min-height: 28px;
+  min-width: 0;
+  gap: 0.5rem;
   align-items: center;
   justify-content: space-between;
   padding: 0;
+}
+
+.copilot-composer-leading {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .copilot-mode-label {
@@ -37,10 +45,19 @@
   line-height: 1;
 }
 
+.copilot-mode-label span {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .copilot-composer-actions {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.04rem;
+  margin-left: auto;
 }
 
 .copilot-view .copilot-icon-button.icon-button {

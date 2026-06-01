@@ -90,7 +90,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
-  gap: 0.1rem;
+  gap: 0.08rem;
   margin-top: 0;
 }
 
@@ -99,7 +99,7 @@
   bottom: 0;
   z-index: var(--owd-z-modal, 20);
   display: grid;
-  gap: 0.18rem;
+  gap: 0.12rem;
   margin-top: auto;
   border-top: 0;
   background: transparent;
@@ -155,15 +155,6 @@
   outline: none;
 }
 
-.copilot-submit-row {
-  display: flex;
-  min-height: 28px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  padding: 0 0.02rem;
-}
-
 .copilot-input-shell .copilot-context-chip {
   min-height: 0;
   align-items: baseline;
@@ -212,7 +203,6 @@
 
 .copilot-input-action {
   position: static;
-  margin-left: auto;
   display: inline-flex;
   width: 28px !important;
   min-width: 28px !important;
@@ -250,12 +240,6 @@
   color: var(--md-muted);
   font-size: 0.76rem;
   text-align: center;
-}
-
-.copilot-inline-status {
-  color: var(--md-muted);
-  font-size: 0.72rem;
-  line-height: 1.4;
 }
 
 .copilot-answer-save-modal {

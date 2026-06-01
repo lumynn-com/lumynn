@@ -49,8 +49,8 @@
   }
 
   .copilot-composer-toolbar {
-    min-height: 24px;
-    gap: 0.2rem;
+    min-height: 32px;
+    gap: 0.4rem;
   }
 
   .copilot-context-chip,
