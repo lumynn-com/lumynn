@@ -49,8 +49,8 @@ body,
 .preview,
 .preview-surface,
 .document-list,
-.qa-panel,
-.qa-section-wrapper,
+.copilot-panel,
+.copilot-section-wrapper,
 .login-shell,
 .login-card,
 .panel,
@@ -77,7 +77,7 @@ body {
 .obsidian-workspace .panel,
 .vault-pane,
 .editor-pane,
-.qa-panel,
+.copilot-panel,
 .document-list,
 .editor,
 .preview {
@@ -348,10 +348,10 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .m
        paragraphs, so the heading lands at the same visual
        baseline as inline content scrolled into view normally.
 
-       Same treatment for the AI Q&A answer panel since the
+       Same treatment for rendered Copilot answers since the
        same kind of internal anchor jumps can happen there
        (citation links, reference jumps). */
 .preview-surface article :is(h1, h2, h3, h4, h5, h6),
-.qa-answer :is(h1, h2, h3, h4, h5, h6) {
+.rendered-markdown :is(h1, h2, h3, h4, h5, h6) {
   scroll-margin-top: 28px;
 }

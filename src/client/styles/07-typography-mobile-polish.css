@@ -14,13 +14,13 @@ body {
 
 .editor textarea,
 .preview-surface article,
-.qa-answer {
+.rendered-markdown {
   font-size: var(--owd-type-readable) !important;
   line-height: var(--owd-line-readable) !important;
 }
 
 .preview-surface article :where(p, li, blockquote, td, th),
-.qa-answer :where(p, li, blockquote, td, th) {
+.rendered-markdown :where(p, li, blockquote, td, th) {
   line-height: var(--owd-line-readable) !important;
 }
 
@@ -56,7 +56,7 @@ select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .tree-row-placeholder,
 .folder-picker-loading,
 .obsidian-workspace .muted,
-.qa-panel .muted,
+.copilot-panel .muted,
 label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .path-picker-section-label {
   font-size: var(--owd-type-meta) !important;

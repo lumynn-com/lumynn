@@ -1,5 +1,5 @@
-/* Q&A panel, modal, prompt, and search rules for the redesign layer. */
-.qa-panel {
+/* Historical ask-panel shell, modal, prompt, and search rules. */
+.copilot-panel {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -12,22 +12,22 @@
     var(--panel);
 }
 
-.qa-panel .qa-hero {
+.copilot-panel .copilot-hero {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
 }
 
-.qa-panel .qa-hero {
+.copilot-panel .copilot-hero {
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--border);
 }
 
-.qa-panel .qa-hero .muted {
+.copilot-panel .copilot-hero .muted {
   margin: 0;
 }
 
-.qa-panel .panel-header {
+.copilot-panel .panel-header {
   margin-bottom: 0;
 }
 
@@ -267,7 +267,7 @@
     grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   }
 
-  .qa-panel {
+  .copilot-panel {
     grid-column: 1 / -1;
     min-height: 440px;
     max-height: none;
@@ -303,7 +303,7 @@
 
   .vault-pane,
   .editor-pane,
-  .qa-panel {
+  .copilot-panel {
     min-height: auto;
     max-height: none;
   }

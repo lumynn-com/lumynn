@@ -156,16 +156,16 @@
   }
 
   /* Ask becomes a bottom sheet. The display:contents wrapper means the
-     real visual element is .qa-panel inside; reposition that. */
-  .obsidian-workspace[data-mobile-section] > .qa-section-wrapper {
+     real visual element is .copilot-panel inside; reposition that. */
+  .obsidian-workspace[data-mobile-section] > .copilot-section-wrapper {
     display: none;
   }
 
-  .obsidian-workspace[data-mobile-section="ask"] > .qa-section-wrapper {
+  .obsidian-workspace[data-mobile-section="ask"] > .copilot-section-wrapper {
     display: contents;
   }
 
-  /* Tap-to-close backdrop behind drawer / ask sheet. */
+  /* Tap-to-close backdrop behind drawer / Copilot sheet. */
   .mobile-overlay-backdrop {
     position: fixed;
     inset: 0;

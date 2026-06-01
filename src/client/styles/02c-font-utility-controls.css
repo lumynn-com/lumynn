@@ -299,7 +299,7 @@ button[aria-busy="true"] > .button-spinner {
     min-height: 0;
   }
 
-  .qa-panel {
+  .copilot-panel {
     min-height: 60dvh;
     max-height: none;
   }

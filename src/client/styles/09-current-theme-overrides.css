@@ -22,7 +22,7 @@
    ============================================================ */
 .vault-pane,
 .editor-pane,
-.qa-panel,
+.copilot-panel,
 .document-list.panel,
 .editor.panel,
 .preview,
@@ -178,7 +178,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 
 @media (max-width: 860px) {
   .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-panel,
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet,
   .search-modal,

@@ -1504,7 +1504,7 @@ export const CopilotView = memo(function CopilotView(props: {
 
   return (
     <aside
-      className={`copilot-view ${props.compact ? "qa-panel panel" : ""}`}
+      className={`copilot-view ${props.compact ? "copilot-panel panel" : ""}`}
       aria-label={t("copilot.eyebrow")}
       data-collapsed={props.compact && props.collapsed ? "true" : undefined}
     >
@@ -1528,10 +1528,10 @@ export const CopilotView = memo(function CopilotView(props: {
         </div>
       ) : null}
 
-      <section className={props.compact ? "qa-hero copilot-hero" : "panel hero copilot-hero"}>
+      <section className={props.compact ? "copilot-hero" : "panel hero copilot-hero"}>
         {props.compact && props.onToggleCollapsed ? (
-          <div className="qa-hero-top desktop-only">
-            <button type="button" className="icon-button pane-collapse-toggle qa-collapse-toggle" aria-label={t("copilot.collapse")} title={t("copilot.collapse")} onClick={props.onToggleCollapsed}>
+          <div className="copilot-hero-top desktop-only">
+            <button type="button" className="icon-button pane-collapse-toggle copilot-collapse-toggle" aria-label={t("copilot.collapse")} title={t("copilot.collapse")} onClick={props.onToggleCollapsed}>
               <PanelToggleIcon />
             </button>
             <p className="eyebrow">{t("copilot.eyebrow")}</p>
@@ -1553,12 +1553,12 @@ export const CopilotView = memo(function CopilotView(props: {
               <div className="copilot-message-role">{message.role === "user" ? t("copilot.user") : t("copilot.assistant")}</div>
               {message.role === "assistant" && renderedMessages[message.id] ? (
                 <div
-                  className="qa-answer copilot-message-content copilot-rendered-preview"
+                  className="rendered-markdown copilot-message-content copilot-rendered-preview"
                   onClick={openRenderedInternalLink}
                   dangerouslySetInnerHTML={{ __html: renderedMessages[message.id] }}
                 />
               ) : (
-                <div className="qa-answer copilot-message-content">
+                <div className="rendered-markdown copilot-message-content">
                   {message.content || (message.role === "assistant" && state.loading ? t("copilot.status.thinking") : "")}
                 </div>
               )}

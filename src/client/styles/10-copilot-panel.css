@@ -1,8 +1,8 @@
 /* ============================================================
    33. Copilot agent panel.
 
-   Reuses the existing Q&A panel shell but gives multi-turn chat,
-   tool cards, and diff proposals stable dimensions.
+   Gives multi-turn chat, tool cards, and diff proposals stable
+   dimensions.
    ============================================================ */
 .copilot-view {
   gap: 0.65rem;

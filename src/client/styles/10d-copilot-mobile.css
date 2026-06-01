@@ -1,6 +1,6 @@
 /* Copilot mobile full-screen panel and responsive overrides. */
 @media (max-width: 860px) {
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel.copilot-view {
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-panel.copilot-view {
     position: fixed;
     inset: 0;
     z-index: var(--owd-z-mobile-sheet, 25);

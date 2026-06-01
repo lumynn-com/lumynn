@@ -458,7 +458,7 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 }
 
 .preview article,
-.qa-answer {
+.rendered-markdown {
   min-width: 0;
   overflow-wrap: anywhere;
 }

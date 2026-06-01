@@ -33,7 +33,7 @@
 /* ============================================================
    17. Collapsible side panels (desktop only)
 
-   Both the vault and the AI Q&A panels can be tucked away into
+   Both the vault and Copilot panels can be tucked away into
    a 44px vertical rail so the editor takes the full freed
    width. Only desktop participates: mobile already has its own
    section switcher (see .obsidian-workspace[data-mobile-section]
@@ -42,13 +42,13 @@
    Behaviour:
      - .obsidian-workspace[data-vault-collapsed="true"]
        -> column 1 shrinks from minmax(260px,310px) to 44px
-     - .obsidian-workspace[data-qa-collapsed="true"]
+     - .obsidian-workspace[data-copilot-collapsed="true"]
        -> column 3 shrinks from minmax(320px,380px) to 44px
      - When both are collapsed the editor is the only surface
        that grows.
 
    Inside each pane two children cooperate: the normal panel
-   content (toolbars, tree, ask row, answer, etc.) is hidden
+   content (toolbars, tree, composer, answers, etc.) is hidden
    when collapsed; a sibling .pane-collapsed-rail holds the
    single expand button + an icon hint and is hidden when the
    pane is expanded. The collapse trigger lives inside the
@@ -75,21 +75,21 @@
     display: flex;
   }
 
-  /* Q&A collapsed */
-  .obsidian-workspace[data-qa-collapsed="true"] {
+  /* Copilot collapsed */
+  .obsidian-workspace[data-copilot-collapsed="true"] {
     grid-template-columns: minmax(260px, 310px) minmax(440px, 1fr) 44px;
   }
 
-  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] > *:not(.pane-collapsed-rail) {
+  .obsidian-workspace[data-copilot-collapsed="true"] .copilot-panel[data-collapsed="true"] > *:not(.pane-collapsed-rail) {
     display: none !important;
   }
 
-  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] .pane-collapsed-rail {
+  .obsidian-workspace[data-copilot-collapsed="true"] .copilot-panel[data-collapsed="true"] .pane-collapsed-rail {
     display: flex;
   }
 
   /* Both collapsed: the editor is the only thing that grows. */
-  .obsidian-workspace[data-vault-collapsed="true"][data-qa-collapsed="true"] {
+  .obsidian-workspace[data-vault-collapsed="true"][data-copilot-collapsed="true"] {
     grid-template-columns: 44px minmax(0, 1fr) 44px;
   }
 
@@ -136,20 +136,20 @@
     height: 16px;
   }
 
-  /* Top row of the Q&A hero on desktop: the collapse toggle and
+  /* Top row of the Copilot hero on desktop: the collapse toggle and
      the small eyebrow label share a single flex row. Keeping the
      button inline (rather than absolutely positioning it over
      the panel) means the title and description below keep their
      natural full width and aren't shifted by the button's
      presence. */
-  .qa-panel .qa-hero-top {
+  .copilot-panel .copilot-hero-top {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     margin: 0;
   }
 
-  .qa-panel .qa-hero-top > .eyebrow {
+  .copilot-panel .copilot-hero-top > .eyebrow {
     margin: 0;
     flex: 1 1 auto;
     min-width: 0;
@@ -158,7 +158,7 @@
   /* Hide the inline collapse trigger when the pane is already
      collapsed (the rail's expand button takes its place). */
   .obsidian-workspace[data-vault-collapsed="true"] .vault-pane .pane-collapse-toggle,
-  .qa-panel[data-collapsed="true"] .pane-collapse-toggle {
+  .copilot-panel[data-collapsed="true"] .pane-collapse-toggle {
     display: none;
   }
 
@@ -166,7 +166,7 @@
      showing, centre the content and remove the wide padding
      that was tuned for the 300px expanded width. */
   .obsidian-workspace[data-vault-collapsed="true"] .vault-pane,
-  .obsidian-workspace[data-qa-collapsed="true"] .qa-panel[data-collapsed="true"] {
+  .obsidian-workspace[data-copilot-collapsed="true"] .copilot-panel[data-collapsed="true"] {
     padding: 0.35rem 0;
     overflow: hidden;
   }
@@ -193,7 +193,7 @@
 
 .vault-pane,
 .editor-pane,
-.qa-panel {
+.copilot-panel {
   background: var(--md-surface, var(--panel)) !important;
   box-shadow: none !important;
 }
@@ -206,7 +206,7 @@
   border-color: transparent !important;
 }
 
-.qa-panel {
+.copilot-panel {
   border-color: transparent transparent transparent var(--owd-flat-divider) !important;
 }
 
@@ -339,7 +339,7 @@
 
 .blank-editor,
 .document-list .empty-state,
-.qa-panel .empty-state,
+.copilot-panel .empty-state,
 .search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {
@@ -350,7 +350,7 @@
 }
 
 .document-list .empty-state,
-.qa-panel .empty-state,
+.copilot-panel .empty-state,
 .search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {

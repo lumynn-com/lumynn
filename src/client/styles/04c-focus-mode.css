@@ -1,12 +1,12 @@
 /* ---- Zen / Focus mode --------------------------------------------
-   Hides the global topbar, vault sidebar and AI Q&A panel so the
+   Hides the global topbar, vault sidebar and Copilot panel so the
    editor takes the whole window. Triggered by the `data-zen="true"`
    attribute set on <body> when the user toggles focus mode. A small
    floating button lets the user leave focus mode at any time. */
 body[data-zen="true"] .workspace-topbar,
 body[data-zen="true"] .obsidian-workspace > .vault-pane,
-body[data-zen="true"] .obsidian-workspace > .qa-section-wrapper,
-body[data-zen="true"] .obsidian-workspace > .qa-panel,
+body[data-zen="true"] .obsidian-workspace > .copilot-section-wrapper,
+body[data-zen="true"] .obsidian-workspace > .copilot-panel,
 body[data-zen="true"] .editor-pane > .panel-header,
 body[data-zen="true"] .editor-pane > .editor-toolbar,
 body[data-zen="true"] .editor-pane > .editor-tabbar {

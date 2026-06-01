@@ -7,7 +7,7 @@
 The partials are split by historical layer and behavior area. Their cascade order is now explicit in `../styles.css`:
 
 - `00-legacy-base.css`: original root defaults, global element reset, base controls, login shell/card, typography helpers, and error state rules.
-- `00b-legacy-workspace.css`: legacy app shell, sidebar, workspace grid, vault tree, editor tabs, preview, and Q&A answer rules.
+- `00b-legacy-workspace.css`: legacy app shell, sidebar, workspace grid, vault tree, editor tabs, preview, and rendered answer rules.
 - `00c-legacy-settings-indexing.css`: legacy settings, indexing, import/export, form, message, hero, and citation grid rules.
 - `00d-legacy-responsive-light.css`: legacy responsive layout rules and early light-mode compatibility overrides.
 - `01-redesign-workspace.css`: first redesign layer baseline, global app shell, sidebar, generic panels, legacy workspace grid, and responsive base rules.
@@ -15,13 +15,13 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `01c-workbench-shell.css`: Obsidian-style topbar, signed-in user/admin chrome, workspace shell, vault/editor toolbar, mode switch, and pane sizing rules.
 - `01d-preview-reading.css`: redesign-layer preview surface and rendered Markdown rules for code, blockquotes, tasks, tables, KaTeX, and images.
 - `01e-qa-modal-search.css`: historical ask-panel shell, modal shell, prompt dialog, search form/results, and related responsive rules.
-- `02-visual-material.css`: original visual polish baseline for desktop editor, vault, preview, and Q&A surfaces.
+- `02-visual-material.css`: original visual polish baseline for desktop editor, vault, preview, and Copilot surfaces.
 - `02b-material-comfort.css`: historical material comfort pass for flatter surfaces, relaxed spacing, core app controls, and modal/search foundations.
 - `02c-font-utility-controls.css`: historical font clarity, spinner, language switcher, editor FAB, back-to-top, and mobile input/toolbar utility rules.
 - `02d-mobile-workbench.css`: historical mobile workbench refinements, segmented view controls, undo toast, tactile press feedback, and modal entrance motion.
 - `03-mobile-chrome.css`: mobile section headers, icon buttons, pane chrome, overflow menu, bottom action sheet, and desktop hide guard.
 - `03b-mobile-draft-tabs.css`: quick-note draft tab, tab-strip add button, image logo reset, selected folder cue, and draft pill rules.
-- `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, vault drawer, ask sheet, and mobile overlay backdrop.
+- `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, vault drawer, Copilot sheet, and mobile overlay backdrop.
 - `04-print-surface.css`: temporary top-level print surface and print media rules.
 - `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
 - `04c-focus-mode.css`: zen/focus mode layout and exit button rules.
@@ -34,7 +34,7 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
 - `09-current-theme-overrides.css`: final app chrome, radius, command menu, mobile containment, focus exit, and Muya loading rules.
-- `09b-markdown-heading-scale.css`: final rendered Markdown heading scale for preview and Q&A.
+- `09b-markdown-heading-scale.css`: final rendered Markdown heading scale for preview and Copilot.
 - `09c-tonal-state-rules.css`: final hover, focus, selected, and active tonal state rules.
 - `09d-document-theme.css`: final rendered Markdown document theme and light-mode reading cleanup.
 - `06b-minimalist-surface-rules.css`: current minimalist surface, button, row, modal, input, and status rules. It imports into `current-theme-overrides` so current surface styling can win by layer order instead of `!important`.
@@ -75,7 +75,7 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 
 - `--owd-theme-*` tokens are the canonical raw theme values.
 - Legacy aliases such as `--bg`, `--panel`, `--md-bg`, and `--md-primary` map to `--owd-theme-*` in `08-current-theme-tokens.css`.
-- Document reading tokens such as `--owd-doc-*` are shared by preview and Q&A Markdown output.
+- Document reading tokens such as `--owd-doc-*` are shared by preview and Copilot Markdown output.
 - State tokens such as `--owd-tonal-*` control flat hover, selected, and focus surfaces.
 - Shape tokens such as `--owd-radius-*` control the current flat corner system.
 - Stack tokens such as `--owd-z-*` control app z-index values.

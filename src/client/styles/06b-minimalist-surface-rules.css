@@ -19,7 +19,7 @@ body,
 
 .vault-pane,
 .editor-pane,
-.qa-panel,
+.copilot-panel,
 .settings-modal,
 .search-modal,
 .prompt-modal,
@@ -33,7 +33,7 @@ body,
 
 .vault-pane,
 .editor-pane,
-.qa-panel {
+.copilot-panel {
   box-shadow: none;
 }
 
@@ -45,7 +45,7 @@ body,
   border-width: 0;
 }
 
-.qa-panel {
+.copilot-panel {
   border-width: 0 0 0 1px;
 }
 
@@ -250,7 +250,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 .document-list .empty-state,
-.qa-panel .empty-state,
+.copilot-panel .empty-state,
 .search-results .empty-state,
 .tree-row-placeholder,
 .folder-picker-loading {

@@ -64,14 +64,14 @@ body {
 .obsidian-workspace .panel,
 .vault-pane,
 .editor-pane,
-.qa-panel {
+.copilot-panel {
   border-radius: 18px;
   box-shadow: var(--shadow-workspace);
 }
 
 .vault-pane,
 .editor-pane,
-.qa-panel {
+.copilot-panel {
   border-color: color-mix(in srgb, var(--border) 86%, transparent);
   background:
     linear-gradient(180deg, rgba(148, 163, 184, 0.045), transparent 13rem),
@@ -187,7 +187,7 @@ body {
   font-size: 0.98rem;
 }
 
-.qa-panel .qa-hero {
+.copilot-panel .copilot-hero {
   gap: 0.65rem;
 }
 

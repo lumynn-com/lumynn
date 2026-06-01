@@ -79,7 +79,7 @@ interface DocumentsViewProps {
   theme?: "dark" | "light";
   loggingOut?: boolean;
   // The current account's username, threaded down so per-user
-  // client state (e.g. cached AI Q&A answer) can be isolated
+  // client state (e.g. cached Copilot answer) can be isolated
   // and not bleed between users on the same browser.
   username?: string;
   // Account role; needed so the settings modal can hide admin-
@@ -413,7 +413,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     void loadMuyaMarkdownEditor();
   }, []);
   // Zen / Focus mode: hides the global topbar, vault sidebar and
-  // AI Q&A panel so the editor takes the entire window. Desktop
+  // Copilot panel so the editor takes the entire window. Desktop
   // only -- the mobile UI is already editor-first.
   const zenStorageKey = `owd_zen_mode:${props.username ?? ""}`;
   const [zenMode, setZenMode] = useState<boolean>(() => {
@@ -574,9 +574,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("owd_vault_collapsed") === "true";
   });
-  const [qaCollapsed, setQaCollapsed] = useState<boolean>(() => {
+  const [copilotCollapsed, setCopilotCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("owd_qa_collapsed") === "true";
+    return (
+      window.localStorage.getItem("owd_copilot_collapsed") ??
+      window.localStorage.getItem("owd_qa_collapsed")
+    ) === "true";
   });
   useEffect(() => {
     try {
@@ -587,11 +590,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, [vaultCollapsed]);
   useEffect(() => {
     try {
-      window.localStorage.setItem("owd_qa_collapsed", String(qaCollapsed));
+      window.localStorage.setItem("owd_copilot_collapsed", String(copilotCollapsed));
+      window.localStorage.removeItem("owd_qa_collapsed");
     } catch {
       /* no-op */
     }
-  }, [qaCollapsed]);
+  }, [copilotCollapsed]);
 
   // On mobile we default to the editor as the always-visible main view;
   // the vault is a left drawer and Ask is a bottom sheet.
@@ -963,7 +967,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (dy > 60) return;
     // Editor-first model on mobile:
     //   swipe right from the left edge -> open vault drawer
-    //   swipe left  from the right edge -> open ask sheet
+    //   swipe left  from the right edge -> open Copilot sheet
     if (start.fromEdge === "left" && dx >= 60) {
       switchSection("vault");
     } else if (start.fromEdge === "right" && dx <= -60) {
@@ -2061,8 +2065,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setActivePath(path);
   }, []);
 
-  const toggleQaCollapsed = useCallback(() => {
-    setQaCollapsed((open) => !open);
+  const toggleCopilotCollapsed = useCallback(() => {
+    setCopilotCollapsed((open) => !open);
   }, []);
 
   const toggleTreeFolder = useCallback((folderPath: string) => {
@@ -2107,7 +2111,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       className="workspace-grid obsidian-workspace"
       data-mobile-section={mobileSection}
       data-vault-collapsed={!isMobile && vaultCollapsed ? "true" : undefined}
-      data-qa-collapsed={!isMobile && qaCollapsed ? "true" : undefined}
+      data-copilot-collapsed={!isMobile && copilotCollapsed ? "true" : undefined}
       onPointerDown={onWorkspacePointerDown}
       onPointerUp={onWorkspacePointerUp}
       onPointerCancel={() => { edgeSwipe.current = null; }}
@@ -2520,7 +2524,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         ) : null}
       </section>
       <div
-        className="qa-section-wrapper"
+        className="copilot-section-wrapper"
         data-section="ask"
         id={isMobile ? "section-panel-ask" : undefined}
         role={isMobile ? "tabpanel" : undefined}
@@ -2545,8 +2549,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 }
               : null
           }
-          collapsed={!isMobile && qaCollapsed}
-          onToggleCollapsed={!isMobile ? toggleQaCollapsed : undefined}
+          collapsed={!isMobile && copilotCollapsed}
+          onToggleCollapsed={!isMobile ? toggleCopilotCollapsed : undefined}
         />
       </div>
       {isMobile && mobileSection === "editor" && active ? (
@@ -3111,8 +3115,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               </div>
             ) : null}
             {/* Workspace navigation. On mobile we expose "Ask"
-                because Q&A lives behind a section switch; on
-                desktop the Q&A panel is always rendered (or
+                because Copilot lives behind a section switch; on
+                desktop the Copilot panel is always rendered (or
                 visible as a 44px rail), so the Ask shortcut is
                 redundant and is hidden. Indexing / Settings now
                 open as overlay modals on desktop so dismissing

@@ -6,7 +6,7 @@
   display: none;
 }
 
-.qa-section-wrapper {
+.copilot-section-wrapper {
   display: contents;
 }
 
@@ -81,14 +81,14 @@
     flex-direction: column;
   }
 
-  /* Copilot is rendered through .qa-section-wrapper, so the visible ask
-     panel lives on the .qa-panel.copilot-view element inside. Apply the
+  /* Copilot is rendered through .copilot-section-wrapper, so the visible
+     panel lives on the .copilot-panel.copilot-view element inside. Apply the
      same hide/show via the wrapper's parent rule. */
-  .obsidian-workspace[data-mobile-section] > .qa-section-wrapper {
+  .obsidian-workspace[data-mobile-section] > .copilot-section-wrapper {
     display: none;
   }
 
-  .obsidian-workspace[data-mobile-section="ask"] > .qa-section-wrapper {
+  .obsidian-workspace[data-mobile-section="ask"] > .copilot-section-wrapper {
     display: contents;
   }
 
@@ -96,7 +96,7 @@
      segmented control. The mobile-segmented bar is ~52px tall, the
      topbar collapses to ~64px, so panes claim the rest. */
   .obsidian-workspace[data-mobile-section] > [data-section],
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel {
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-panel {
     min-height: calc(100dvh - 64px - 60px - env(safe-area-inset-bottom, 0px));
     max-height: none;
   }

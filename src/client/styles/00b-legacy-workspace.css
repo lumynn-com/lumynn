@@ -1,4 +1,4 @@
-/* Legacy workspace, vault, editor, preview, and Q&A answer rules. */
+/* Legacy workspace, vault, editor, preview, and rendered answer rules. */
 .app-shell {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -285,26 +285,26 @@ nav .active {
   color: #c9d1d9;
 }
 
-.qa-answer {
+.rendered-markdown {
   line-height: 1.72;
   color: #d7dee8;
 }
 
-.qa-answer :first-child {
+.rendered-markdown :first-child {
   margin-top: 0;
 }
 
-.qa-answer :last-child {
+.rendered-markdown :last-child {
   margin-bottom: 0;
 }
 
-.qa-answer code {
+.rendered-markdown code {
   border-radius: 6px;
   padding: 0.15rem 0.3rem;
   background: rgba(255, 255, 255, 0.08);
 }
 
-.qa-answer pre.hljs {
+.rendered-markdown pre.hljs {
   background: rgba(13, 17, 23, 0.85);
   border-radius: 8px;
   padding: 1rem 1.15rem;
@@ -313,7 +313,7 @@ nav .active {
   font-size: 0.88rem;
 }
 
-.qa-answer pre.hljs code {
+.rendered-markdown pre.hljs code {
   background: transparent;
   padding: 0;
   border-radius: 0;
@@ -321,7 +321,7 @@ nav .active {
   color: #c9d1d9;
 }
 
-.qa-answer a[href^="#source-"] {
+.rendered-markdown a[href^="#source-"] {
   display: inline-flex;
   align-items: center;
   border: 1px solid color-mix(in srgb, var(--accent-2) 34%, transparent);
@@ -334,7 +334,7 @@ nav .active {
   text-decoration: none;
 }
 
-.qa-answer a[href^="#source-"]:hover {
+.rendered-markdown a[href^="#source-"]:hover {
   border-color: color-mix(in srgb, var(--accent-2) 56%, transparent);
   background: color-mix(in srgb, var(--accent-2) 18%, transparent);
 }

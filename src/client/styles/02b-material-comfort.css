@@ -107,7 +107,7 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 .obsidian-workspace .panel,
 .vault-pane,
 .editor-pane,
-.qa-panel {
+.copilot-panel {
   border-color: var(--md-outline-soft);
   border-radius: var(--md-radius-lg);
   background: var(--md-surface);
@@ -182,7 +182,7 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 
 .document-list .panel-header,
 .editor-pane .panel-header,
-.qa-panel .qa-hero {
+.copilot-panel .copilot-hero {
   padding-bottom: 0;
   border-bottom: 0;
 }
@@ -305,15 +305,15 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 }
 
 .preview-surface article,
-.qa-answer {
+.rendered-markdown {
   color: var(--md-text);
 }
 
-.qa-panel {
+.copilot-panel {
   gap: 0.75rem;
 }
 
-.qa-panel .qa-hero {
+.copilot-panel .copilot-hero {
   gap: 0.55rem;
 }
 

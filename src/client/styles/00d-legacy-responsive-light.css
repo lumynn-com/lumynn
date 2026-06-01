@@ -94,21 +94,21 @@ body[data-theme="light"] .brand span:last-child {
 body[data-theme="light"] .tree-row:hover,
 body[data-theme="light"] .blank-editor,
 body[data-theme="light"] .message,
-body[data-theme="light"] .qa-answer code,
+body[data-theme="light"] .rendered-markdown code,
 body[data-theme="light"] .preview article code {
   background: rgba(23, 32, 51, 0.06);
 }
 
 body[data-theme="light"] .folder-row,
 body[data-theme="light"] .preview article,
-body[data-theme="light"] .qa-answer {
+body[data-theme="light"] .rendered-markdown {
   color: #24324a;
 }
 
-body[data-theme="light"] :where(.preview, .preview-surface, .qa-answer) pre.hljs {
+body[data-theme="light"] :where(.preview, .preview-surface, .rendered-markdown) pre.hljs {
   background: rgba(240, 243, 248, 0.95);
 }
 
-body[data-theme="light"] :where(.preview, .preview-surface, .qa-answer) pre.hljs code {
+body[data-theme="light"] :where(.preview, .preview-surface, .rendered-markdown) pre.hljs code {
   color: #24292e;
 }

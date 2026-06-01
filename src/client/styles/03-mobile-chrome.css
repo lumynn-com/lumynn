@@ -110,7 +110,7 @@
      mobile so the content takes the visual focus. */
   .vault-pane,
   .editor-pane,
-  .qa-panel {
+  .copilot-panel {
     background: var(--md-surface, var(--panel));
     box-shadow: none;
     border-radius: 14px;
@@ -216,12 +216,12 @@
   }
 
   /* Copilot pane gets a tighter mobile feel. */
-  .qa-panel {
+  .copilot-panel {
     padding: 0.55rem;
     gap: 0.6rem;
   }
 
-  .qa-panel .qa-hero {
+  .copilot-panel .copilot-hero {
     gap: 0.45rem;
     padding-bottom: 0.5rem;
   }

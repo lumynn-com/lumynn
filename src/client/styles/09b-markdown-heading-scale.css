@@ -2,11 +2,11 @@
    30. Markdown heading scale final override.
 
    Workspace-level h2 rules are meant for panel titles, not
-   rendered Markdown. Keep preview/Q&A headings ordered by their
+   rendered Markdown. Keep preview/Copilot headings ordered by their
    Markdown level after all app typography rules have loaded.
    ============================================================ */
 .editor-pane .preview-surface article :is(h1, h2, h3, h4, h5, h6),
-.qa-panel .qa-answer :is(h1, h2, h3, h4, h5, h6) {
+.copilot-panel .rendered-markdown :is(h1, h2, h3, h4, h5, h6) {
   margin: 1.35em 0 0.55em;
   color: var(--md-text, var(--text));
   font-weight: 650;
@@ -15,32 +15,32 @@
 }
 
 .editor-pane .preview-surface article h1,
-.qa-panel .qa-answer h1 {
+.copilot-panel .rendered-markdown h1 {
   font-size: 1.74rem;
 }
 
 .editor-pane .preview-surface article h2,
-.qa-panel .qa-answer h2 {
+.copilot-panel .rendered-markdown h2 {
   font-size: 1.5rem;
 }
 
 .editor-pane .preview-surface article h3,
-.qa-panel .qa-answer h3 {
+.copilot-panel .rendered-markdown h3 {
   font-size: 1.22rem;
 }
 
 .editor-pane .preview-surface article h4,
-.qa-panel .qa-answer h4 {
+.copilot-panel .rendered-markdown h4 {
   font-size: 1.1rem;
 }
 
 .editor-pane .preview-surface article h5,
-.qa-panel .qa-answer h5 {
+.copilot-panel .rendered-markdown h5 {
   font-size: 1rem;
 }
 
 .editor-pane .preview-surface article h6,
-.qa-panel .qa-answer h6 {
+.copilot-panel .rendered-markdown h6 {
   color: var(--md-muted, var(--muted));
   font-size: 0.94rem;
 }

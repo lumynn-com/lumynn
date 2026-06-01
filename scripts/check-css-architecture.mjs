@@ -257,6 +257,12 @@ if (/editor-pane\s*>\s*\.print-surface/.test(printSurfaceText)) {
 const retiredCssSelectors = [
   ["old QA view", /\.qa-view\b/],
   ["old QA ask row", /\.ask-row\b/],
+  ["old QA panel shell", /\.qa-panel\b/],
+  ["old QA hero shell", /\.qa-hero\b/],
+  ["old QA answer shell", /\.qa-answer\b/],
+  ["old QA section wrapper", /\.qa-section-wrapper\b/],
+  ["old QA collapse control", /\.qa-collapse-toggle\b/],
+  ["old QA collapse attribute", /data-qa-collapsed/],
   ["old QA response block", /\.qa-response\b/],
   ["old QA query button", /\.query-button\b/],
   ["old QA query loading state", /\.query-loading\b/],

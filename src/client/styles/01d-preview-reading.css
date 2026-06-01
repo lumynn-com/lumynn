@@ -79,7 +79,7 @@
 }
 
 .preview-surface article blockquote,
-.qa-answer blockquote {
+.rendered-markdown blockquote {
   margin: 1rem 0;
   padding: 0.15rem 0 0.15rem 0.9rem;
   border-left: 3px solid color-mix(in srgb, var(--accent) 46%, var(--border));
@@ -88,12 +88,12 @@
 }
 
 .preview-surface article blockquote > :first-child,
-.qa-answer blockquote > :first-child {
+.rendered-markdown blockquote > :first-child {
   margin-top: 0;
 }
 
 .preview-surface article blockquote > :last-child,
-.qa-answer blockquote > :last-child {
+.rendered-markdown blockquote > :last-child {
   margin-bottom: 0;
 }
 
@@ -230,7 +230,7 @@
 }
 
 .preview-surface article img,
-.qa-answer img {
+.rendered-markdown img {
   display: block;
   max-width: 100%;
   height: auto;

@@ -1,33 +1,33 @@
 /* ============================================================
    32. Shared Markdown document theme.
 
-   Preview, Q&A answers, and Muya editor content now share the
+   Preview, Copilot answers, and Muya editor content now share the
    same document tokens. This only normalizes rendered Markdown
    surfaces; app font and tab/menu structure stay untouched.
    ============================================================ */
 .editor-pane .preview-surface article,
-.qa-panel .qa-answer {
+.copilot-panel .rendered-markdown {
   font-family: var(--font-doc, Georgia, serif);
   color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(h1, h2, h3, h4, h5),
-.qa-panel .qa-answer :where(h1, h2, h3, h4, h5) {
+.copilot-panel .rendered-markdown :where(h1, h2, h3, h4, h5) {
   color: var(--owd-doc-heading);
 }
 
 .editor-pane .preview-surface article h6,
-.qa-panel .qa-answer h6 {
+.copilot-panel .rendered-markdown h6 {
   color: var(--owd-doc-muted);
 }
 
 .editor-pane .preview-surface article :where(p, li, td, th),
-.qa-panel .qa-answer :where(p, li, td, th) {
+.copilot-panel .rendered-markdown :where(p, li, td, th) {
   color: var(--owd-doc-text);
 }
 
 .editor-pane .preview-surface article :where(a, a.internal-link),
-.qa-panel .qa-answer :where(a, a.internal-link) {
+.copilot-panel .rendered-markdown :where(a, a.internal-link) {
   color: var(--owd-doc-link);
   text-decoration-color: color-mix(in srgb, currentcolor 38%, transparent);
   text-decoration-thickness: 1px;
@@ -35,20 +35,20 @@
 }
 
 .editor-pane .preview-surface article :where(a, a.internal-link):hover,
-.qa-panel .qa-answer :where(a, a.internal-link):hover {
+.copilot-panel .rendered-markdown :where(a, a.internal-link):hover {
   color: color-mix(in srgb, var(--owd-doc-link) 78%, var(--owd-doc-text) 22%);
   text-decoration-color: currentcolor;
 }
 
 .editor-pane .preview-surface article blockquote,
-.qa-panel .qa-answer blockquote {
+.copilot-panel .rendered-markdown blockquote {
   border-left: 2px solid var(--owd-doc-border-strong);
   background: var(--owd-doc-quote-bg);
   color: var(--owd-doc-muted);
 }
 
 .editor-pane .preview-surface article code,
-.qa-panel .qa-answer code {
+.copilot-panel .rendered-markdown code {
   border: 1px solid var(--owd-doc-border);
   border-radius: 3px;
   background: var(--owd-doc-inline-code-bg);
@@ -56,7 +56,7 @@
 }
 
 .editor-pane .preview-surface article :where(pre, pre.hljs),
-.qa-panel .qa-answer :where(pre, pre.hljs) {
+.copilot-panel .rendered-markdown :where(pre, pre.hljs) {
   border: 1px solid var(--owd-doc-border);
   border-radius: 0;
   background: var(--owd-doc-code-bg);
@@ -65,14 +65,14 @@
 }
 
 .editor-pane .preview-surface article :where(pre, pre.hljs) code,
-.qa-panel .qa-answer :where(pre, pre.hljs) code {
+.copilot-panel .rendered-markdown :where(pre, pre.hljs) code {
   border: 0;
   background: transparent;
   color: inherit;
 }
 
 .editor-pane .preview-surface article table,
-.qa-panel .qa-answer table {
+.copilot-panel .rendered-markdown table {
   border-color: var(--owd-doc-border);
   border-radius: 0;
   background: transparent;
@@ -80,27 +80,27 @@
 }
 
 .editor-pane .preview-surface article table thead,
-.qa-panel .qa-answer table thead {
+.copilot-panel .rendered-markdown table thead {
   background: var(--owd-doc-table-head-bg);
 }
 
 .editor-pane .preview-surface article table :where(th, td),
-.qa-panel .qa-answer table :where(th, td) {
+.copilot-panel .rendered-markdown table :where(th, td) {
   border-color: var(--owd-doc-border);
 }
 
 .editor-pane .preview-surface article table tbody tr:nth-child(even),
-.qa-panel .qa-answer table tbody tr:nth-child(even) {
+.copilot-panel .rendered-markdown table tbody tr:nth-child(even) {
   background: var(--owd-doc-table-row-alt);
 }
 
 .editor-pane .preview-surface article table tbody tr:hover,
-.qa-panel .qa-answer table tbody tr:hover {
+.copilot-panel .rendered-markdown table tbody tr:hover {
   background: var(--owd-tonal-hover);
 }
 
 .editor-pane .preview-surface article li:has(input[type="checkbox"]),
-.qa-panel .qa-answer li:has(input[type="checkbox"]) {
+.copilot-panel .rendered-markdown li:has(input[type="checkbox"]) {
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -108,18 +108,18 @@
 }
 
 .editor-pane .preview-surface article input[type="checkbox"],
-.qa-panel .qa-answer input[type="checkbox"] {
+.copilot-panel .rendered-markdown input[type="checkbox"] {
   accent-color: var(--md-primary, var(--accent-2));
 }
 
 .editor-pane .preview-surface article img,
-.qa-panel .qa-answer img {
+.copilot-panel .rendered-markdown img {
   border: 1px solid var(--owd-doc-border);
   border-radius: 0;
   box-shadow: none;
 }
 
-:where(.editor-pane .preview-surface article, .qa-panel .qa-answer, .print-surface article) .katex .cjk_fallback {
+:where(.editor-pane .preview-surface article, .copilot-panel .rendered-markdown, .print-surface article) .katex .cjk_fallback {
   font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", "PingFang SC", sans-serif);
   font-size: 0.84em;
   font-style: normal;

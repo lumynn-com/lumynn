@@ -196,7 +196,7 @@
   }
 
   .obsidian-workspace[data-mobile-section="vault"] > [data-section="vault"],
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-panel,
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet {
     background: var(--owd-minimal-surface, var(--md-surface));
@@ -207,7 +207,7 @@
     border-right: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
   }
 
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel,
+  .obsidian-workspace[data-mobile-section="ask"] .copilot-panel,
   .modal-backdrop.sheet-backdrop .action-sheet,
   .action-sheet {
     border-top: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
