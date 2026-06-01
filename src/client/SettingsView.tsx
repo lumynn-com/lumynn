@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AppSettings, ProviderSettings, RagIndexJob, RagIndexStats, UserRole, UserSummary } from "../shared/types";
+import {
+  DEFAULT_RAG_INDEXING,
+  DEFAULT_RAG_RETRIEVAL,
+  type AppSettings,
+  type ProviderSettings,
+  type RagIndexJob,
+  type RagIndexStats,
+  type RagSettings,
+  type UserRole,
+  type UserSummary
+} from "../shared/types";
 import { api } from "./api";
 import { BusyLabel } from "./icons";
 import { useT } from "./i18n";
@@ -267,14 +277,30 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
     });
   }
 
-  async function persistRagSettings(): Promise<AppSettings> {
+  async function persistRagSettings(nextRag: RagSettings = settings!.rag): Promise<AppSettings> {
     const saved = await api<AppSettings>("/api/settings/rag", {
       method: "PUT",
-      body: JSON.stringify(settings!.rag)
+      body: JSON.stringify(nextRag)
     });
     setSettings(saved);
     broadcastSettingsUpdate(saved);
     return saved;
+  }
+
+  async function resetIndexSettings() {
+    await runBusy("reset-rag-index", async () => {
+      try {
+        const nextRag: RagSettings = {
+          ...settings!.rag,
+          retrieval: { ...DEFAULT_RAG_RETRIEVAL },
+          indexing: { ...DEFAULT_RAG_INDEXING }
+        };
+        await persistRagSettings(nextRag);
+        setMessage(t("settings.ops.resetSaved"));
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : t("settings.ops.resetError"));
+      }
+    });
   }
 
   async function test(url: string, busyKey: string) {
@@ -758,109 +784,119 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                 <h2>{t("settings.ops.title")}</h2>
                 <p className="muted">{t("settings.ops.description")}</p>
               </div>
-              <div className="field-grid">
-                <label>
-                  {t("settings.ops.topK")}
-                  <input
-                    type="number"
-                    name="rag-top-k"
-                    min={1}
-                    max={30}
-                    step={1}
-                    value={settings.rag.retrieval.topK}
-                    onChange={(event) =>
-                      setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, topK: Number(event.target.value) } } })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("settings.ops.chunkSize")}
-                  <input
-                    type="number"
-                    name="rag-chunk-size"
-                    min={300}
-                    max={6000}
-                    step={100}
-                    value={settings.rag.retrieval.chunkSize}
-                    onChange={(event) =>
-                      setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkSize: Number(event.target.value) } } })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("settings.ops.chunkOverlap")}
-                  <input
-                    type="number"
-                    name="rag-chunk-overlap"
-                    min={0}
-                    max={1000}
-                    step={10}
-                    value={settings.rag.retrieval.chunkOverlap}
-                    onChange={(event) =>
-                      setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkOverlap: Number(event.target.value) } } })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("settings.ops.batchSize")}
-                  <input
-                    type="number"
-                    name="rag-embedding-batch-size"
-                    min={1}
-                    max={128}
-                    step={1}
-                    value={settings.rag.indexing.embeddingBatchSize}
-                    onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        rag: {
-                          ...settings.rag,
-                          indexing: { ...settings.rag.indexing, embeddingBatchSize: Number(event.target.value) }
+              <div className="indexing-settings-stack">
+                <div className="indexing-setting-group">
+                  <h3 className="settings-group-title">{t("settings.ops.retrievalGroup")}</h3>
+                  <div className="field-grid indexing-field-grid">
+                    <label>
+                      {t("settings.ops.topK")}
+                      <input
+                        type="number"
+                        name="rag-top-k"
+                        min={1}
+                        max={30}
+                        step={1}
+                        value={settings.rag.retrieval.topK}
+                        onChange={(event) =>
+                          setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, topK: Number(event.target.value) } } })
                         }
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("settings.ops.rpm")}
-                  <input
-                    type="number"
-                    name="rag-embedding-requests-per-minute"
-                    min={0}
-                    max={6000}
-                    step={1}
-                    value={settings.rag.indexing.embeddingRequestsPerMinute}
-                    onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        rag: {
-                          ...settings.rag,
-                          indexing: { ...settings.rag.indexing, embeddingRequestsPerMinute: Number(event.target.value) }
+                      />
+                    </label>
+                    <label>
+                      {t("settings.ops.chunkSize")}
+                      <input
+                        type="number"
+                        name="rag-chunk-size"
+                        min={300}
+                        max={6000}
+                        step={100}
+                        value={settings.rag.retrieval.chunkSize}
+                        onChange={(event) =>
+                          setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkSize: Number(event.target.value) } } })
                         }
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  {t("settings.ops.partitions")}
-                  <input
-                    type="number"
-                    name="rag-number-of-partitions"
-                    min={1}
-                    max={64}
-                    step={1}
-                    value={settings.rag.indexing.numberOfPartitions}
-                    onChange={(event) =>
-                      setSettings({
-                        ...settings,
-                        rag: {
-                          ...settings.rag,
-                          indexing: { ...settings.rag.indexing, numberOfPartitions: Number(event.target.value) }
+                      />
+                    </label>
+                    <label>
+                      {t("settings.ops.chunkOverlap")}
+                      <input
+                        type="number"
+                        name="rag-chunk-overlap"
+                        min={0}
+                        max={1000}
+                        step={10}
+                        value={settings.rag.retrieval.chunkOverlap}
+                        onChange={(event) =>
+                          setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkOverlap: Number(event.target.value) } } })
                         }
-                      })
-                    }
-                  />
-                </label>
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div className="indexing-setting-group">
+                  <h3 className="settings-group-title">{t("settings.ops.indexingGroup")}</h3>
+                  <div className="field-grid indexing-field-grid">
+                    <label>
+                      {t("settings.ops.batchSize")}
+                      <input
+                        type="number"
+                        name="rag-embedding-batch-size"
+                        min={1}
+                        max={128}
+                        step={1}
+                        value={settings.rag.indexing.embeddingBatchSize}
+                        onChange={(event) =>
+                          setSettings({
+                            ...settings,
+                            rag: {
+                              ...settings.rag,
+                              indexing: { ...settings.rag.indexing, embeddingBatchSize: Number(event.target.value) }
+                            }
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      {t("settings.ops.rpm")}
+                      <input
+                        type="number"
+                        name="rag-embedding-requests-per-minute"
+                        min={0}
+                        max={6000}
+                        step={1}
+                        value={settings.rag.indexing.embeddingRequestsPerMinute}
+                        onChange={(event) =>
+                          setSettings({
+                            ...settings,
+                            rag: {
+                              ...settings.rag,
+                              indexing: { ...settings.rag.indexing, embeddingRequestsPerMinute: Number(event.target.value) }
+                            }
+                          })
+                        }
+                      />
+                    </label>
+                    <label>
+                      {t("settings.ops.partitions")}
+                      <input
+                        type="number"
+                        name="rag-number-of-partitions"
+                        min={1}
+                        max={64}
+                        step={1}
+                        value={settings.rag.indexing.numberOfPartitions}
+                        onChange={(event) =>
+                          setSettings({
+                            ...settings,
+                            rag: {
+                              ...settings.rag,
+                              indexing: { ...settings.rag.indexing, numberOfPartitions: Number(event.target.value) }
+                            }
+                          })
+                        }
+                      />
+                    </label>
+                  </div>
+                </div>
               </div>
               {indexStats ? <IndexStatus stats={indexStats} t={t} /> : null}
               <div className="button-row">
@@ -871,6 +907,13 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   aria-busy={isBusy("save-rag-index")}
                 >
                   <BusyLabel busy={isBusy("save-rag-index")} busyText={t("settings.ops.saveIndexBusy")}>{t("settings.ops.saveIndex")}</BusyLabel>
+                </button>
+                <button
+                  onClick={resetIndexSettings}
+                  disabled={isBusy("reset-rag-index")}
+                  aria-busy={isBusy("reset-rag-index")}
+                >
+                  <BusyLabel busy={isBusy("reset-rag-index")} busyText={t("settings.ops.resetIndexBusy")}>{t("settings.ops.resetIndex")}</BusyLabel>
                 </button>
                 <button
                   onClick={() => startIndex("/api/settings/rag/test-index", "start-test-index", { sampleSize: 20 })}

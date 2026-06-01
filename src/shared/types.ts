@@ -63,6 +63,18 @@ export interface RagSettings {
   };
 }
 
+export const DEFAULT_RAG_RETRIEVAL: RagSettings["retrieval"] = {
+  topK: 6,
+  chunkSize: 6000,
+  chunkOverlap: 0
+};
+
+export const DEFAULT_RAG_INDEXING: RagSettings["indexing"] = {
+  embeddingBatchSize: 16,
+  embeddingRequestsPerMinute: 100,
+  numberOfPartitions: 2
+};
+
 export interface ProviderSettings {
   provider: "openai-compatible" | "disabled";
   apiMode?: "embeddings" | "chat-completions" | "responses" | "custom";

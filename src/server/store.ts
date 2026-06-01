@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config";
-import type { RagSettings, UserRole, VaultValidation } from "../shared/types";
+import { DEFAULT_RAG_INDEXING, DEFAULT_RAG_RETRIEVAL, type RagSettings, type UserRole, type VaultValidation } from "../shared/types";
 
 export interface SessionRecord {
   idHash: string;
@@ -88,16 +88,8 @@ const defaultRag: RagSettings = {
     model: "",
     timeoutMs: 30000
   },
-  retrieval: {
-    topK: 6,
-    chunkSize: 6000,
-    chunkOverlap: 0
-  },
-  indexing: {
-    embeddingBatchSize: 16,
-    embeddingRequestsPerMinute: 100,
-    numberOfPartitions: 2
-  }
+  retrieval: { ...DEFAULT_RAG_RETRIEVAL },
+  indexing: { ...DEFAULT_RAG_INDEXING }
 };
 
 function normalizeRagRetrieval(retrieval: Partial<RagSettings["retrieval"]> | undefined): RagSettings["retrieval"] {

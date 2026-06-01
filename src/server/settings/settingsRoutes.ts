@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { AppSettings, ProviderSettings } from "../../shared/types";
+import { DEFAULT_RAG_INDEXING, type AppSettings, type ProviderSettings } from "../../shared/types";
 import { config } from "../config";
 import { redactSecret } from "../crypto";
 import { requireAdmin } from "../auth/authService";
@@ -35,7 +35,7 @@ const ragSchema = z.object({
       embeddingRequestsPerMinute: z.number().int().min(0).max(6000),
       numberOfPartitions: z.number().int().min(1).max(64).default(2)
     })
-    .default({ embeddingBatchSize: 16, embeddingRequestsPerMinute: 100, numberOfPartitions: 2 })
+    .default(DEFAULT_RAG_INDEXING)
 });
 
 const httpsSchema = z.object({

@@ -27,17 +27,50 @@
   gap: 1.1rem;
 }
 
-.indexing-view .field-grid {
+.indexing-settings-stack,
+.indexing-setting-group {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.indexing-setting-group + .indexing-setting-group {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.settings-group-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.indexing-view .indexing-field-grid {
   grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.indexing-view .indexing-field-grid label,
+.indexing-view .indexing-field-grid input {
+  min-width: 0;
+}
+
+.indexing-view .indexing-field-grid input {
+  width: 100%;
 }
 
 .indexing-view .button-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .indexing-view .button-row button {
   min-height: 48px;
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
 }
 
 .settings-nav {
@@ -93,12 +126,8 @@
 }
 
 @media (max-width: 1180px) {
-  .indexing-view .field-grid {
+  .indexing-view .indexing-field-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
-  }
-
-  .indexing-view .button-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -107,9 +136,38 @@
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .indexing-view .field-grid,
+  .indexing-view {
+    width: 100%;
+    max-width: none;
+    overflow-x: hidden;
+    padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
+  }
+
+  .indexing-view .settings-hero,
+  .indexing-view .form-panel {
+    padding: 1rem;
+  }
+
+  .indexing-view .indexing-field-grid,
   .indexing-view .button-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .indexing-view .index-status-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .indexing-view .progress-header {
+    display: grid;
+  }
+
+  .indexing-view .progress-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+
+  .indexing-view .progress-row span {
+    overflow-wrap: anywhere;
   }
 
 }

@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { UserRole } from "../../shared/types";
+import { DEFAULT_RAG_INDEXING, DEFAULT_RAG_RETRIEVAL, type UserRole } from "../../shared/types";
 import { config } from "../config";
 import { newToken, sha256 } from "../crypto";
 import { adminUsers, findUserByUsername, store, type UserRecord } from "../store";
@@ -50,14 +50,13 @@ export async function setInitialAdminIfMissing(username: string, password: strin
 
 // Legacy-named shim used by the very-first-login path so the
 // JSON shape doesn't import from store.ts back through
-// authService. The actual defaults live in store.ts; we just
-// inline a minimal copy here to keep the import graph one-way.
+// authService.
 function emptyRagSettingsForBootstrap() {
   return {
     embedding: { provider: "disabled" as const, apiMode: "embeddings" as const, endpointPath: "/embeddings", baseUrl: "", model: "", timeoutMs: 30000 },
     qa: { provider: "disabled" as const, apiMode: "chat-completions" as const, endpointPath: "/chat/completions", reasoningMode: "disabled" as const, reasoningDetected: false, baseUrl: "", model: "", timeoutMs: 30000 },
-    retrieval: { topK: 6, chunkSize: 6000, chunkOverlap: 0 },
-    indexing: { embeddingBatchSize: 16, embeddingRequestsPerMinute: 100, numberOfPartitions: 2 }
+    retrieval: { ...DEFAULT_RAG_RETRIEVAL },
+    indexing: { ...DEFAULT_RAG_INDEXING }
   };
 }
 
