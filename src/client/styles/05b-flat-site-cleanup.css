@@ -153,9 +153,9 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .editor-fab,
 .undo-toast,
 .search-form input,
-input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
 .file-button,
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.primary):not(.danger):not(.editor-fab):not(.undo-toast-action) {
   box-shadow: none;
@@ -183,18 +183,18 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 
 /* 9. Inputs / textareas / selects: flat hairline border + solid
       surface, no inset highlight, no gradient. */
-input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)),
 .search-form input {
   background: var(--md-surface-2, var(--panel-strong)) !important;
   border: 1px solid var(--md-outline-soft, var(--border));
   background-image: none !important;
 }
 
-input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
-textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
-select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible {
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .copilot-input-shell *)):focus-visible {
   border-color: var(--md-primary, var(--accent-2));
 }
 
@@ -243,9 +243,9 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
        with the previous outline + box-shadow combo. Honors the
        prefers-reduced-motion media query (no transition flicker). */
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):focus-visible,
-input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
-select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
-textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *)):focus-visible,
+input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *, .copilot-input-shell *)):focus-visible,
+select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *, .copilot-input-shell *)):focus-visible,
+textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *, .mu-front-button-wrapper *, .copilot-input-shell *)):focus-visible,
 .file-button:focus-within {
   outline: 2px solid var(--md-primary, var(--accent-2));
   outline-offset: 2px;
