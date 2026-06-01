@@ -10,13 +10,12 @@ export interface DocumentTreeEntry {
   /** Whether this entry is a folder (has children) or a file (leaf). */
   type: "folder" | "file";
   /** Sorted children. May be omitted on folders when the server
-   *  returned a depth-limited listing; `hasChildren` indicates
-   *  whether the folder is known to be non-empty without forcing
-   *  the children to be fetched. */
+   *  returned a depth-limited listing; the client loads omitted
+   *  children when the folder is expanded. */
   children?: DocumentTreeEntry[];
-  /** Set by the server on folders when `children` was elided for
-   *  depth reasons but the folder is known to contain at least one
-   *  Markdown file or non-empty subfolder. */
+  /** Set by the server on folders when `children` was elided but
+   *  the row should remain expandable. Undefined means unknown and
+   *  clients should treat it as expandable for lazy loading. */
   hasChildren?: boolean;
   /** For file entries when the server was asked to sort by mtime:
    *  the file's last-modified time as an ISO string. */

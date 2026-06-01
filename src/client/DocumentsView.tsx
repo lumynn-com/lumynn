@@ -1154,11 +1154,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     return promise;
   }, [folderChildren, order, sort]);
 
-  // Recursive background prefetch with a small concurrency cap so
-  // the foreground UI stays responsive. Yields between batches via
-  // requestIdleCallback (falls back to setTimeout) so user
-  // interactions get processed first. Cancelled when the
-  // generation counter is bumped (refreshDocuments invalidates).
+  // Recursive background prefetch with a small concurrency cap. This
+  // only runs after Muya has reported ready, so startup keeps the
+  // editor path first while later folder expands are warmed.
   const prefetchFolderTree = useCallback(async function prefetchFolderTree(rootChildren: DocumentTreeEntry[], nextSort: SortField, nextOrder: SortOrder): Promise<void> {
     const tracker = folderFetchTracker.current;
     const generation = tracker.generation;
@@ -1180,8 +1178,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       prefetched += 1;
       const fetched = await loadFolderChildren(next, { silent: true, sort: nextSort, order: nextOrder });
       if (tracker.generation !== generation) return;
-      // Push this folder's sub-folders so the prefetch goes deep
-      // but breadth-first.
       if (fetched) {
         for (const child of fetched) {
           if (child.type === "folder" && (child.hasChildren ?? true)) {
@@ -1189,9 +1185,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           }
         }
       }
-      // Yield to the event loop before scheduling the next fetch
-      // so any in-flight user gesture (tap to expand a specific
-      // folder, scroll) is processed first.
       await new Promise<void>((resolve) => {
         const ric = (window as typeof window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
         if (typeof ric === "function") ric(() => resolve(), { timeout: 250 });
@@ -1221,13 +1214,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     pendingFolderWarmup.current = null;
 
     setFolderChildren(new Map());
-    // Fetch the root immediately so the sidebar appears within
-    // milliseconds even on a multi-thousand-file vault.
+    // Fetch only the root folder. Subfolders are loaded on first
+    // expansion so startup never competes with a recursive tree walk.
     const rootChildren = await loadFolderChildren("", { force: true, sort: nextSort, order: nextOrder });
-    // After the root renders, warm a bounded number of folders in
-    // the background. On cold start this waits until Muya has
-    // mounted and painted once so editor activation is not competing
-    // with a recursive folder warmup.
     if (rootChildren && rootChildren.length > 0) {
       const warmup = {
         rootChildren,
@@ -1328,8 +1317,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
 
   useEffect(() => {
     // Root tree is part of the first usable shell, so it may run in
-    // parallel with Muya. refreshDocuments still defers recursive
-    // warmup and count work until the editor reports ready.
+    // parallel with Muya. Deeper folder warmup and recursive count
+    // wait until the editor reports ready.
     refreshDocuments().catch((error) => setStatusText(error.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

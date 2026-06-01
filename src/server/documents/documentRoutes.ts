@@ -24,11 +24,12 @@ function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | 
 export async function registerDocumentRoutes(app: FastifyInstance): Promise<void> {
   // Lightweight folder/file structure for the document tree.
   // Default is a lazy single-level listing: returns just the
-  // requested folder's direct children with `hasChildren` set on
-  // sub-folders that contain Markdown. The client expands deeper
-  // levels by making additional calls with ?path=<sub-folder>.
-  // Pass depth=0 (or any larger number) to override and get a
-  // multi-level subtree in one shot.
+  // requested folder's direct children. Sub-folders are returned
+  // as expandable rows without probing inside them; the client
+  // expands deeper levels by making additional calls with
+  // ?path=<sub-folder>.
+  // Pass depth > 1 to override and get a multi-level subtree in
+  // one shot.
   app.get("/api/documents/tree", async (request, reply) => {
     const user = authedUser(request, reply);
     if (!user) return;

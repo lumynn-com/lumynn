@@ -247,26 +247,6 @@ function invalidateTreeCache(vaultRoot: string): void {
   }
 }
 
-async function folderHasContent(dir: string): Promise<boolean> {
-  // Cheap check: is there any markdown file or any subfolder that
-  // (recursively) has one? We need this so depth-limited folders
-  // still know to show an expand caret. Walks until it finds one
-  // .md file, then returns true; stops descending into hidden
-  // folders.
-  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
-  for (const entry of entries) {
-    if (entry.name === ".obsidian" || entry.name.startsWith(".")) continue;
-    if (entry.isFile() && entry.name.endsWith(".md")) return true;
-  }
-  for (const entry of entries) {
-    if (entry.name === ".obsidian" || entry.name.startsWith(".")) continue;
-    if (entry.isDirectory()) {
-      if (await folderHasContent(path.join(dir, entry.name))) return true;
-    }
-  }
-  return false;
-}
-
 async function buildTreeNode(
   vaultRoot: string,
   dir: string,
@@ -287,11 +267,9 @@ async function buildTreeNode(
           // Drop empty folders so the tree doesn't show useless rows.
           return folder.children && folder.children.length > 0 ? folder : null;
         }
-        // Depth-limited: skip recursion. Probe whether the folder
-        // has any content so the client can show an expand caret
-        // without forcing a deeper walk now.
-        const hasChildren = await folderHasContent(fullPath);
-        if (!hasChildren) return null;
+        // Depth-limited means truly lazy: return the folder row
+        // without probing inside it. Expanding the folder makes a
+        // separate /api/documents/tree?path=... request.
         return {
           path: childRel,
           name: entry.name,

@@ -169,7 +169,7 @@ function ChildrenList(props: ChildrenListProps) {
               disabled={disabled}
               onToggle={props.onToggle}
               onSelect={props.onChange}
-              hasChildren={Boolean(entry.hasChildren)}
+              hasChildren={entry.hasChildren !== false}
             />
             {isExpanded && (
               <ChildrenList
