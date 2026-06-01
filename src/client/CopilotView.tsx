@@ -1521,7 +1521,7 @@ export const CopilotView = memo(function CopilotView(props: {
 
       {props.onDismiss ? (
         <div className="copilot-mobile-header">
-          <strong>{t("copilot.title")}</strong>
+          <span className="sr-only">{t("copilot.eyebrow")}</span>
           <button type="button" className="icon-button" aria-label={t("copilot.close")} onClick={props.onDismiss}>
             <CloseIcon />
           </button>
@@ -1539,7 +1539,7 @@ export const CopilotView = memo(function CopilotView(props: {
         ) : (
           <p className="eyebrow desktop-only">{t("copilot.eyebrow")}</p>
         )}
-        {props.compact ? <h2 className="desktop-only">{t("copilot.title")}</h2> : <h1>{t("copilot.title")}</h1>}
+        {!props.compact ? <h1>{t("copilot.title")}</h1> : null}
         {providerUnavailable ? <div className="error">{providerStatus.reason}</div> : null}
       </section>
 

@@ -28,6 +28,10 @@
   overflow: visible;
 }
 
+.copilot-chat-log > :first-child {
+  border-top: 0;
+}
+
 .copilot-message-assistant {
   border-color: var(--owd-minimal-divider, var(--md-outline-soft));
   background: transparent;

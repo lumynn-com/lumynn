@@ -9,7 +9,18 @@
 }
 
 .copilot-hero {
-  gap: 0.55rem;
+  flex: 0 0 auto;
+  gap: 0.3rem;
+}
+
+.copilot-panel .copilot-hero-top {
+  min-height: 44px;
+  box-shadow: inset 0 -1px 0 var(--owd-minimal-divider, var(--md-outline-soft));
+}
+
+.copilot-panel .copilot-hero-top > .eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
 }
 
 .copilot-mobile-header {
