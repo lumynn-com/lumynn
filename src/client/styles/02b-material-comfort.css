@@ -86,8 +86,7 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-
 label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .muted,
 .status,
-.tree-file-text small,
-.citation span {
+.tree-file-text small {
   color: var(--md-muted);
 }
 
@@ -318,32 +317,14 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   gap: 0.55rem;
 }
 
-.qa-panel .ask-row input,
-.qa-panel .ask-row button {
-  min-height: 44px;
-  border-radius: var(--md-radius-md);
-}
-
-.qa-panel .qa-response {
-  border-bottom-color: var(--md-outline-soft);
-}
-
-.qa-panel .citation,
 .search-result {
   border-color: var(--md-outline-soft);
   border-radius: var(--md-radius-lg);
   background: var(--md-surface-2);
 }
 
-.qa-panel .citation:hover,
 .search-result:hover {
   background: var(--md-surface-3);
-}
-
-.query-loading,
-.query-loading:hover:not(:disabled) {
-  background: var(--md-surface-3);
-  color: var(--md-muted);
 }
 
 .modal-backdrop {

@@ -254,6 +254,32 @@ if (/editor-pane\s*>\s*\.print-surface/.test(printSurfaceText)) {
   fail(`${printSurfaceFile}: do not reintroduce a persistent editor-pane print surface fallback`);
 }
 
+const retiredCssSelectors = [
+  ["old QA view", /\.qa-view\b/],
+  ["old QA ask row", /\.ask-row\b/],
+  ["old QA response block", /\.qa-response\b/],
+  ["old QA query button", /\.query-button\b/],
+  ["old QA query loading state", /\.query-loading\b/],
+  ["old QA query state", /\.qa-query-state\b/],
+  ["old QA citation grid", /\.citation-grid\b/],
+  ["old QA citation source", /\.citation-source\b/],
+  ["old QA citation card", /\.citation\b/]
+];
+
+const localCssFiles = expectedImports
+  .map(([importPath]) => importPath)
+  .filter((importPath) => importPath.startsWith("./styles/"))
+  .map((importPath) => `src/client/${importPath.slice(2)}`);
+
+for (const file of [stylesEntry, ...localCssFiles]) {
+  const text = read(file);
+  for (const [label, pattern] of retiredCssSelectors) {
+    if (pattern.test(text)) {
+      fail(`${file}: remove retired selector for ${label}`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error("CSS architecture check failed:");
   for (const failure of failures) {

@@ -27,7 +27,6 @@ body {
 .tree-row,
 .folder-picker-label,
 .search-result,
-.citation-source,
 .modal-backdrop.sheet-backdrop .action-sheet-group button,
 .tree-context-menu button,
 .anchored-menu button,
@@ -39,8 +38,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 
 input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-.search-form input,
-.qa-panel .ask-row input {
+.search-form input {
   font-size: var(--owd-type-row) !important;
   line-height: var(--owd-line-ui) !important;
 }
@@ -83,8 +81,7 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
-  .search-form input,
-  .qa-panel .ask-row input {
+  .search-form input {
     font-size: 16px !important;
   }
 }

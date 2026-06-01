@@ -215,7 +215,7 @@
     display: none;
   }
 
-  /* Q&A pane gets a tighter feel: input + button row, then answer. */
+  /* Copilot pane gets a tighter mobile feel. */
   .qa-panel {
     padding: 0.55rem;
     gap: 0.6rem;
@@ -226,21 +226,9 @@
     padding-bottom: 0.5rem;
   }
 
-  .qa-panel .ask-row {
-    grid-template-columns: 1fr;
-    gap: 0.45rem;
-  }
-
-  .qa-panel .ask-row input,
-  .qa-panel .ask-row button {
-    min-height: 44px;
-    border-radius: 12px;
-  }
-
   /* Active-pane min-height tweak: subtract topbar (\u2248 64px),
      segmented (\u2248 50px), and one section header (\u2248 50px). */
-  .obsidian-workspace[data-mobile-section] > [data-section],
-  .obsidian-workspace[data-mobile-section="ask"] .qa-panel:not(.copilot-view) {
+  .obsidian-workspace[data-mobile-section] > [data-section] {
     min-height: calc(100dvh - 64px - 50px - env(safe-area-inset-bottom, 0px));
   }
 

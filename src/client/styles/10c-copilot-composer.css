@@ -87,6 +87,7 @@
 }
 
 .copilot-input-row {
+  display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: 0.1rem;
@@ -110,18 +111,18 @@
   display: block;
   min-height: 82px;
   min-width: 0;
-  border: 0 !important;
-  border-radius: 0;
-  background: transparent;
-  padding: 0.36rem 0.05rem 0.18rem;
-  box-shadow: none !important;
-  transition: background 160ms ease;
+  border: 1px solid var(--owd-minimal-divider, var(--md-outline-soft));
+  border-radius: var(--owd-radius-control, 4px);
+  background: var(--owd-minimal-surface, var(--md-surface));
+  padding: 0.58rem 0.7rem 0.42rem;
+  box-shadow: none;
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .copilot-input-shell:focus-within {
-  border-color: transparent !important;
-  background: transparent;
-  box-shadow: none !important;
+  border-color: var(--owd-minimal-divider-strong, var(--md-outline));
+  background: var(--owd-editor-focus-bg, var(--owd-minimal-subtle));
+  box-shadow: none;
 }
 
 .copilot-input-shell textarea {
@@ -133,9 +134,11 @@
   background: transparent !important;
   box-shadow: none !important;
   outline: none;
-  padding: 0.08rem 0 !important;
+  padding: 0 !important;
   resize: none;
-  line-height: 1.45;
+  color: var(--md-text);
+  font-size: 0.94rem;
+  line-height: 1.55;
 }
 
 .copilot-submit-row {

@@ -1,6 +1,5 @@
-/* Legacy settings, indexing, form, message, and Q&A view rules. */
-.settings-view,
-.qa-view {
+/* Legacy settings, indexing, form, and message rules. */
+.settings-view {
   display: grid;
   gap: 1rem;
   align-content: start;
@@ -256,21 +255,4 @@ progress::-webkit-progress-value {
 .hero {
   display: grid;
   gap: 0.8rem;
-}
-
-.ask-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.75rem;
-}
-
-.citation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.citation {
-  display: grid;
-  gap: 0.5rem;
 }

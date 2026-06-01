@@ -8,13 +8,13 @@ The partials are split by historical layer and behavior area. Their cascade orde
 
 - `00-legacy-base.css`: original root defaults, global element reset, base controls, login shell/card, typography helpers, and error state rules.
 - `00b-legacy-workspace.css`: legacy app shell, sidebar, workspace grid, vault tree, editor tabs, preview, and Q&A answer rules.
-- `00c-legacy-settings-indexing.css`: legacy settings, indexing, import/export, form, message, hero, ask-row, and citation grid rules.
+- `00c-legacy-settings-indexing.css`: legacy settings, indexing, import/export, form, message, hero, and citation grid rules.
 - `00d-legacy-responsive-light.css`: legacy responsive layout rules and early light-mode compatibility overrides.
 - `01-redesign-workspace.css`: first redesign layer baseline, global app shell, sidebar, generic panels, legacy workspace grid, and responsive base rules.
-- `01b-task-ia.css`: task-first settings, indexing, Q&A view, and early document/editor/preview panel refinements.
+- `01b-task-ia.css`: task-first settings, indexing, and early document/editor/preview panel refinements.
 - `01c-workbench-shell.css`: Obsidian-style topbar, signed-in user/admin chrome, workspace shell, vault/editor toolbar, mode switch, and pane sizing rules.
 - `01d-preview-reading.css`: redesign-layer preview surface and rendered Markdown rules for code, blockquotes, tasks, tables, KaTeX, and images.
-- `01e-qa-modal-search.css`: redesign-layer Q&A panel, citations, modal shell, prompt dialog, search form/results, and related responsive rules.
+- `01e-qa-modal-search.css`: historical ask-panel shell, modal shell, prompt dialog, search form/results, and related responsive rules.
 - `02-visual-material.css`: original visual polish baseline for desktop editor, vault, preview, and Q&A surfaces.
 - `02b-material-comfort.css`: historical material comfort pass for flatter surfaces, relaxed spacing, core app controls, and modal/search foundations.
 - `02c-font-utility-controls.css`: historical font clarity, spinner, language switcher, editor FAB, back-to-top, and mobile input/toolbar utility rules.
@@ -28,7 +28,7 @@ The partials are split by historical layer and behavior area. Their cascade orde
 - `04d-syntax-highlighting.css`: highlight.js token colors for dark and light themes.
 - `05-flat-ui.css`: desktop vault toolbar, editor toolbar, anchored menu, primary command rows, and keyboard hint rules.
 - `05a-flat-editor-tabbar.css`: desktop combined editor tabbar and flat underline tab strip rules.
-- `05a-flat-desktop-sheets.css`: desktop command sheet, Q&A response spacing, flat panel surface cleanup, and reduced-motion guard for flat UI components.
+- `05a-flat-desktop-sheets.css`: desktop command sheet, flat panel surface cleanup, and reduced-motion guard for flat UI components.
 - `05b-flat-site-cleanup.css`: site-wide flat UI cleanup, anti-glass reset, primary actions, light-mode interaction states, and anchor scroll margins. It stays in the same `flat-ui` layer as `05` so the split does not change cascade priority.
 - `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, vault tree rendering optimization, and early flat state cleanup.
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
@@ -87,13 +87,13 @@ Treat `00` through `07` as frozen compatibility layers. Do not add new product s
 - Do not add new `:root[data-theme="light"]` token blocks to legacy partials; put active theme values in `08-current-theme-tokens.css`.
 - Avoid adding new `!important` rules unless they override an existing compatibility layer, protect mobile chrome, or isolate Muya/editor third-party styles.
 - Prefer the correct layer plus stronger, component-scoped selectors before reaching for `!important`.
-- Do not reorder layers or imports without checking desktop, mobile, light mode, dark mode, preview, editor, Q&A, and Copilot views.
+- Do not reorder layers or imports without checking desktop, mobile, light mode, dark mode, preview, editor, and Copilot views.
 
 ## Refactor Direction
 
 - Collapse duplicate token definitions into `08-current-theme-tokens.css`.
 - Keep the original legacy base split by concern. Root defaults and base controls stay in `00-legacy-base.css`; old workspace/editor/preview rules stay in `00b-legacy-workspace.css`; settings/indexing/forms/messages stay in `00c-legacy-settings-indexing.css`; old responsive and light-mode overrides stay in `00d-legacy-responsive-light.css`.
-- Keep the first redesign pass split by ownership. Global shell and legacy grid rules stay in `01-redesign-workspace.css`; settings/indexing task IA stays in `01b-task-ia.css`; Obsidian workbench shell and pane sizing stay in `01c-workbench-shell.css`; rendered preview rules stay in `01d-preview-reading.css`; Q&A, modal, prompt, and search rules stay in `01e-qa-modal-search.css`.
+- Keep the first redesign pass split by ownership. Global shell and legacy grid rules stay in `01-redesign-workspace.css`; settings/indexing task IA stays in `01b-task-ia.css`; Obsidian workbench shell and pane sizing stay in `01c-workbench-shell.css`; rendered preview rules stay in `01d-preview-reading.css`; historical ask-panel shell, modal, prompt, and search rules stay in `01e-qa-modal-search.css`.
 - Keep the material compatibility pass split by concern. Baseline desktop visuals stay in `02-visual-material.css`; material comfort surfaces stay in `02b-material-comfort.css`; font and utility controls stay in `02c-font-utility-controls.css`; mobile workbench feedback stays in `02d-mobile-workbench.css`.
 - Continue splitting the final override layer by feature ownership while keeping those files in the existing `current-theme-overrides` layer unless a deliberate cascade change is required.
 - Keep final override partials scoped by ownership. Avoid putting app chrome, tonal states, rendered Markdown, auth/empty/loading polish, and Copilot panel rules back into one shared override file. Keep Copilot shell, chat messages, composer, and mobile rules separate.

@@ -31,7 +31,6 @@
 .blank-editor,
 .empty-state,
 .info-box,
-.qa-panel .citation,
 .search-result,
 .folder-picker-label,
 .tree-row,
@@ -45,7 +44,6 @@ input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
 select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .search-form input,
-.qa-panel .ask-row input,
 .path-picker-modal input,
 .path-picker-modal select {
   border-radius: var(--owd-radius-control) !important;
@@ -54,7 +52,6 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.draft-pill):not(.status-pill):not(.zen-exit-button),
 .file-button,
 .search-form button,
-.qa-panel .query-button,
 .prompt-actions button,
 .settings-nav button,
 .lang-switch button,
@@ -104,8 +101,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .anchored-menu button,
 .modal-backdrop.sheet-backdrop .action-sheet-group button,
 .action-sheet-group button,
-.search-result,
-.citation-source {
+.search-result {
   border-radius: 0 !important;
 }
 

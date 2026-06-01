@@ -284,16 +284,6 @@
     color: var(--md-muted, var(--muted));
   }
 
-  .qa-panel .ask-row {
-    gap: 0.5rem;
-  }
-
-  .qa-panel .ask-row input,
-  .qa-panel .query-button {
-    border-radius: 6px;
-    box-shadow: none;
-  }
-
   .editor-fab {
     min-height: 44px;
     border-radius: 8px;

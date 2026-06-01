@@ -86,7 +86,6 @@ body[data-theme="light"] .muted,
 body[data-theme="light"] .status,
 body[data-theme="light"] .doc-item span,
 body[data-theme="light"] .tree-file-text small,
-body[data-theme="light"] .citation span,
 body[data-theme="light"] label,
 body[data-theme="light"] .brand span:last-child {
   color: #607089;

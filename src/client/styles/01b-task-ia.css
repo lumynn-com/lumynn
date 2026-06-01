@@ -62,26 +62,6 @@
   background: currentColor;
 }
 
-.qa-view .hero {
-  min-height: 280px;
-  align-content: center;
-}
-
-.qa-view .ask-row {
-  margin-top: 0.4rem;
-}
-
-.qa-view .ask-row input {
-  min-height: 54px;
-  border-radius: 18px;
-  font-size: 1rem;
-}
-
-.qa-view .ask-row button {
-  min-height: 54px;
-  padding-inline: 1.2rem;
-}
-
 .document-list .panel-header,
 .editor .panel-header,
 .preview .panel-header {
@@ -112,20 +92,6 @@
   text-wrap: pretty;
 }
 
-.citation-grid {
-  align-items: start;
-}
-
-.citation {
-  border-radius: 20px;
-}
-
-.citation p {
-  margin: 0;
-  color: var(--text);
-  line-height: 1.6;
-}
-
 @media (max-width: 1180px) {
   .indexing-view .field-grid {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
@@ -142,12 +108,8 @@
   }
 
   .indexing-view .field-grid,
-  .indexing-view .button-row,
-  .ask-row {
+  .indexing-view .button-row {
     grid-template-columns: 1fr;
   }
 
-  .qa-view .hero {
-    min-height: auto;
-  }
 }

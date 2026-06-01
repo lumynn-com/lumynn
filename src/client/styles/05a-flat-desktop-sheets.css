@@ -1,4 +1,4 @@
-/* Desktop command sheet, Q&A response, and flat panel surface rules. */
+/* Desktop command sheet and flat panel surface rules. */
 @media (min-width: 861px) {
   /* The vault sort sheet is now shared with desktop. Render it as
      a centred modal (like the search modal) instead of the mobile
@@ -108,13 +108,6 @@
   .modal-backdrop.sheet-backdrop .action-sheet-group button.active {
     color: var(--md-primary, var(--accent-2));
     font-weight: 600;
-  }
-
-  /* Q&A response: when the eyebrow + h2 panel-header is gone the
-     section needs a tiny top breathing space so the answer body
-     doesn't slam into the question form above. */
-  .qa-response-meta {
-    margin-bottom: 0.5rem;
   }
 
   /* Flat-UI pass on the three workspace panels: drop the

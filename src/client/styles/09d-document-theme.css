@@ -134,8 +134,7 @@
 :root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell:not(.active):hover,
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
-:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
-:root[data-theme="light"] .citation-source:not(:disabled):hover {
+:root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
   background: var(--owd-tonal-hover) !important;
   color: var(--md-text) !important;
 }
@@ -146,10 +145,7 @@
   color: var(--md-text) !important;
 }
 
-:root[data-theme="light"] .citation-source,
-:root[data-theme="light"] .file-button,
-:root[data-theme="light"] .query-loading,
-:root[data-theme="light"] .query-loading:hover:not(:disabled) {
+:root[data-theme="light"] .file-button {
   border-color: var(--owd-minimal-divider) !important;
   background: var(--owd-minimal-subtle) !important;
   color: var(--md-text) !important;

@@ -240,7 +240,6 @@ button[aria-busy="true"] > .button-spinner {
 
   .obsidian-workspace,
   .workspace-grid,
-  .qa-view,
   .settings-view {
     padding-left: max(0.7rem, env(safe-area-inset-left));
     padding-right: max(0.7rem, env(safe-area-inset-right));
@@ -254,7 +253,6 @@ button[aria-busy="true"] > .button-spinner {
   select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
   .editor textarea,
-  .qa-panel .ask-row input,
   .search-form input {
     font-size: 16px;
   }
@@ -374,17 +372,6 @@ button[aria-busy="true"] > .button-spinner {
 
   .editor-tab-shell {
     flex: 0 0 auto;
-  }
-
-  /* Citation source buttons can wrap freely on narrow screens so the
-     full path is readable. */
-  .citation-source strong,
-  .citation-source span {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    overflow-wrap: anywhere;
-    word-break: break-word;
   }
 
   /* Settings page controls breathing room on small screens. */

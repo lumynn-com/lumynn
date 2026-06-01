@@ -96,8 +96,7 @@ button.primary:hover:not(:disabled),
 
 button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)):not(.icon-button):not(.tab-strip-add):not(.tab-close):not(.editor-fab):not(.undo-toast-action):not(.editor-tab):not(.draft-pill):not(.zen-exit-button):not(.back-to-top),
 .file-button,
-.search-form button,
-.qa-panel .query-button {
+.search-form button {
   border-radius: 6px;
 }
 
@@ -199,7 +198,6 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .tree-row:hover,
 :root[data-theme="light"] .tree-row:hover,
 .folder-picker-label:hover:not(:disabled),
-.citation-source:hover:not(:disabled),
 .settings-nav button:hover:not(:disabled),
 .action-sheet-group button:hover:not(:disabled),
 .modal-backdrop.sheet-backdrop .action-sheet-group button:hover:not(:disabled),
@@ -251,7 +249,6 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   color: var(--md-primary);
 }
 
-.qa-panel .citation,
 .document-list .empty-state,
 .qa-panel .empty-state,
 .search-results .empty-state,
@@ -268,7 +265,6 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 }
 
 .search-form input,
-.qa-panel .ask-row input,
 input:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {

@@ -89,7 +89,6 @@
   align-content: center;
 }
 
-.query-loading,
 .muya-editor-loading,
 .folder-picker-loading,
 .tree-row-placeholder {
@@ -97,7 +96,6 @@
   overflow: hidden;
 }
 
-.query-loading::after,
 .muya-editor-loading::after,
 .folder-picker-loading::after,
 .tree-row-placeholder::after {
@@ -117,7 +115,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .query-loading::after,
   .muya-editor-loading::after,
   .folder-picker-loading::after,
   .tree-row-placeholder::after {

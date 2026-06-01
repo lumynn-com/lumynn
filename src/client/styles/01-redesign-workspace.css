@@ -284,7 +284,6 @@ nav .active > span:first-child {
 .muted,
 .status,
 .tree-file-text small,
-.citation span,
 label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)) {
   color: var(--muted);
 }
@@ -468,7 +467,6 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   scroll-margin-top: 1rem;
 }
 
-.qa-view,
 .settings-view {
   max-width: 1440px;
   margin: 0 auto;
@@ -480,22 +478,6 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
     var(--panel);
-}
-
-.ask-row {
-  align-items: center;
-}
-
-.citation {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.citation strong,
-.citation span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .settings-layout {

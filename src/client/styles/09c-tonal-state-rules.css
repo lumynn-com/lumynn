@@ -8,7 +8,6 @@
 .tree-row:hover,
 :root[data-theme="light"] .tree-row:hover,
 .folder-picker-label:hover:not(:disabled),
-.citation-source:hover:not(:disabled),
 .settings-nav button:hover:not(:disabled),
 .search-result:hover,
 .search-result:focus-visible,
@@ -21,7 +20,6 @@
 
 .tree-row:focus-visible,
 .folder-picker-label:focus-visible,
-.citation-source:focus-visible,
 .settings-nav button:focus-visible,
 .action-sheet-group button:focus-visible {
   background: var(--owd-tonal-hover-strong) !important;

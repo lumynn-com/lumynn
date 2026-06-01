@@ -1504,13 +1504,13 @@ export const CopilotView = memo(function CopilotView(props: {
 
   return (
     <aside
-      className={`qa-view copilot-view ${props.compact ? "qa-panel panel" : ""}`}
+      className={`copilot-view ${props.compact ? "qa-panel panel" : ""}`}
       aria-label={t("copilot.eyebrow")}
       data-collapsed={props.compact && props.collapsed ? "true" : undefined}
     >
       {props.compact && props.onToggleCollapsed ? (
         <div className="pane-collapsed-rail desktop-only" inert={!props.collapsed} aria-hidden={!props.collapsed || undefined}>
-          <button type="button" className="icon-button pane-expand-toggle" aria-label={t("qa.expand")} title={t("qa.expand")} onClick={props.onToggleCollapsed}>
+          <button type="button" className="icon-button pane-expand-toggle" aria-label={t("copilot.expand")} title={t("copilot.expand")} onClick={props.onToggleCollapsed}>
             <PanelToggleIcon />
           </button>
           <span className="pane-collapsed-icon" aria-hidden="true">
@@ -1531,7 +1531,7 @@ export const CopilotView = memo(function CopilotView(props: {
       <section className={props.compact ? "qa-hero copilot-hero" : "panel hero copilot-hero"}>
         {props.compact && props.onToggleCollapsed ? (
           <div className="qa-hero-top desktop-only">
-            <button type="button" className="icon-button pane-collapse-toggle qa-collapse-toggle" aria-label={t("qa.collapse")} title={t("qa.collapse")} onClick={props.onToggleCollapsed}>
+            <button type="button" className="icon-button pane-collapse-toggle qa-collapse-toggle" aria-label={t("copilot.collapse")} title={t("copilot.collapse")} onClick={props.onToggleCollapsed}>
               <PanelToggleIcon />
             </button>
             <p className="eyebrow">{t("copilot.eyebrow")}</p>
@@ -1684,7 +1684,7 @@ export const CopilotView = memo(function CopilotView(props: {
             </div>
           </div>
         </div>
-        <form className="ask-row copilot-input-row" onSubmit={sendMessage}>
+        <form className="copilot-input-row" onSubmit={sendMessage}>
           <div className="copilot-input-shell">
             <label className="sr-only" htmlFor="copilot-message">{t("copilot.input")}</label>
             <textarea

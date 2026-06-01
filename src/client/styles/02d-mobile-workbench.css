@@ -81,9 +81,9 @@
     flex-direction: column;
   }
 
-  /* QaView is rendered through .qa-section-wrapper which uses display:contents,
-     so [data-section="ask"] lives directly on .qa-panel inside QaView via
-     the wrapper. Apply the same hide/show via the wrapper's parent rule. */
+  /* Copilot is rendered through .qa-section-wrapper, so the visible ask
+     panel lives on the .qa-panel.copilot-view element inside. Apply the
+     same hide/show via the wrapper's parent rule. */
   .obsidian-workspace[data-mobile-section] > .qa-section-wrapper {
     display: none;
   }
@@ -272,7 +272,6 @@
   .top-nav button,
   .search-result,
   .file-row,
-  .citation-source,
   .back-to-top,
   .tab-close,
   .message-dismiss {
@@ -290,7 +289,6 @@
   .top-nav button:active,
   .search-result:active,
   .file-row:active,
-  .citation-source:not(:disabled):active,
   .back-to-top:active,
   .tab-close:active,
   .message-dismiss:active {

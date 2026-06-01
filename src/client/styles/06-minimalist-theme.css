@@ -139,9 +139,9 @@
   /* Top row of the Q&A hero on desktop: the collapse toggle and
      the small eyebrow label share a single flex row. Keeping the
      button inline (rather than absolutely positioning it over
-     the panel) means the title / description / ask-row below
-     keep their natural full width and aren't shifted by the
-     button's presence. */
+     the panel) means the title and description below keep their
+     natural full width and aren't shifted by the button's
+     presence. */
   .qa-panel .qa-hero-top {
     display: flex;
     align-items: center;
@@ -288,11 +288,9 @@
 
 .tree-row,
 .folder-picker-label,
-.citation-source,
 .settings-nav button,
 .prompt-actions button,
-.search-form button,
-.qa-panel .query-button {
+.search-form button {
   box-shadow: none !important;
   transition:
     color 140ms ease,
@@ -302,8 +300,7 @@
 }
 
 .tree-row,
-.folder-picker-label,
-.citation-source {
+.folder-picker-label {
   background: transparent !important;
   border-color: transparent !important;
 }
@@ -314,7 +311,6 @@
 
 .tree-row:hover,
 .folder-picker-label:hover:not(:disabled),
-.citation-source:hover:not(:disabled),
 .settings-nav button:hover:not(:disabled) {
   background: transparent !important;
   color: var(--owd-flat-ink-hover) !important;
@@ -339,34 +335,6 @@
 .folder-row.selected .tree-label,
 .folder-picker-row.selected .folder-picker-name {
   color: var(--md-primary, var(--accent-2)) !important;
-}
-
-.qa-panel .citation-grid {
-  gap: 0 !important;
-}
-
-.qa-panel .citation {
-  border-width: 1px 0 0 !important;
-  border-color: var(--owd-flat-divider) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0.8rem 0 !important;
-}
-
-.qa-panel .citation:first-child {
-  border-top-color: transparent !important;
-  padding-top: 0 !important;
-}
-
-:root[data-theme="light"] .citation-source {
-  background: transparent !important;
-  border: 0 !important;
-}
-
-:root[data-theme="light"] .citation-source:not(:disabled):hover {
-  background: transparent !important;
-  border-color: transparent !important;
 }
 
 .blank-editor,
@@ -399,7 +367,6 @@ button[aria-busy="true"] .button-spinner {
 
 .tree-row:active,
 .folder-picker-label:active:not(:disabled),
-.citation-source:active:not(:disabled),
 .vault-toolbar-action:active:not(:disabled),
 .pane-expand-toggle:active:not(:disabled),
 .pane-collapse-toggle:active:not(:disabled),
@@ -407,7 +374,6 @@ button[aria-busy="true"] .button-spinner {
 .settings-modal-close:active:not(:disabled),
 .prompt-actions button:active:not(:disabled),
 .search-form button:active:not(:disabled),
-.qa-panel .query-button:active:not(:disabled),
 .back-to-top:active:not(:disabled) {
   transform: none !important;
 }
@@ -422,11 +388,9 @@ button[aria-busy="true"] .button-spinner {
   .mobile-section-actions .icon-button,
   .tree-row,
   .folder-picker-label,
-  .citation-source,
   .settings-nav button,
   .prompt-actions button,
-  .search-form button,
-  .qa-panel .query-button {
+  .search-form button {
     transition: none !important;
   }
 }
