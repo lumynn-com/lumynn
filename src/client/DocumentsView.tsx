@@ -65,6 +65,10 @@ function loadMarkdownSourceEditor() {
 const MuyaMarkdownEditor = lazy(loadMuyaMarkdownEditor);
 const MarkdownSourceEditor = lazy(loadMarkdownSourceEditor);
 
+export function preloadMuyaEditorBundle(): void {
+  void loadMuyaMarkdownEditor();
+}
+
 type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
 type SettingsModalMode = "indexing" | "settings";
@@ -1035,6 +1039,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const handleMuyaEditorReady = useCallback(() => {
     if (muyaEditorReadyRef.current) return;
     muyaEditorReadyRef.current = true;
+    window.performance?.mark?.("owd:muya-editor-ready");
+    window.dispatchEvent(new CustomEvent("owd:muya-editor-ready"));
     setMuyaEditorReady(true);
   }, []);
 
@@ -1291,8 +1297,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, [statusLabel, statusIsPending]);
 
   useEffect(() => {
+    if (!muyaEditorReady) return;
     refreshDocuments().catch((error) => setStatusText(error.message));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muyaEditorReady]);
 
   // On first mount, if the user lands without anything open, spawn a
   // quick-note draft so the app opens directly into a writable
@@ -1380,6 +1388,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // the active object itself so React's identity comparison is stable
   // and tied to the actual content the preview renders from.
   useEffect(() => {
+    if (!muyaEditorReady) return;
     if (!active) {
       previewRequestSeq.current += 1;
       clearVisiblePreview();
@@ -1446,7 +1455,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       }
       controller.abort();
     };
-  }, [active?.draft, active?.path, active?.isDraft, centerMode, requestPreviewHtml]);
+  }, [muyaEditorReady, active?.draft, active?.path, active?.isDraft, centerMode, requestPreviewHtml]);
 
   // Mode is per-tab: switching Edit/Preview only affects the
   // currently active tab. Other open tabs keep whatever mode the
@@ -2495,6 +2504,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           onOpenSource={openDocument}
           onVaultFilesChanged={refreshVaultPaths}
           onDismiss={isMobile ? closeOverlays : undefined}
+          startupReady={muyaEditorReady}
           activeNote={
             active
               ? {

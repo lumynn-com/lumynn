@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import { DocumentsView } from "./DocumentsView";
+import { DocumentsView, preloadMuyaEditorBundle } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
 import { BusyLabel } from "./icons";
 import { useLocale } from "./i18n";
@@ -8,6 +8,14 @@ import type { UserRole } from "../shared/types";
 
 type View = "workspace" | "indexing" | "settings";
 type Theme = "dark" | "light";
+
+// The workspace seeds a quick-note draft in edit mode on first open,
+// so Muya is on the authenticated startup path. Start fetching the
+// split editor chunk as early as the app module runs; the cached
+// promise is reused by React.lazy when the editor mounts.
+if (typeof window !== "undefined") {
+  preloadMuyaEditorBundle();
+}
 
 interface AuthState {
   authenticated: boolean;
@@ -31,6 +39,9 @@ export function App() {
   useEffect(() => {
     api<AuthState>("/api/auth/me")
       .then((state) => {
+        if (state.authenticated) {
+          preloadMuyaEditorBundle();
+        }
         setAuth({
           authenticated: Boolean(state.authenticated),
           username: state.username ?? null,
@@ -52,6 +63,9 @@ export function App() {
       // Re-fetch /me so we pick up the freshly-resolved role and
       // username instead of guessing from the form input.
       const state = await api<AuthState>("/api/auth/me");
+      if (state.authenticated) {
+        preloadMuyaEditorBundle();
+      }
       setAuth({
         authenticated: Boolean(state.authenticated),
         username: state.username ?? null,

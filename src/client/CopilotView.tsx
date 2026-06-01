@@ -375,12 +375,14 @@ export const CopilotView = memo(function CopilotView(props: {
   onOpenSource?: (path: string) => void;
   onVaultFilesChanged?: (paths: string[]) => void | Promise<void>;
   onDismiss?: () => void;
+  startupReady?: boolean;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   activeNote?: NoteContext | null;
 }) {
   const t = useT();
   const username = props.username || "__anonymous__";
+  const startupReady = props.startupReady ?? true;
   const [state, setState] = useState<CopilotState>(() => ({ ...emptyState, ...readSavedState(username) }));
   const [providerStatus, setProviderStatus] = useState<CopilotProviderStatus | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -431,15 +433,17 @@ export const CopilotView = memo(function CopilotView(props: {
   }, [state, username]);
 
   useEffect(() => {
+    if (!startupReady) return;
     api<CopilotProviderStatus>("/api/copilot/status")
       .then(setProviderStatus)
       .catch((error) => setProviderStatus({ ok: false, toolsAvailable: false, reason: error instanceof Error ? error.message : "Provider unavailable" }));
     refreshConversations();
     refreshDocumentOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]);
+  }, [username, startupReady]);
 
   useEffect(() => {
+    if (!startupReady) return;
     if (state.loading || state.messages.length === 0) return;
     const signature = conversationAutoSaveKey(state.messages);
     if (!signature || signature === lastAutoSaveKeyRef.current) return;
@@ -454,7 +458,7 @@ export const CopilotView = memo(function CopilotView(props: {
         autoSaveTimerRef.current = null;
       }
     };
-  }, [state.loading, state.messages]);
+  }, [startupReady, state.loading, state.messages]);
 
   useEffect(() => {
     return () => {
@@ -469,10 +473,11 @@ export const CopilotView = memo(function CopilotView(props: {
   }, [state.messages, state.activities, state.proposals, state.loading]);
 
   useEffect(() => {
+    if (!startupReady) return;
     if (!notePicker.open || documentOptions.length > 0 || documentOptionsLoading || documentOptionsError) return;
     void refreshDocumentOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notePicker.open, documentOptions.length, documentOptionsLoading, documentOptionsError]);
+  }, [startupReady, notePicker.open, documentOptions.length, documentOptionsLoading, documentOptionsError]);
 
   useEffect(() => {
     if (!notePicker.open) {
@@ -526,6 +531,7 @@ export const CopilotView = memo(function CopilotView(props: {
   }, [historyMenuOpen]);
 
   useEffect(() => {
+    if (!startupReady) return;
     const assistantMessages = state.messages.filter((message) => message.role === "assistant" && message.content.trim());
     if (assistantMessages.length === 0) {
       setRenderedMessages({});
@@ -556,7 +562,7 @@ export const CopilotView = memo(function CopilotView(props: {
     }, state.loading ? 350 : 0);
 
     return () => window.clearTimeout(timeout);
-  }, [state.messages, state.loading]);
+  }, [startupReady, state.messages, state.loading]);
 
   async function refreshConversations() {
     try {
