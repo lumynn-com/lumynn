@@ -99,11 +99,11 @@
   bottom: 0;
   z-index: var(--owd-z-modal, 20);
   display: grid;
-  gap: 0.12rem;
+  gap: 0.04rem;
   margin-top: auto;
   border-top: 0;
   background: transparent;
-  padding-top: 0.35rem;
+  padding-top: 0.24rem;
 }
 
 .copilot-input-shell {
@@ -114,7 +114,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0.48rem 0 0.32rem;
+  padding: 0.48rem 0 0.18rem;
   box-shadow: none;
   transition: color 160ms ease;
 }
@@ -204,10 +204,10 @@
 .copilot-input-action {
   position: static;
   display: inline-flex;
-  width: 28px !important;
-  min-width: 28px !important;
-  height: 28px !important;
-  min-height: 28px !important;
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
   align-items: center;
   justify-content: center;
   border: 0 !important;

@@ -42,8 +42,8 @@
   }
 
   .copilot-composer-toolbar {
-    min-height: 32px;
-    gap: 0.4rem;
+    min-height: 24px;
+    gap: 0.35rem;
   }
 
   .copilot-context-chip,
@@ -53,18 +53,21 @@
   }
 
   .copilot-view .copilot-icon-button.icon-button {
-    width: 28px !important;
-    min-width: 28px !important;
-    height: 28px !important;
-    min-height: 28px !important;
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
+  }
+
+  .copilot-input-action {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
   }
 
   .copilot-history-menu {
     flex: 0 0 auto;
-  }
-
-  .copilot-history-trigger {
-    width: 28px !important;
   }
 
   .copilot-context-row {
