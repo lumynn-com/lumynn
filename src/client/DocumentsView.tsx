@@ -1297,10 +1297,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, [statusLabel, statusIsPending]);
 
   useEffect(() => {
-    if (!muyaEditorReady) return;
+    // Root tree is part of the first usable shell, so it may run in
+    // parallel with Muya. refreshDocuments still defers recursive
+    // warmup and count work until the editor reports ready.
     refreshDocuments().catch((error) => setStatusText(error.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [muyaEditorReady]);
+  }, []);
 
   // On first mount, if the user lands without anything open, spawn a
   // quick-note draft so the app opens directly into a writable
