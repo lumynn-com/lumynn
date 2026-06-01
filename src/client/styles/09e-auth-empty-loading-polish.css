@@ -89,15 +89,6 @@
   align-content: center;
 }
 
-.empty-state::before {
-  content: "";
-  display: block;
-  width: 2.75rem;
-  height: 2px;
-  margin-bottom: 0.65rem;
-  background: var(--md-primary);
-}
-
 .query-loading,
 .muya-editor-loading,
 .folder-picker-loading,

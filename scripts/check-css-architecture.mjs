@@ -187,6 +187,14 @@ for (const file of Object.keys(rootBlockBudgets)) {
   }
 }
 
+for (const file of Object.keys(rootBlockBudgets)) {
+  const text = read(file);
+  for (const match of text.matchAll(/\.empty-state::(?:before|after)\s*\{/g)) {
+    const line = text.slice(0, match.index).split(/\r?\n/).length;
+    fail(`${file}:${line}: empty states must not add global pseudo-element ornaments`);
+  }
+}
+
 const printSurfaceFile = "src/client/styles/04-print-surface.css";
 const printSurfaceText = read(printSurfaceFile);
 const requiredPrintParitySelectors = [
