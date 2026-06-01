@@ -16,7 +16,7 @@ import { parseMarkdown } from "./markdownParser";
 
 type ParsedMarkdown = ReturnType<typeof parseMarkdown>;
 
-const supportedMediaTypes: Record<string, string> = {
+const supportedImageTypes: Record<string, string> = {
   ".apng": "image/apng",
   ".avif": "image/avif",
   ".gif": "image/gif",
@@ -25,6 +25,11 @@ const supportedMediaTypes: Record<string, string> = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".webp": "image/webp"
+};
+
+const supportedVaultAssetTypes: Record<string, string> = {
+  ...supportedImageTypes,
+  ".pdf": "application/pdf"
 };
 
 export interface DocumentFileStat {
@@ -50,8 +55,12 @@ export function normalizeDocumentPath(input: string): string {
 
 function normalizeVaultAssetPath(input: string): string {
   const withoutAnchor = input.split("#")[0].split("?")[0].trim();
-  const normalized = withoutAnchor.replaceAll("\\", "/").replace(/^\/+/, "");
-  if (!normalized || normalized.includes("\0") || normalized.split("/").some((part) => part === "..")) {
+  const cleaned = withoutAnchor.replaceAll("\\", "/").replace(/^\/+/, "");
+  if (!cleaned || cleaned.includes("\0") || cleaned.split("/").some((part) => part === "..")) {
+    throw new Error("Invalid asset path");
+  }
+  const normalized = path.posix.normalize(cleaned);
+  if (!normalized || normalized === "." || normalized.split("/").some((part) => part === "..")) {
     throw new Error("Invalid asset path");
   }
   return normalized;
@@ -1151,6 +1160,19 @@ function mediaUrl(assetPath: string, basePath?: string): string {
   return `/api/documents/media?${params.toString()}`;
 }
 
+export interface VaultAssetLink {
+  path: string;
+  name: string;
+  contentType: string;
+  url: string;
+}
+
+interface VaultAssetLocation {
+  path: string;
+  fullPath: string;
+  contentType: string;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -1160,7 +1182,71 @@ function escapeHtml(value: string): string {
 }
 
 function isImagePath(value: string): boolean {
-  return Boolean(supportedMediaTypes[path.extname(value.split("#")[0].split("?")[0]).toLowerCase()]);
+  return Boolean(supportedImageTypes[path.extname(value.split("#")[0].split("?")[0]).toLowerCase()]);
+}
+
+function contentTypeForVaultAsset(assetPath: string): string {
+  const extension = path.extname(assetPath).toLowerCase();
+  const contentType = supportedVaultAssetTypes[extension];
+  if (!contentType) {
+    throw new Error(`Unsupported file type: ${extension || "unknown"}`);
+  }
+  return contentType;
+}
+
+async function resolveVaultAssetLocation(user: UserRecord, assetPath: string, basePath?: string): Promise<VaultAssetLocation> {
+  const vaultRoot = await ensureVault(user);
+  const safeAssetPath = normalizeVaultAssetPath(assetPath);
+  const requestedContentType = contentTypeForVaultAsset(safeAssetPath);
+
+  const candidates = new Set<string>();
+  if (basePath) {
+    const safeBasePath = normalizeDocumentPath(basePath);
+    candidates.add(normalizeVaultAssetPath(path.posix.join(path.posix.dirname(safeBasePath), safeAssetPath)));
+  }
+  candidates.add(safeAssetPath);
+
+  for (const candidate of candidates) {
+    const fullPath = path.resolve(vaultRoot, candidate);
+    if (!isInside(vaultRoot, fullPath)) {
+      continue;
+    }
+    const stat = await fs.stat(fullPath).catch(() => null);
+    if (stat?.isFile()) {
+      return {
+        path: candidate,
+        fullPath,
+        contentType: contentTypeForVaultAsset(candidate)
+      };
+    }
+  }
+
+  const basename = path.basename(safeAssetPath).toLowerCase();
+  const files = await walkFiles(vaultRoot);
+  const match = files.find((file) => path.basename(file).toLowerCase() === basename && supportedVaultAssetTypes[path.extname(file).toLowerCase()]);
+  if (!match) {
+    throw new Error(`File link not found: ${assetPath}`);
+  }
+
+  const fullPath = path.resolve(vaultRoot, match);
+  if (!isInside(vaultRoot, fullPath)) {
+    throw new Error("Asset path escapes the vault");
+  }
+  return {
+    path: match,
+    fullPath,
+    contentType: supportedVaultAssetTypes[path.extname(match).toLowerCase()] ?? requestedContentType
+  };
+}
+
+export async function resolveVaultAssetLink(user: UserRecord, assetPath: string, basePath?: string): Promise<VaultAssetLink> {
+  const asset = await resolveVaultAssetLocation(user, assetPath, basePath);
+  return {
+    path: asset.path,
+    name: path.basename(asset.path),
+    contentType: asset.contentType,
+    url: mediaUrl(asset.path)
+  };
 }
 
 function parseObsidianEmbedMeta(rawMeta: string | undefined): { alt: string; width?: string; height?: string } {
@@ -1355,43 +1441,10 @@ function previewRenderer() {
 }
 
 export async function readVaultMedia(user: UserRecord, assetPath: string, basePath?: string): Promise<{ data: Buffer; contentType: string }> {
-  const vaultRoot = await ensureVault(user);
-  const safeAssetPath = normalizeVaultAssetPath(assetPath);
-  const extension = path.extname(safeAssetPath).toLowerCase();
-  const contentType = supportedMediaTypes[extension];
-  if (!contentType) {
-    throw new Error("Unsupported media type");
-  }
-
-  const candidates = new Set<string>();
-  if (basePath) {
-    const safeBasePath = normalizeDocumentPath(basePath);
-    candidates.add(path.posix.normalize(path.posix.join(path.posix.dirname(safeBasePath), safeAssetPath)));
-  }
-  candidates.add(safeAssetPath);
-
-  for (const candidate of candidates) {
-    const fullPath = path.resolve(vaultRoot, candidate);
-    if (!isInside(vaultRoot, fullPath)) {
-      continue;
-    }
-    const data = await fs.readFile(fullPath).catch(() => null);
-    if (data) {
-      return { data, contentType };
-    }
-  }
-
-  const basename = path.basename(safeAssetPath).toLowerCase();
-  const files = await walkFiles(vaultRoot);
-  const match = files.find((file) => path.basename(file).toLowerCase() === basename && supportedMediaTypes[path.extname(file).toLowerCase()]);
-  if (!match) {
-    throw new Error("Media not found");
-  }
-
-  const fullPath = path.resolve(vaultRoot, match);
+  const asset = await resolveVaultAssetLocation(user, assetPath, basePath);
   return {
-    data: await fs.readFile(fullPath),
-    contentType
+    data: await fs.readFile(asset.fullPath),
+    contentType: asset.contentType
   };
 }
 

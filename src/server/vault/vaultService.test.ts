@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { emptyRagSettings, type UserRecord } from "../store";
-import { normalizeDocumentPath, renderPreview, searchDocuments, writeDocument } from "./vaultService";
+import { normalizeDocumentPath, readVaultMedia, renderPreview, resolveVaultAssetLink, searchDocuments, writeDocument } from "./vaultService";
 
 function testVaultPath(name: string): string {
   return path.resolve("sample-vault", "test-vaults", `${name}-${process.pid}-${Date.now()}`);
@@ -63,6 +63,33 @@ test("searchDocuments includes filename matches alongside body matches", async (
 
     assert.equal(results[0].path, "Alpha Filename.md");
     assert.ok(results.some((result) => result.path === "Body.md"));
+  });
+});
+
+test("resolveVaultAssetLink supports PDFs relative to the active note", async () => {
+  await withVault("pdf-asset-link", async (user) => {
+    const vaultRoot = user.vault.path;
+    await fs.mkdir(path.join(vaultRoot, "Folder"), { recursive: true });
+    await fs.writeFile(path.join(vaultRoot, "Folder", "Manual.pdf"), Buffer.from("%PDF-1.4\n"));
+
+    const asset = await resolveVaultAssetLink(user, "Manual.pdf", "Folder/Note.md");
+    const media = await readVaultMedia(user, "Manual.pdf", "Folder/Note.md");
+
+    assert.equal(asset.path, "Folder/Manual.pdf");
+    assert.equal(asset.name, "Manual.pdf");
+    assert.equal(asset.contentType, "application/pdf");
+    assert.match(asset.url, /\/api\/documents\/media\?path=Folder%2FManual\.pdf/);
+    assert.equal(media.contentType, "application/pdf");
+    assert.equal(media.data.toString(), "%PDF-1.4\n");
+  });
+});
+
+test("resolveVaultAssetLink reports missing PDFs without treating them as notes", async () => {
+  await withVault("missing-pdf-asset-link", async (user) => {
+    await assert.rejects(
+      () => resolveVaultAssetLink(user, "Missing.pdf", "Folder/Note.md"),
+      /File link not found: Missing\.pdf/
+    );
   });
 });
 

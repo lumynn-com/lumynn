@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { UserRecord } from "../store";
-import { backlinksFor, countDocuments, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, resolveDocumentLink, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
+import { backlinksFor, countDocuments, createDocument, createFolder, deleteDocument, deleteFolder, inspectFolder, listDocuments, listDocumentTree, readDocument, readVaultMedia, renameDocument, renameFolder, renderPreview, resolveDocumentLink, resolveVaultAssetLink, searchDocuments, writeAttachment, writeDocument } from "../vault/vaultService";
 
 const sortSchema = z.object({
   sort: z.enum(["name", "createdAt", "updatedAt", "path", "title"]).optional(),
@@ -290,14 +290,33 @@ export async function registerDocumentRoutes(app: FastifyInstance): Promise<void
   app.get("/api/documents/media", async (request, reply) => {
     const user = authedUser(request, reply);
     if (!user) return;
-    const query = z.object({ path: z.string().min(1), base: z.string().optional() }).parse(request.query);
+    const query = z.object({ path: z.string().min(1), base: z.string().optional(), download: z.coerce.boolean().optional() }).parse(request.query);
     try {
       const media = await readVaultMedia(user, query.path, query.base);
       reply.type(media.contentType);
+      reply.header("Content-Disposition", `${query.download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(query.path.split(/[\\/]/).pop() ?? "file")}`);
       return media.data;
     } catch (error) {
       reply.code(404);
-      return { error: error instanceof Error ? error.message : "Media not found" };
+      return { error: error instanceof Error ? error.message : "File not found" };
+    }
+  });
+
+  app.get("/api/documents/asset-link", async (request, reply) => {
+    const user = authedUser(request, reply);
+    if (!user) return;
+    const query = z.object({ path: z.string().min(1), base: z.string().optional(), download: z.coerce.boolean().optional() }).parse(request.query);
+    try {
+      const asset = await resolveVaultAssetLink(user, query.path, query.base);
+      const params = new URLSearchParams({ path: asset.path });
+      if (query.download) params.set("download", "1");
+      return {
+        ...asset,
+        url: `/api/documents/media?${params.toString()}`
+      };
+    } catch (error) {
+      reply.code(404);
+      return { error: error instanceof Error ? error.message : "File link not found" };
     }
   });
 

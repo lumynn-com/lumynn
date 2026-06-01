@@ -162,6 +162,18 @@ type PreviewSnapshot = {
   html: string;
 };
 
+type PreviewLinkError = {
+  target: string;
+  message: string;
+};
+
+type VaultAssetLink = {
+  path: string;
+  name: string;
+  contentType: string;
+  url: string;
+};
+
 const sortStorageKey = "owd_document_sort";
 
 // File-segment sanitizer: keep letters/digits/space/hyphen/underscore/CJK,
@@ -226,6 +238,52 @@ function parentFolderOf(documentPath: string): string {
   if (!documentPath || isDraftPath(documentPath)) return "";
   const lastSlash = documentPath.lastIndexOf("/");
   return lastSlash > 0 ? documentPath.slice(0, lastSlash) : "";
+}
+
+const PREVIEW_ASSET_EXTENSIONS = new Set([".apng", ".avif", ".gif", ".jpeg", ".jpg", ".pdf", ".png", ".svg", ".webp"]);
+
+function decodePreviewLinkTarget(value: string): string {
+  try {
+    return decodeURI(value);
+  } catch {
+    return value;
+  }
+}
+
+function extensionOfPreviewTarget(value: string): string {
+  const clean = value.split("#")[0].split("?")[0].trim();
+  const slash = Math.max(clean.lastIndexOf("/"), clean.lastIndexOf("\\"));
+  const name = slash >= 0 ? clean.slice(slash + 1) : clean;
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function isPreviewAssetTarget(value: string): boolean {
+  return PREVIEW_ASSET_EXTENSIONS.has(extensionOfPreviewTarget(value));
+}
+
+function isPreviewDocumentTarget(value: string): boolean {
+  const extension = extensionOfPreviewTarget(value);
+  return extension === "" || extension === ".md";
+}
+
+function previewTargetFromHref(rawHref: string): string | null {
+  const href = rawHref.trim();
+  if (!href || href.startsWith("#") || href.startsWith("//") || href.startsWith("/api/")) return null;
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+    try {
+      const parsed = new URL(href);
+      if (typeof window === "undefined" || parsed.origin !== window.location.origin || parsed.pathname.startsWith("/api/")) {
+        return null;
+      }
+      return decodePreviewLinkTarget(`${parsed.pathname.replace(/^\/+/, "")}${parsed.search}${parsed.hash}`);
+    } catch {
+      return null;
+    }
+  }
+
+  return decodePreviewLinkTarget(href.replace(/^\/+/, ""));
 }
 
 function folderRefreshTargetsForChangedPaths(paths: string[]): string[] {
@@ -519,6 +577,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // knows what they're throwing away.
     | { kind: "deleteFolderConfirm"; path: string; name: string; fileCount: number };
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [previewLinkError, setPreviewLinkError] = useState<PreviewLinkError | null>(null);
   function openCreateNote(defaultFolder?: string) {
     setDialog({ kind: "createNote", defaultFolder: defaultFolder ?? "" });
   }
@@ -2021,23 +2080,53 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     return true;
   }
 
-  async function openPreviewInternalLink(event: ReactMouseEvent<HTMLDivElement>) {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const anchor = target.closest("a.internal-link");
-    if (!(anchor instanceof HTMLAnchorElement) || !event.currentTarget.contains(anchor)) return;
+  function showPreviewLinkError(target: string, message: string) {
+    setPreviewLinkError({ target, message });
+    setStatusText(message);
+  }
 
-    const rawTarget = anchor.getAttribute("title")?.trim() || anchor.textContent?.trim();
-    if (!rawTarget) return;
+  async function openPreviewAsset(target: string, popup: Window | null) {
+    const params = new URLSearchParams({ path: target });
+    if (active && !active.isDraft) {
+      params.set("base", active.path);
+    }
 
-    event.preventDefault();
-    if (rawTarget.startsWith("#")) {
-      const opened = scrollPreviewToHeading(event.currentTarget, rawTarget.slice(1));
-      if (!opened) setStatusText(`Heading not found: ${rawTarget.slice(1)}`);
+    try {
+      const asset = await api<VaultAssetLink>(`/api/documents/asset-link?${params.toString()}`);
+      if (popup) {
+        popup.location.href = asset.url;
+      } else {
+        window.open(asset.url, "_blank", "noopener,noreferrer");
+      }
+      setStatusText(t("preview.link.opened", { name: asset.name }));
+    } catch (error) {
+      popup?.close();
+      showPreviewLinkError(target, error instanceof Error ? error.message : t("preview.link.openError"));
+    }
+  }
+
+  async function openPreviewVaultTarget(target: string, container: HTMLElement) {
+    if (target.startsWith("#")) {
+      const opened = scrollPreviewToHeading(container, target.slice(1));
+      if (!opened) setStatusText(t("preview.link.headingMissing", { target: target.slice(1) }));
       return;
     }
 
-    const params = new URLSearchParams({ target: rawTarget });
+    if (isPreviewAssetTarget(target)) {
+      const popup = window.open("", "_blank");
+      if (popup) {
+        popup.opener = null;
+      }
+      await openPreviewAsset(target, popup);
+      return;
+    }
+
+    if (!isPreviewDocumentTarget(target)) {
+      showPreviewLinkError(target, t("preview.link.unsupported", { target }));
+      return;
+    }
+
+    const params = new URLSearchParams({ target });
     if (active && !active.isDraft) {
       params.set("base", active.path);
     }
@@ -2046,8 +2135,25 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       const resolved = await api<{ path: string }>(`/api/documents/resolve-link?${params.toString()}`);
       openDocument(resolved.path);
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : "Unable to open document link");
+      showPreviewLinkError(target, error instanceof Error ? error.message : t("preview.link.openError"));
     }
+  }
+
+  async function openPreviewInternalLink(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const anchor = target.closest("a");
+    if (!(anchor instanceof HTMLAnchorElement) || !event.currentTarget.contains(anchor)) return;
+
+    const isInternalLink = anchor.classList.contains("internal-link");
+    const rawTarget = isInternalLink
+      ? anchor.getAttribute("title")?.trim() || anchor.textContent?.trim()
+      : previewTargetFromHref(anchor.getAttribute("href") ?? "");
+
+    if (!rawTarget) return;
+
+    event.preventDefault();
+    await openPreviewVaultTarget(rawTarget, event.currentTarget);
   }
 
   const activateTab = useCallback((path: string) => {
@@ -2594,6 +2700,15 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <span aria-hidden="true">{"\u00d7"}</span>
           </button>
         </div>
+      ) : null}
+      {previewLinkError ? (
+        <NoticeModal
+          title={t("preview.link.errorTitle")}
+          eyebrow={previewLinkError.target}
+          description={previewLinkError.message}
+          closeLabel={t("modal.close")}
+          onClose={() => setPreviewLinkError(null)}
+        />
       ) : null}
       {nodeMenu ? (
         <TreeNodeMenu
@@ -4022,6 +4137,59 @@ function PathPickerModal(props: {
             </button>
           </div>
         </form>
+      </section>
+    </div>
+  );
+}
+
+function NoticeModal(props: {
+  title: string;
+  eyebrow?: string;
+  description: string;
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
+
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        props.onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={props.onClose}>
+      <section
+        className="prompt-modal panel"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="panel-header">
+          <div>
+            {props.eyebrow ? <p className="eyebrow" translate="no">{props.eyebrow}</p> : null}
+            <h2 id={titleId}>{props.title}</h2>
+            <p className="muted" id={descId}>{props.description}</p>
+          </div>
+        </div>
+        <div className="prompt-actions">
+          <button ref={closeRef} type="button" className="primary" onClick={props.onClose}>
+            {props.closeLabel}
+          </button>
+        </div>
       </section>
     </div>
   );

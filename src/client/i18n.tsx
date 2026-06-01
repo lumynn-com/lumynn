@@ -170,6 +170,11 @@ const dictionaries = {
     // Prompt / confirm modals
     "prompt.cancel": "Cancel",
     "modal.close": "Close",
+    "preview.link.errorTitle": "Unable to Open Link",
+    "preview.link.headingMissing": "Heading not found: {target}",
+    "preview.link.opened": "Opened {name}",
+    "preview.link.openError": "Unable to open link",
+    "preview.link.unsupported": "This local link is not a supported note or file: {target}",
     "prompt.create.title": "New Note",
     "prompt.create.eyebrow": "Vault",
     "prompt.create.description": "Pick a folder, then type a file name.",
@@ -684,6 +689,11 @@ const dictionaries = {
 
     "prompt.cancel": "\u53d6\u6d88",
     "modal.close": "\u5173\u95ed",
+    "preview.link.errorTitle": "\u65e0\u6cd5\u6253\u5f00\u94fe\u63a5",
+    "preview.link.headingMissing": "\u672a\u627e\u5230\u6807\u9898\uff1a{target}",
+    "preview.link.opened": "\u5df2\u6253\u5f00 {name}",
+    "preview.link.openError": "\u65e0\u6cd5\u6253\u5f00\u94fe\u63a5",
+    "preview.link.unsupported": "\u8fd9\u4e2a\u672c\u5730\u94fe\u63a5\u4e0d\u662f\u53ef\u652f\u6301\u7684\u7b14\u8bb0\u6216\u6587\u4ef6\uff1a{target}",
     "prompt.create.title": "\u65b0\u5efa\u7b14\u8bb0",
     "prompt.create.eyebrow": "\u77e5\u8bc6\u5e93",
     "prompt.create.description": "\u9009\u62e9\u4e00\u4e2a\u6587\u4ef6\u5939\uff0c\u7136\u540e\u8f93\u5165\u6587\u4ef6\u540d\u3002",
