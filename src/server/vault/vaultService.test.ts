@@ -84,6 +84,39 @@ test("resolveVaultAssetLink supports PDFs relative to the active note", async ()
   });
 });
 
+test("resolveVaultAssetLink supports parent-relative image paths", async () => {
+  await withVault("parent-relative-image-link", async (user) => {
+    const vaultRoot = user.vault.path;
+    await fs.mkdir(path.join(vaultRoot, "joplin", "_resources"), { recursive: true });
+    await fs.writeFile(path.join(vaultRoot, "joplin", "_resources", "image.jpg"), Buffer.from("image"));
+
+    const asset = await resolveVaultAssetLink(user, "../_resources/image.jpg", "joplin/Life/Note.md");
+    const media = await readVaultMedia(user, "../_resources/image.jpg", "joplin/Life/Note.md");
+
+    assert.equal(asset.path, "joplin/_resources/image.jpg");
+    assert.equal(asset.contentType, "image/jpeg");
+    assert.equal(media.contentType, "image/jpeg");
+    assert.equal(media.data.toString(), "image");
+  });
+});
+
+test("resolveVaultAssetLink falls back to basename for migrated Joplin resources", async () => {
+  await withVault("basename-fallback-image-link", async (user) => {
+    const vaultRoot = user.vault.path;
+    await fs.mkdir(path.join(vaultRoot, "Yu", "joplin", "_resources"), { recursive: true });
+    await fs.writeFile(path.join(vaultRoot, "Yu", "joplin", "_resources", "12392d4ab9174586de9cbbf24dfd437b.jpg"), Buffer.from("fallback"));
+
+    const asset = await resolveVaultAssetLink(
+      user,
+      "../../joplin/_resources/12392d4ab9174586de9cbbf24dfd437b.jpg",
+      "Yu/Life/Note.md"
+    );
+
+    assert.equal(asset.path, "Yu/joplin/_resources/12392d4ab9174586de9cbbf24dfd437b.jpg");
+    assert.equal(asset.contentType, "image/jpeg");
+  });
+});
+
 test("resolveVaultAssetLink reports missing PDFs without treating them as notes", async () => {
   await withVault("missing-pdf-asset-link", async (user) => {
     await assert.rejects(

@@ -53,12 +53,17 @@ export function normalizeDocumentPath(input: string): string {
   return normalized.endsWith(".md") ? normalized : `${normalized}.md`;
 }
 
-function normalizeVaultAssetPath(input: string): string {
+function cleanVaultAssetPathInput(input: string): string {
   const withoutAnchor = input.split("#")[0].split("?")[0].trim();
   const cleaned = withoutAnchor.replaceAll("\\", "/").replace(/^\/+/, "");
-  if (!cleaned || cleaned.includes("\0") || cleaned.split("/").some((part) => part === "..")) {
+  if (!cleaned || cleaned.includes("\0")) {
     throw new Error("Invalid asset path");
   }
+  return cleaned;
+}
+
+function normalizeVaultAssetPath(input: string): string {
+  const cleaned = cleanVaultAssetPathInput(input);
   const normalized = path.posix.normalize(cleaned);
   if (!normalized || normalized === "." || normalized.split("/").some((part) => part === "..")) {
     throw new Error("Invalid asset path");
@@ -1196,15 +1201,27 @@ function contentTypeForVaultAsset(assetPath: string): string {
 
 async function resolveVaultAssetLocation(user: UserRecord, assetPath: string, basePath?: string): Promise<VaultAssetLocation> {
   const vaultRoot = await ensureVault(user);
-  const safeAssetPath = normalizeVaultAssetPath(assetPath);
-  const requestedContentType = contentTypeForVaultAsset(safeAssetPath);
+  const rawAssetPath = cleanVaultAssetPathInput(assetPath);
+  const requestedContentType = contentTypeForVaultAsset(rawAssetPath);
 
   const candidates = new Set<string>();
   if (basePath) {
     const safeBasePath = normalizeDocumentPath(basePath);
-    candidates.add(normalizeVaultAssetPath(path.posix.join(path.posix.dirname(safeBasePath), safeAssetPath)));
+    try {
+      candidates.add(normalizeVaultAssetPath(path.posix.join(path.posix.dirname(safeBasePath), rawAssetPath)));
+    } catch {
+      // Parent-relative imports such as ../../joplin/_resources/x.jpg
+      // can overrun the vault root depending on the configured root.
+      // Keep going so the Obsidian-style basename fallback below can
+      // still resolve a matching in-vault attachment.
+    }
   }
-  candidates.add(safeAssetPath);
+  try {
+    candidates.add(normalizeVaultAssetPath(rawAssetPath));
+  } catch {
+    // A raw parent-relative path is not a valid vault-root path by
+    // itself. It may still resolve relative to basePath or by basename.
+  }
 
   for (const candidate of candidates) {
     const fullPath = path.resolve(vaultRoot, candidate);
@@ -1221,7 +1238,7 @@ async function resolveVaultAssetLocation(user: UserRecord, assetPath: string, ba
     }
   }
 
-  const basename = path.basename(safeAssetPath).toLowerCase();
+  const basename = path.basename(rawAssetPath).toLowerCase();
   const files = await walkFiles(vaultRoot);
   const match = files.find((file) => path.basename(file).toLowerCase() === basename && supportedVaultAssetTypes[path.extname(file).toLowerCase()]);
   if (!match) {
