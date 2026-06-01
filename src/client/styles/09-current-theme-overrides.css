@@ -91,6 +91,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 .tree-context-menu,
 .anchored-menu,
 .search-modal,
+.asset-preview-modal,
 .path-picker-modal,
 .settings-modal,
 .prompt-modal {

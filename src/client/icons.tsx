@@ -168,6 +168,26 @@ export function CloseIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M12 3v12" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+
+export function ExternalLinkIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-9 9" />
+      <path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5" />
+    </svg>
+  );
+}
+
 export function EyeIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...baseProps} {...props}>

@@ -9,8 +9,11 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronUpIcon,
+  CloseIcon,
   CodeIcon,
+  DownloadIcon,
   EyeIcon,
+  ExternalLinkIcon,
   FolderPlusIcon,
   GlobeIcon,
   IndexingIcon,
@@ -175,6 +178,10 @@ type VaultAssetLink = {
 };
 
 const sortStorageKey = "owd_document_sort";
+
+function withDownloadParam(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}download=1`;
+}
 
 // File-segment sanitizer: keep letters/digits/space/hyphen/underscore/CJK,
 // collapse whitespace, trim, and cap length so the resulting file name is
@@ -558,6 +565,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // highlight the drop target.
   const [dragSource, setDragSource] = useState<TreeNodeTarget | null>(null);
   const [dragOverPath, setDragOverPath] = useState<string | null>(null);
+  const [previewAsset, setPreviewAsset] = useState<VaultAssetLink | null>(null);
 
   // Unified dialog state. Each kind is a destructive or
   // structural file-system action; `target` tells the dialog
@@ -2085,7 +2093,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setStatusText(message);
   }
 
-  async function openPreviewAsset(target: string, popup: Window | null) {
+  async function openPreviewAsset(target: string) {
     const params = new URLSearchParams({ path: target });
     if (active && !active.isDraft) {
       params.set("base", active.path);
@@ -2093,14 +2101,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
 
     try {
       const asset = await api<VaultAssetLink>(`/api/documents/asset-link?${params.toString()}`);
-      if (popup) {
-        popup.location.href = asset.url;
-      } else {
-        window.open(asset.url, "_blank", "noopener,noreferrer");
-      }
+      setPreviewAsset(asset);
       setStatusText(t("preview.link.opened", { name: asset.name }));
     } catch (error) {
-      popup?.close();
       showPreviewLinkError(target, error instanceof Error ? error.message : t("preview.link.openError"));
     }
   }
@@ -2113,11 +2116,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
 
     if (isPreviewAssetTarget(target)) {
-      const popup = window.open("", "_blank");
-      if (popup) {
-        popup.opener = null;
-      }
-      await openPreviewAsset(target, popup);
+      await openPreviewAsset(target);
       return;
     }
 
@@ -2700,6 +2699,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <span aria-hidden="true">{"\u00d7"}</span>
           </button>
         </div>
+      ) : null}
+      {previewAsset ? (
+        <AssetPreviewModal
+          asset={previewAsset}
+          onClose={() => setPreviewAsset(null)}
+        />
       ) : null}
       {previewLinkError ? (
         <NoticeModal
@@ -4189,6 +4194,87 @@ function NoticeModal(props: {
           <button ref={closeRef} type="button" className="primary" onClick={props.onClose}>
             {props.closeLabel}
           </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AssetPreviewModal(props: {
+  asset: VaultAssetLink;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const isPdf = props.asset.contentType === "application/pdf";
+  const isImage = props.asset.contentType.startsWith("image/");
+  const downloadUrl = withDownloadParam(props.asset.url);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        props.onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props]);
+
+  return (
+    <div className="modal-backdrop asset-preview-backdrop" role="presentation" onMouseDown={props.onClose}>
+      <section
+        className="asset-preview-modal panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="asset-preview-header">
+          <div className="asset-preview-title">
+            <p className="eyebrow">{t("preview.asset.eyebrow")}</p>
+            <h2 id={titleId} translate="no">{props.asset.name}</h2>
+          </div>
+          <div className="asset-preview-actions">
+            <a className="asset-preview-action" href={downloadUrl} download={props.asset.name}>
+              <DownloadIcon />
+              <span>{t("preview.asset.download")}</span>
+            </a>
+            <a className="asset-preview-action" href={props.asset.url} target="_blank" rel="noopener noreferrer">
+              <ExternalLinkIcon />
+              <span>{t("preview.asset.openNewTab")}</span>
+            </a>
+            <button
+              ref={closeRef}
+              type="button"
+              className="icon-button asset-preview-close"
+              aria-label={t("modal.close")}
+              title={t("modal.close")}
+              onClick={props.onClose}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        </header>
+        <div className="asset-preview-body">
+          {isPdf ? (
+            <iframe className="asset-preview-frame" title={props.asset.name} src={props.asset.url} />
+          ) : isImage ? (
+            <img className="asset-preview-image" src={props.asset.url} alt={props.asset.name} />
+          ) : (
+            <div className="asset-preview-unsupported">
+              <p>{t("preview.asset.unsupported")}</p>
+              <a className="primary asset-preview-action" href={downloadUrl} download={props.asset.name}>
+                <DownloadIcon />
+                <span>{t("preview.asset.download")}</span>
+              </a>
+            </div>
+          )}
         </div>
       </section>
     </div>
