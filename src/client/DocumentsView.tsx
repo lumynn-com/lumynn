@@ -270,6 +270,12 @@ async function waitForPrintableAssets(doc: Document): Promise<void> {
   ]);
 }
 
+function isMobilePrintEnvironment(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && window.matchMedia("(max-width: 860px)").matches);
+}
+
 async function printRenderedPreviewHtml(html: string, title: string): Promise<void> {
   const surface = document.createElement("div");
   surface.className = "print-surface active-print-surface";
@@ -280,9 +286,14 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
   const previousTitle = document.title;
   const previousPrintMode = document.body.dataset.printMode;
   let cleaned = false;
+  let printRequestedAt = 0;
+  const mobilePrint = isMobilePrintEnvironment();
+  const minimumHoldMs = mobilePrint ? 12000 : 250;
+  let cleanupTimer = 0;
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
+    if (cleanupTimer) window.clearTimeout(cleanupTimer);
     surface.remove();
     if (previousPrintMode === undefined) {
       delete document.body.dataset.printMode;
@@ -290,18 +301,33 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
       document.body.dataset.printMode = previousPrintMode;
     }
     document.title = previousTitle;
-    window.removeEventListener("afterprint", cleanup);
+    window.removeEventListener("afterprint", scheduleCleanup);
+  };
+  const scheduleCleanup = () => {
+    if (cleaned) return;
+    const elapsed = printRequestedAt ? Date.now() - printRequestedAt : 0;
+    const delay = Math.max(0, minimumHoldMs - elapsed);
+    if (cleanupTimer) window.clearTimeout(cleanupTimer);
+    cleanupTimer = window.setTimeout(cleanup, delay);
   };
 
   document.body.dataset.printMode = "active";
   document.title = title;
   document.body.appendChild(surface);
-  window.addEventListener("afterprint", cleanup);
+  window.addEventListener("afterprint", scheduleCleanup);
 
   try {
-    await waitForPrintableAssets(document);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    if (mobilePrint) {
+      // Keep the native print call as close as possible to the tap.
+      // Mobile browsers are strict about user activation; waiting for
+      // timers/asset loads can make window.print() a no-op.
+      surface.getBoundingClientRect();
+    } else {
+      await waitForPrintableAssets(document);
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
     window.focus();
+    printRequestedAt = Date.now();
     window.print();
   } catch (error) {
     cleanup();
