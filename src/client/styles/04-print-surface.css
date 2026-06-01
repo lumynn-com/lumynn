@@ -18,6 +18,10 @@
   html:root[data-theme],
   body[data-print-mode],
   body[data-print-mode][data-theme] {
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
     background: #ffffff !important;
     background-image: none !important;
     color: #111111 !important;

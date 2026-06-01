@@ -107,10 +107,19 @@ test("renderPreview supports Obsidian heading-only links", async () => {
   assert.match(html, />go there<\/a>/);
 });
 
-test("renderPreview supports common LaTeX math syntax", async () => {
+test("renderPreview respects markdown escapes around Obsidian links", async () => {
+  const html = await renderPreview("\\[\\[创建链接\\]\\] and \\[[Single Escape]]");
+
+  assert.match(html, /\[\[创建链接\]\]/);
+  assert.match(html, /\[\[Single Escape\]\]/);
+  assert.doesNotMatch(html, /class="internal-link"/);
+  assert.doesNotMatch(html, /katex-error/);
+});
+
+test("renderPreview supports dollar-delimited LaTeX math syntax", async () => {
   const html = await renderPreview(
     [
-      "Inline $\\angle ABC = 90^\\circ$, $\\sqrt{x^2 + y^2}$, and \\(\\frac{1}{2}\\).",
+      "Inline $\\angle ABC = 90^\\circ$ and $\\sqrt{x^2 + y^2}$.",
       "",
       "$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a} \\quad (\\Delta \\ge 0)$",
       "",
@@ -118,7 +127,7 @@ test("renderPreview supports common LaTeX math syntax", async () => {
       "\\sum_{i=1}^n i = \\frac{n(n+1)}{2}",
       "$$",
       "",
-      "\\[\\int_0^1 x^2\\,dx\\]",
+      "Backslash math delimiters stay text: \\(\\frac{1}{2}\\) and \\[\\int_0^1 x^2\\,dx\\].",
       "",
       "$$",
       "\\begin{aligned}a&=b\\\\c&=d\\end{aligned}",
@@ -138,9 +147,10 @@ test("renderPreview supports common LaTeX math syntax", async () => {
   assert.match(html, /class="mord sqrt/);
   assert.match(html, /<svg[^>]+(?:viewBox|viewbox)="0 0 400000 1080"/);
   assert.match(html, /<path d="M95,702/);
-  assert.match(html, /∫/);
   assert.match(html, /∑/);
-  assert.doesNotMatch(html, /\\frac\{1\}\{2\}/);
+  assert.ok(html.includes("(\\frac{1}{2})"));
+  assert.ok(html.includes("[\\int_0^1 x^2,dx]"));
+  assert.doesNotMatch(html, /∫/);
   assert.doesNotMatch(html, /\\frac\{-b \\pm \\sqrt\{b\^2 - 4ac\}\}\{2a\}/);
   assert.ok(html.includes("<code>$\\angle$ and \\(\\sqrt{x}\\) stay code</code>"));
   assert.match(html, /<pre class="hljs"><code>[\s\S]*<span class="hljs-built_in">sqrt<\/span>\{x\}[\s\S]*<\/code><\/pre>/);

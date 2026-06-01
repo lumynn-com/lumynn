@@ -1236,19 +1236,11 @@ function transformOutsideMarkdownCode(input: string, transform: (value: string) 
 
 function transformObsidianMath(input: string): string {
   return transformOutsideMarkdownCode(input, (mathInput) => {
-    const withBracketDisplayMath = mathInput.replace(/\\\[([\s\S]*?)\\\]/g, (_match, tex: string) => {
-      return renderMath(tex, true);
-    });
-
-    const withBlockMath = withBracketDisplayMath.replace(/(^|[\r\n])\$\$([\s\S]*?)\$\$(?=$|[\r\n])/g, (_match, prefix: string, tex: string) => {
+    const withBlockMath = mathInput.replace(/(^|[\r\n])\$\$([\s\S]*?)\$\$(?=$|[\r\n])/g, (_match, prefix: string, tex: string) => {
       return `${prefix}${renderMath(tex, true)}`;
     });
 
-    const withParenInlineMath = withBlockMath.replace(/\\\((?!\s)([^\n]+?)(?<!\s)\\\)/g, (_match, tex: string) => {
-      return renderMath(tex, false);
-    });
-
-    return withParenInlineMath.replace(/(^|[^\\$])\$(?!\s|\$)([^\n$]+?)(?<!\s|\\)\$/g, (_match, prefix: string, tex: string) => {
+    return withBlockMath.replace(/(^|[^\\$])\$(?!\s|\$)([^\n$]+?)(?<!\s|\\)\$/g, (_match, prefix: string, tex: string) => {
       return `${prefix}${renderMath(tex, false)}`;
     });
   });
@@ -1258,7 +1250,7 @@ function transformObsidianSyntaxSegment(input: string, basePath?: string): strin
   const withoutComments = input.replace(/%%[\s\S]*?%%/g, "");
   const withMath = transformObsidianMath(withoutComments);
   const withCallouts = transformObsidianCallouts(withMath);
-  const withObsidianEmbeds = withCallouts.replace(/!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawPath: string, rawMeta: string | undefined) => {
+  const withObsidianEmbeds = withCallouts.replace(/(?<!\\)!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawPath: string, rawMeta: string | undefined) => {
     const assetPath = rawPath.trim();
     if (!isImagePath(assetPath)) {
       return `<a class="internal-link internal-embed" href="#" title="${escapeHtml(assetPath)}">${escapeHtml(path.basename(assetPath))}</a>`;
@@ -1273,12 +1265,12 @@ function transformObsidianSyntaxSegment(input: string, basePath?: string): strin
     .replace(/!\[([^\]]*)\]\((?!https?:\/\/|data:|\/)([^)\s]+)(?:\s+"[^"]*")?\)/gi, (_match, rawAlt: string, rawPath: string) => {
       return `![${rawAlt}](${mediaUrl(rawPath, basePath)})`;
     })
-    .replace(/\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, rawHeading: string, rawAlias: string | undefined) => {
+    .replace(/(?<!\\)\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, rawHeading: string, rawAlias: string | undefined) => {
       const heading = rawHeading.trim();
       const label = rawAlias?.trim() || heading;
       return `<a class="internal-link internal-heading-link" href="#" title="#${escapeHtml(heading)}">${escapeHtml(label)}</a>`;
     })
-    .replace(/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawTarget: string, rawAlias: string | undefined) => {
+    .replace(/(?<!\\)\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]+))?\]\]/g, (_match, rawTarget: string, rawAlias: string | undefined) => {
       const target = rawTarget.trim();
       const label = rawAlias?.trim() || path.basename(target, ".md") || target;
       return `<a class="internal-link" href="#" title="${escapeHtml(target)}">${escapeHtml(label)}</a>`;
