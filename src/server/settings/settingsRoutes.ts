@@ -32,9 +32,10 @@ const ragSchema = z.object({
   indexing: z
     .object({
       embeddingBatchSize: z.number().int().min(1).max(128),
-      embeddingRequestsPerMinute: z.number().int().min(0).max(6000)
+      embeddingRequestsPerMinute: z.number().int().min(0).max(6000),
+      numberOfPartitions: z.number().int().min(1).max(64).default(2)
     })
-    .default({ embeddingBatchSize: 16, embeddingRequestsPerMinute: 0 })
+    .default({ embeddingBatchSize: 16, embeddingRequestsPerMinute: 100, numberOfPartitions: 2 })
 });
 
 const httpsSchema = z.object({

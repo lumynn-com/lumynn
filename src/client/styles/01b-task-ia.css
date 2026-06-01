@@ -28,7 +28,7 @@
 }
 
 .indexing-view .field-grid {
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
 }
 
 .indexing-view .button-row {

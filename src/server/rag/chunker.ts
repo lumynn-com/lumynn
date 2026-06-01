@@ -1,11 +1,25 @@
+import crypto from "node:crypto";
+
+export const RAG_CHUNKING_VERSION = 3;
+
 export interface MarkdownChunk {
   index: number;
+  id?: string;
   heading?: string;
   text: string;
+  contentHash?: string;
+  mtimeMs?: number;
+}
+
+export interface ChunkMarkdownOptions {
+  path?: string;
+  title?: string;
+  mtimeMs?: number;
 }
 
 const maxEmbeddingTextChars = 1800;
 const maxMetadataValueChars = 500;
+const splitSeparators = ["\n\n", "\n", ". ", " ", ""];
 
 function compactValue(value: unknown): unknown {
   if (typeof value === "string") {
@@ -28,73 +42,208 @@ function compactFrontmatter(frontmatter: Record<string, unknown>): Record<string
   return compact;
 }
 
+function normalizeMarkdown(content: string): string {
+  return content.replace(/\r\n/g, "\n").trim();
+}
+
+export function stripMarkdownFrontmatter(content: string): string {
+  if (!content.startsWith("---")) {
+    return content;
+  }
+
+  const closingMatch = content.match(/\n---(\r?\n|$)/);
+  if (!closingMatch || closingMatch.index === undefined) {
+    return content;
+  }
+
+  return content.slice(closingMatch.index + closingMatch[0].length);
+}
+
+function chunkHeaderLength(title: string): number {
+  return `\n\nNOTE TITLE: [[${title}]]\n\nNOTE BLOCK CONTENT:\n\n`.length;
+}
+
+function chunkId(pathName: string | undefined, index: number): string | undefined {
+  return pathName ? `${pathName}#${index}` : undefined;
+}
+
+function contentHash(content: string): string {
+  const sample = content.slice(0, 64);
+  return crypto.createHash("sha256").update(`${content.length}:${sample}`).digest("hex").slice(0, 16);
+}
+
+function findSplitEnd(text: string, start: number, maxChars: number): number {
+  const hardEnd = Math.min(text.length, start + maxChars);
+  if (hardEnd >= text.length) {
+    return text.length;
+  }
+
+  const window = text.slice(start, hardEnd);
+  const minimumUsefulBreak = Math.floor(maxChars * 0.35);
+
+  for (const separator of splitSeparators) {
+    if (!separator) {
+      break;
+    }
+    const offset = window.lastIndexOf(separator);
+    if (offset >= minimumUsefulBreak) {
+      return start + offset + separator.length;
+    }
+  }
+
+  return hardEnd;
+}
+
 export function chunkText(text: string, size: number, overlap: number): string[] {
-  const normalized = text.replace(/\r\n/g, "\n").trim();
+  const normalized = normalizeMarkdown(text);
   if (!normalized) {
     return [];
   }
 
   const chunks: string[] = [];
+  const maxChars = Math.max(1, size);
+  const overlapChars = Math.max(0, Math.min(overlap, maxChars - 1));
   let index = 0;
+
   while (index < normalized.length) {
-    const chunk = normalized.slice(index, index + size).trim();
+    const end = findSplitEnd(normalized, index, maxChars);
+    const chunk = normalized.slice(index, end).trim();
     if (chunk) {
       chunks.push(chunk);
     }
-    index += Math.max(1, size - overlap);
+
+    if (end >= normalized.length) {
+      break;
+    }
+    index = Math.max(index + 1, end - overlapChars);
   }
+
   return chunks;
 }
 
-export function chunkMarkdownByHeading(content: string, size: number, overlap: number): MarkdownChunk[] {
-  const normalized = content.replace(/\r\n/g, "\n").trim();
+function stripSyntheticHeader(content: string, title: string): string {
+  const header = `\n\nNOTE TITLE: [[${title}]]\n\nNOTE BLOCK CONTENT:\n\n`;
+  return content.startsWith(header) ? content.slice(header.length) : content;
+}
+
+function isTinyStructuralChunk(chunk: string, title: string): boolean {
+  const body = stripSyntheticHeader(chunk, title).trim();
+  if (!body) {
+    return true;
+  }
+
+  const nonEmptyLines = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return nonEmptyLines.length === 1 && /^#{1,6}\s+\S+/.test(nonEmptyLines[0]);
+}
+
+function mergeChunkText(first: string, second: string): string {
+  const left = first.replace(/\s+$/, "");
+  const right = second.replace(/^\s+/, "");
+  return left && right ? `${left}\n\n${right}` : `${left}${right}`;
+}
+
+function coalesceTinySplitChunks(chunks: string[], title: string, maxChars: number): string[] {
+  if (chunks.length <= 1) {
+    return chunks;
+  }
+
+  const merged = [...chunks];
+  let index = 0;
+
+  while (index < merged.length - 1) {
+    if (isTinyStructuralChunk(merged[index], title)) {
+      const candidate = mergeChunkText(merged[index], merged[index + 1]);
+      if (candidate.length + chunkHeaderLength(title) <= maxChars) {
+        merged.splice(index, 2, candidate);
+        continue;
+      }
+    }
+    index += 1;
+  }
+
+  if (merged.length > 1) {
+    const lastIndex = merged.length - 1;
+    if (isTinyStructuralChunk(merged[lastIndex], title)) {
+      const candidate = mergeChunkText(merged[lastIndex - 1], merged[lastIndex]);
+      if (candidate.length + chunkHeaderLength(title) <= maxChars) {
+        merged.splice(lastIndex - 1, 2, candidate);
+      }
+    }
+  }
+
+  return merged;
+}
+
+function processSection(sectionText: string, heading: string | undefined, size: number, overlap: number, options: ChunkMarkdownOptions, startIndex: number): MarkdownChunk[] {
+  const title = options.title ?? "Untitled";
+  const maxBodyChars = Math.max(1, size - chunkHeaderLength(title));
+  const normalized = normalizeMarkdown(sectionText);
   if (!normalized) {
     return [];
   }
 
-  const sections: Array<{ heading?: string; text: string }> = [];
-  const matches = Array.from(normalized.matchAll(/^#{1,6}\s+(.+)$/gm));
+  const bodies =
+    normalized.length + chunkHeaderLength(title) <= size
+      ? [normalized]
+      : coalesceTinySplitChunks(chunkText(normalized, maxBodyChars, overlap), title, size);
 
-  if (matches.length === 0) {
-    sections.push({ text: normalized });
-  } else {
-    const firstHeadingIndex = matches[0].index ?? 0;
-    if (firstHeadingIndex > 0) {
-      sections.push({ text: normalized.slice(0, firstHeadingIndex).trim() });
-    }
+  return bodies.map((body, localIndex) => {
+    const index = startIndex + localIndex;
+    return {
+      index,
+      id: chunkId(options.path, index),
+      heading,
+      text: body,
+      contentHash: contentHash(body),
+      mtimeMs: options.mtimeMs
+    };
+  });
+}
 
-    matches.forEach((match, index) => {
-      const start = match.index ?? 0;
-      const end = index + 1 < matches.length ? matches[index + 1].index ?? normalized.length : normalized.length;
-      sections.push({
-        heading: match[1].trim(),
-        text: normalized.slice(start, end).trim()
-      });
-    });
+// Behavior adapted from logancyang/obsidian-copilot
+// src/search/v3/chunks.ts (AGPL-3.0):
+// heading-first chunks, whole-note preservation for small notes,
+// and deterministic section splitting for oversized sections.
+export function chunkMarkdownByHeading(content: string, size: number, overlap: number, options: ChunkMarkdownOptions = {}): MarkdownChunk[] {
+  const body = normalizeMarkdown(stripMarkdownFrontmatter(content));
+  if (!body) {
+    return [];
+  }
+
+  const title = options.title ?? "Untitled";
+  const headingMatches = Array.from(body.matchAll(/^#{1,6}\s+(.+)$/gm));
+  const firstHeading = headingMatches[0]?.[1]?.trim();
+
+  if (body.length + chunkHeaderLength(title) <= size) {
+    return processSection(body, firstHeading, size, overlap, options, 0);
+  }
+
+  if (headingMatches.length === 0) {
+    return processSection(body, undefined, size, overlap, options, 0);
   }
 
   const chunks: MarkdownChunk[] = [];
-  const mergedSections: Array<{ heading?: string; text: string }> = [];
-  for (const section of sections) {
-    const previous = mergedSections.at(-1);
-    if (previous && previous.text.length + section.text.length + 2 <= size) {
-      previous.text = `${previous.text}\n\n${section.text}`.trim();
-      previous.heading = previous.heading ?? section.heading;
-      continue;
-    }
-    mergedSections.push({ ...section });
+  for (let index = 0; index < headingMatches.length; index += 1) {
+    const heading = headingMatches[index];
+    const nextHeading = headingMatches[index + 1];
+    const start = index === 0 ? 0 : heading.index ?? 0;
+    const end = nextHeading?.index ?? body.length;
+    const sectionText = body.slice(start, end);
+    const processed = processSection(sectionText, heading[1].trim(), size, overlap, options, chunks.length);
+    chunks.push(...processed);
   }
 
-  for (const section of mergedSections) {
-    for (const text of chunkText(section.text, size, overlap)) {
-      chunks.push({
-        index: chunks.length,
-        heading: section.heading,
-        text
-      });
-    }
-  }
   return chunks;
+}
+
+export function formatChunkForContext(input: { title: string; path?: string; heading?: string; text: string }): string {
+  const pathLine = input.path ? `\nNOTE PATH: ${input.path}` : "";
+  const headingLine = input.heading ? `\nHEADING: ${input.heading}` : "";
+  return `NOTE TITLE: [[${input.title}]]${pathLine}${headingLine}\n\nNOTE BLOCK CONTENT:\n\n${stripMarkdownFrontmatter(input.text).trimStart()}`;
 }
 
 export function formatChunkForEmbedding(input: {
@@ -124,5 +273,5 @@ export function formatChunkForEmbedding(input: {
     ""
   ].join("\n");
   const remaining = Math.max(500, maxEmbeddingTextChars - prefix.length);
-  return `${prefix}\n${input.text.slice(0, remaining)}`;
+  return `${prefix}\n${stripMarkdownFrontmatter(input.text).trimStart().slice(0, remaining)}`;
 }

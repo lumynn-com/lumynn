@@ -90,14 +90,32 @@ const defaultRag: RagSettings = {
   },
   retrieval: {
     topK: 6,
-    chunkSize: 1200,
-    chunkOverlap: 160
+    chunkSize: 6000,
+    chunkOverlap: 0
   },
   indexing: {
     embeddingBatchSize: 16,
-    embeddingRequestsPerMinute: 0
+    embeddingRequestsPerMinute: 100,
+    numberOfPartitions: 2
   }
 };
+
+function normalizeRagRetrieval(retrieval: Partial<RagSettings["retrieval"]> | undefined): RagSettings["retrieval"] {
+  return { ...defaultRag.retrieval, ...(retrieval ?? {}) };
+}
+
+function normalizeRagIndexing(indexing: Partial<RagSettings["indexing"]> | undefined): RagSettings["indexing"] {
+  const normalized = { ...defaultRag.indexing, ...(indexing ?? {}) };
+  const submittedPartitions = Number(normalized.numberOfPartitions);
+  const numberOfPartitions = Number.isFinite(submittedPartitions)
+    ? Math.max(1, Math.min(64, Math.trunc(submittedPartitions)))
+    : defaultRag.indexing.numberOfPartitions;
+
+  return {
+    ...normalized,
+    numberOfPartitions
+  };
+}
 
 export function emptyRagSettings(): RagSettings {
   // Deep-ish clone so callers can mutate freely without affecting
@@ -151,8 +169,8 @@ function migrateLegacyShape(raw: any): AppData {
       ...legacyRag,
       embedding: { ...defaultRag.embedding, ...(legacyRag.embedding ?? {}) },
       qa: { ...defaultRag.qa, ...(legacyRag.qa ?? {}) },
-      retrieval: { ...defaultRag.retrieval, ...(legacyRag.retrieval ?? {}) },
-      indexing: { ...defaultRag.indexing, ...(legacyRag.indexing ?? {}) }
+      retrieval: normalizeRagRetrieval(legacyRag.retrieval),
+      indexing: normalizeRagIndexing(legacyRag.indexing)
     },
     createdAtByPath: raw?.createdAtByPath ?? {},
     metadataByPath: raw?.metadataByPath ?? {}
@@ -187,8 +205,8 @@ function normalizeMultiUserShape(data: AppData): AppData {
       ...(user.rag ?? {}),
       embedding: { ...emptyRagSettings().embedding, ...(user.rag?.embedding ?? {}) },
       qa: { ...emptyRagSettings().qa, ...(user.rag?.qa ?? {}) },
-      retrieval: { ...emptyRagSettings().retrieval, ...(user.rag?.retrieval ?? {}) },
-      indexing: { ...emptyRagSettings().indexing, ...(user.rag?.indexing ?? {}) }
+      retrieval: normalizeRagRetrieval(user.rag?.retrieval),
+      indexing: normalizeRagIndexing(user.rag?.indexing)
     },
     createdAtByPath: user.createdAtByPath ?? {},
     metadataByPath: user.metadataByPath ?? {}

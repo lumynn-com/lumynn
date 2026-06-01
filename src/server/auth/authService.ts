@@ -56,8 +56,8 @@ function emptyRagSettingsForBootstrap() {
   return {
     embedding: { provider: "disabled" as const, apiMode: "embeddings" as const, endpointPath: "/embeddings", baseUrl: "", model: "", timeoutMs: 30000 },
     qa: { provider: "disabled" as const, apiMode: "chat-completions" as const, endpointPath: "/chat/completions", reasoningMode: "disabled" as const, reasoningDetected: false, baseUrl: "", model: "", timeoutMs: 30000 },
-    retrieval: { topK: 6, chunkSize: 1200, chunkOverlap: 160 },
-    indexing: { embeddingBatchSize: 16, embeddingRequestsPerMinute: 0 }
+    retrieval: { topK: 6, chunkSize: 6000, chunkOverlap: 0 },
+    indexing: { embeddingBatchSize: 16, embeddingRequestsPerMinute: 100, numberOfPartitions: 2 }
   };
 }
 

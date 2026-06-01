@@ -7,6 +7,7 @@ import type { TKey } from "./i18n";
 
 type SettingsSection = "account" | "users" | "vault" | "https" | "providers" | "operations" | "import-export";
 type SettingsMode = "settings" | "indexing";
+const settingsUpdatedEvent = "owd:settings-updated";
 
 // Sections displayed in the left rail. The "users" + "https"
 // sections are admin-only and filtered out for regular users.
@@ -18,6 +19,10 @@ const allSettingsSections: Array<{ id: SettingsSection; labelKey: TKey; adminOnl
   { id: "users", labelKey: "settings.section.users", adminOnly: true },
   { id: "account", labelKey: "settings.section.account" }
 ];
+
+function broadcastSettingsUpdate(settings: AppSettings) {
+  window.dispatchEvent(new CustomEvent<AppSettings>(settingsUpdatedEvent, { detail: settings }));
+}
 
 export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBackToWorkspace?: () => void }) {
   const t = useT();
@@ -109,6 +114,18 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
       mounted = false;
     };
   }, [mode]);
+
+  useEffect(() => {
+    const handleSettingsUpdate = (event: Event) => {
+      const nextSettings = (event as CustomEvent<AppSettings>).detail;
+      if (nextSettings) {
+        setSettings(nextSettings);
+      }
+    };
+
+    window.addEventListener(settingsUpdatedEvent, handleSettingsUpdate);
+    return () => window.removeEventListener(settingsUpdatedEvent, handleSettingsUpdate);
+  }, []);
 
   // Lazy-fetch the users list the first time the admin opens
   // the Users section.
@@ -209,6 +226,7 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
           body: JSON.stringify(settings!.vault)
         });
         setSettings(saved);
+        broadcastSettingsUpdate(saved);
         setMessage(t("settings.vault.savedMessage"));
       } catch (error) {
         setMessage(error instanceof Error ? error.message : t("settings.vault.saveError"));
@@ -228,6 +246,7 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
           })
         });
         setSettings(saved);
+        broadcastSettingsUpdate(saved);
         setHttpsCertificate("");
         setHttpsPrivateKey("");
         setMessage(t("settings.https.savedMessage"));
@@ -240,16 +259,22 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
   async function saveRag(busyKey = "save-rag") {
     await runBusy(busyKey, async () => {
       try {
-        const saved = await api<AppSettings>("/api/settings/rag", {
-          method: "PUT",
-          body: JSON.stringify(settings!.rag)
-        });
-        setSettings(saved);
+        await persistRagSettings();
         setMessage(t("settings.providers.savedMessage"));
       } catch (error) {
         setMessage(error instanceof Error ? error.message : t("settings.providers.saveError"));
       }
     });
+  }
+
+  async function persistRagSettings(): Promise<AppSettings> {
+    const saved = await api<AppSettings>("/api/settings/rag", {
+      method: "PUT",
+      body: JSON.stringify(settings!.rag)
+    });
+    setSettings(saved);
+    broadcastSettingsUpdate(saved);
+    return saved;
   }
 
   async function test(url: string, busyKey: string) {
@@ -278,6 +303,7 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
   async function startIndex(url: string, busyKey: string, body?: Record<string, unknown>) {
     await runBusy(busyKey, async () => {
       try {
+        await persistRagSettings();
         const job = await api<RagIndexJob>(url, {
           method: "POST",
           body: body ? JSON.stringify(body) : undefined
@@ -318,6 +344,7 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
           body: JSON.stringify(parsed)
         });
         setSettings(saved);
+        broadcastSettingsUpdate(saved);
         setMessage(t("settings.import.success"));
       } catch (error) {
         setMessage(error instanceof Error ? error.message : t("settings.import.failed"));
@@ -736,6 +763,10 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   {t("settings.ops.topK")}
                   <input
                     type="number"
+                    name="rag-top-k"
+                    min={1}
+                    max={30}
+                    step={1}
                     value={settings.rag.retrieval.topK}
                     onChange={(event) =>
                       setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, topK: Number(event.target.value) } } })
@@ -746,6 +777,10 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   {t("settings.ops.chunkSize")}
                   <input
                     type="number"
+                    name="rag-chunk-size"
+                    min={300}
+                    max={6000}
+                    step={100}
                     value={settings.rag.retrieval.chunkSize}
                     onChange={(event) =>
                       setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkSize: Number(event.target.value) } } })
@@ -756,6 +791,10 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   {t("settings.ops.chunkOverlap")}
                   <input
                     type="number"
+                    name="rag-chunk-overlap"
+                    min={0}
+                    max={1000}
+                    step={10}
                     value={settings.rag.retrieval.chunkOverlap}
                     onChange={(event) =>
                       setSettings({ ...settings, rag: { ...settings.rag, retrieval: { ...settings.rag.retrieval, chunkOverlap: Number(event.target.value) } } })
@@ -766,6 +805,10 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   {t("settings.ops.batchSize")}
                   <input
                     type="number"
+                    name="rag-embedding-batch-size"
+                    min={1}
+                    max={128}
+                    step={1}
                     value={settings.rag.indexing.embeddingBatchSize}
                     onChange={(event) =>
                       setSettings({
@@ -782,6 +825,10 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                   {t("settings.ops.rpm")}
                   <input
                     type="number"
+                    name="rag-embedding-requests-per-minute"
+                    min={0}
+                    max={6000}
+                    step={1}
                     value={settings.rag.indexing.embeddingRequestsPerMinute}
                     onChange={(event) =>
                       setSettings({
@@ -789,6 +836,26 @@ export function SettingsView(props: { mode?: SettingsMode; role?: UserRole; onBa
                         rag: {
                           ...settings.rag,
                           indexing: { ...settings.rag.indexing, embeddingRequestsPerMinute: Number(event.target.value) }
+                        }
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  {t("settings.ops.partitions")}
+                  <input
+                    type="number"
+                    name="rag-number-of-partitions"
+                    min={1}
+                    max={64}
+                    step={1}
+                    value={settings.rag.indexing.numberOfPartitions}
+                    onChange={(event) =>
+                      setSettings({
+                        ...settings,
+                        rag: {
+                          ...settings.rag,
+                          indexing: { ...settings.rag.indexing, numberOfPartitions: Number(event.target.value) }
                         }
                       })
                     }

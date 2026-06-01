@@ -59,6 +59,7 @@ export interface RagSettings {
   indexing: {
     embeddingBatchSize: number;
     embeddingRequestsPerMinute: number;
+    numberOfPartitions: number;
   };
 }
 

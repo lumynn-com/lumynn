@@ -25,7 +25,7 @@
  *                                     visits and silently updates.
  */
 
-const CACHE_VERSION = "owd-v3";
+const CACHE_VERSION = "owd-v4";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 const SHELL_ENTRY = "/";

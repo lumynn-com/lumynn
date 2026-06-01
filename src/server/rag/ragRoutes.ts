@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { UserRecord } from "../store";
 import { listDocuments, readDocument, renderPreview } from "../vault/vaultService";
-import { chunkMarkdownByHeading } from "./chunker";
+import { RAG_CHUNKING_VERSION, chunkMarkdownByHeading, formatChunkForContext } from "./chunker";
 import { embedTexts, endpointUrl } from "./embeddingProvider";
 import { getIndexJob, latestIndexJob, requestIndexJobCancel, requestIndexJobSkipCurrentFile, startIndexJob } from "./indexJobs";
-import { getNamespaceChunks, getNamespaceStats, searchVectors, type VectorNamespace } from "./vectorStore";
+import { getNamespaceChunks, getNamespaceStats, searchVectors, type VectorIndexCompatibility, type VectorNamespace } from "./vectorStore";
 
 function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | null {
   const user = request.user;
@@ -17,6 +17,7 @@ function authedUser(request: FastifyRequest, reply: FastifyReply): UserRecord | 
 }
 
 interface Chunk {
+  id?: string;
   path: string;
   title: string;
   text: string;
@@ -156,7 +157,7 @@ function exactQuestionMatch(question: string, chunk: Pick<Chunk, "path" | "title
 }
 
 function chunkKey(chunk: Pick<Chunk, "path" | "text">): string {
-  return `${chunk.path}:${chunk.text.slice(0, 120)}`;
+  return "id" in chunk && typeof chunk.id === "string" ? chunk.id : `${chunk.path}:${chunk.text.slice(0, 120)}`;
 }
 
 function mergeChunks(target: Map<string, Chunk>, chunks: Chunk[], sourceWeight = 1): void {
@@ -196,11 +197,6 @@ function selectDiverseTopK(chunks: Chunk[], question: string, topK: number): Chu
   }
 
   return selected;
-}
-
-function formatContextChunk(title: string, path: string, heading: string | undefined, text: string): string {
-  const headingLine = heading ? `\nHEADING: ${heading}` : "";
-  return `NOTE TITLE: [[${title}]]\nNOTE PATH: ${path}${headingLine}\n\nNOTE BLOCK CONTENT:\n\n${text}`;
 }
 
 function scoreVectorMatch(question: string, match: Chunk): number {
@@ -257,6 +253,13 @@ function extractResponsesText(payload: any): string {
   return typeof payload?.output_text === "string" && payload.output_text.trim().length > 0 ? payload.output_text : fromOutput;
 }
 
+function vectorCompatibility(user: UserRecord): VectorIndexCompatibility {
+  return {
+    chunkingVersion: RAG_CHUNKING_VERSION,
+    ...(user.rag.embedding.provider !== "disabled" && user.rag.embedding.model ? { embeddingModel: user.rag.embedding.model } : {})
+  };
+}
+
 function shouldDisableReasoning(settings: { reasoningMode?: "disabled" | "provider-default" }): boolean {
   return settings.reasoningMode !== "provider-default";
 }
@@ -278,11 +281,14 @@ async function retrieveFallback(user: UserRecord, question: string, limit?: numb
   for (const doc of selectedDocs) {
     const full = await readDocument(user, doc.path);
     const docBoost = metadataBoost(question, full);
-    for (const chunk of chunkMarkdownByHeading(full.content, user.rag.retrieval.chunkSize, user.rag.retrieval.chunkOverlap)) {
+    for (const chunk of chunkMarkdownByHeading(full.content, user.rag.retrieval.chunkSize, user.rag.retrieval.chunkOverlap, {
+      path: full.path,
+      title: full.title
+    })) {
       const title = chunk.heading ? `${full.title} > ${chunk.heading}` : full.title;
-      const text = formatContextChunk(full.title, full.path, chunk.heading, chunk.text);
+      const text = formatChunkForContext({ title: full.title, path: full.path, heading: chunk.heading, text: chunk.text });
       const score = docBoost + keywordScore(question, { path: full.path, title, text: chunk.text });
-      chunks.push({ path: full.path, title, text, tags: full.tags, aliases: full.aliases, score });
+      chunks.push({ id: chunk.id, path: full.path, title, text, tags: full.tags, aliases: full.aliases, score });
     }
   }
 
@@ -293,9 +299,10 @@ async function retrieveFallback(user: UserRecord, question: string, limit?: numb
 }
 
 async function retrieveIndexedKeyword(user: UserRecord, namespace: VectorNamespace, question: string, topK: number): Promise<Chunk[]> {
-  const chunks = await getNamespaceChunks(user.username, namespace);
+  const chunks = await getNamespaceChunks(user.username, namespace, vectorCompatibility(user));
   return chunks
     .map((chunk) => ({
+      id: chunk.id,
       path: chunk.path,
       title: chunk.title,
       text: chunk.text,
@@ -309,8 +316,9 @@ async function retrieveIndexedKeyword(user: UserRecord, namespace: VectorNamespa
 }
 
 async function retrieve(user: UserRecord, question: string): Promise<RetrievalResult> {
-  const productionStats = await getNamespaceStats(user.username, "production");
-  const testStats = await getNamespaceStats(user.username, "test");
+  const compatibility = vectorCompatibility(user);
+  const productionStats = await getNamespaceStats(user.username, "production", compatibility);
+  const testStats = await getNamespaceStats(user.username, "test", compatibility);
   const namespace: VectorNamespace | null =
     productionStats.chunkCount > 0 ? "production" : testStats.chunkCount > 0 ? "test" : null;
   const topK = user.rag.retrieval.topK;
@@ -320,13 +328,14 @@ async function retrieve(user: UserRecord, question: string): Promise<RetrievalRe
     if (user.rag.embedding.provider !== "disabled") {
       try {
         const result = await embedTexts(user.rag.embedding, [question], { inputType: "query" });
-        const vectorMatches = await searchVectors(user.username, namespace, result.embeddings[0], candidateK);
+        const vectorMatches = await searchVectors(user.username, namespace, result.embeddings[0], candidateK, compatibility);
         const keywordMatches = await retrieveIndexedKeyword(user, namespace, question, candidateK);
         const merged = new Map<string, Chunk>();
 
         mergeChunks(
           merged,
           vectorMatches.map((match) => ({
+            id: match.id,
             path: match.path,
             title: match.title,
             text: match.text,
@@ -605,9 +614,10 @@ export async function registerRagRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/rag/index-stats", async (request, reply) => {
     const user = authedUser(request, reply);
     if (!user) return;
+    const compatibility = vectorCompatibility(user);
     return {
-      production: await getNamespaceStats(user.username, "production"),
-      test: await getNamespaceStats(user.username, "test")
+      production: await getNamespaceStats(user.username, "production", compatibility),
+      test: await getNamespaceStats(user.username, "test", compatibility)
     };
   });
 

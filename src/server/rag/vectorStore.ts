@@ -3,8 +3,14 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { config } from "../config";
 import { adminUsers, store } from "../store";
+import { RAG_CHUNKING_VERSION } from "./chunker";
 
 export type VectorNamespace = "test" | "production";
+export interface VectorIndexCompatibility {
+  embeddingModel?: string;
+  chunkingVersion?: number;
+  partitions?: number;
+}
 
 export interface VectorChunk {
   id: string;
@@ -14,6 +20,11 @@ export interface VectorChunk {
   hash: string;
   tags?: string[];
   aliases?: string[];
+  heading?: string;
+  contentHash?: string;
+  mtimeMs?: number;
+  embeddingModel?: string;
+  chunkingVersion?: number;
   embedding: number[];
 }
 
@@ -39,15 +50,23 @@ interface StoredVectorChunk {
   hash: string;
   tags?: string[];
   aliases?: string[];
+  heading?: string;
+  contentHash?: string;
+  mtimeMs?: number;
+  embeddingModel?: string;
+  chunkingVersion?: number;
   embeddingLength: number;
 }
 
 interface NamespaceManifest {
-  storageVersion: 2;
+  storageVersion: number;
   format: "jsonl-float32";
   updatedAt: string;
   chunkCount: number;
   embeddingFloatCount: number;
+  partitionCount?: number;
+  embeddingModel?: string;
+  chunkingVersion?: number;
 }
 
 interface FileIndexSnapshot {
@@ -58,6 +77,7 @@ interface FileIndexSnapshot {
 
 const legacyIndexPath = path.join(config.dataDir, "vector-index.json");
 const indexDir = path.join(config.dataDir, "vector-index");
+const activeStorageVersion = 3;
 
 let migrationPromise: Promise<void> | null = null;
 
@@ -78,6 +98,10 @@ function namespacePath(username: string, namespace: VectorNamespace, extension: 
   return path.join(vectorIndexDirForUser(username), `${namespace}.${extension}`);
 }
 
+function namespacePartitionPath(username: string, namespace: VectorNamespace, partition: number, extension: "jsonl" | "f32"): string {
+  return path.join(vectorIndexDirForUser(username), `${namespace}.part-${partition}.${extension}`);
+}
+
 async function pathExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);
@@ -85,19 +109,6 @@ async function pathExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-}
-
-function baseTitle(title: string): string {
-  return title.split(" > ")[0] || title;
-}
-
-function stripFrontmatter(text: string): string {
-  if (!text.startsWith("---")) {
-    return text;
-  }
-
-  const match = text.match(/\n---(\r?\n|$)/);
-  return match?.index === undefined ? text : text.slice(match.index + match[0].length);
 }
 
 function extractLegacyMetadata(text: string): { tags: string[]; aliases: string[] } {
@@ -121,13 +132,6 @@ function extractLegacyMetadata(text: string): { tags: string[]; aliases: string[
   }
 }
 
-function normalizeStoredText(title: string, text: string): string {
-  const marker = "NOTE BLOCK CONTENT:\n\n";
-  const markerIndex = text.indexOf(marker);
-  const body = stripFrontmatter(markerIndex === -1 ? text : text.slice(markerIndex + marker.length)).trimStart();
-  return `NOTE TITLE: [[${baseTitle(title)}]]\n\nNOTE BLOCK CONTENT:\n\n${body}`;
-}
-
 async function loadLegacyIndex(): Promise<VectorIndexFile | null> {
   try {
     return JSON.parse(await fs.readFile(legacyIndexPath, "utf8")) as VectorIndexFile;
@@ -142,6 +146,23 @@ async function readManifest(username: string, namespace: VectorNamespace): Promi
   } catch {
     return null;
   }
+}
+
+function compatibleChunkingVersion(options?: VectorIndexCompatibility): number {
+  return options?.chunkingVersion ?? RAG_CHUNKING_VERSION;
+}
+
+function isCompatibleManifest(manifest: NamespaceManifest | null, options?: VectorIndexCompatibility): boolean {
+  if (!manifest || manifest.storageVersion !== activeStorageVersion) {
+    return false;
+  }
+  if (manifest.chunkingVersion !== compatibleChunkingVersion(options)) {
+    return false;
+  }
+  if (options?.embeddingModel && manifest.embeddingModel !== options.embeddingModel) {
+    return false;
+  }
+  return true;
 }
 
 function deriveFileIndexFromChunks(chunks: VectorChunk[], updatedAt: string): FileIndexRecord[] {
@@ -165,18 +186,28 @@ function deriveFileIndexFromChunks(chunks: VectorChunk[], updatedAt: string): Fi
   return Array.from(byPath.values()).sort((a, b) => a.path.localeCompare(b.path));
 }
 
-async function writeCompactNamespace(username: string, namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[], updatedAt = new Date().toISOString()): Promise<void> {
-  await fs.mkdir(vectorIndexDirForUser(username), { recursive: true });
+function normalizePartitionCount(partitions: number | undefined): number {
+  const value = Number(partitions ?? 1);
+  return Number.isFinite(value) ? Math.max(1, Math.min(64, Math.trunc(value))) : 1;
+}
 
-  const metadataPath = namespacePath(username, namespace, "jsonl");
-  const embeddingsPath = namespacePath(username, namespace, "f32");
-  const manifestPath = namespacePath(username, namespace, "manifest.json");
-  const filesPath = namespacePath(username, namespace, "files.json");
-  const tmpSuffix = `${process.pid}.${Date.now()}.tmp`;
-  const metadataTmpPath = `${metadataPath}.${tmpSuffix}`;
-  const embeddingsTmpPath = `${embeddingsPath}.${tmpSuffix}`;
-  const manifestTmpPath = `${manifestPath}.${tmpSuffix}`;
-  const filesTmpPath = `${filesPath}.${tmpSuffix}`;
+function splitIntoPartitions(chunks: VectorChunk[], partitionCount: number): VectorChunk[][] {
+  const partitions = Array.from({ length: partitionCount }, () => [] as VectorChunk[]);
+  if (chunks.length === 0) {
+    return partitions;
+  }
+
+  chunks.forEach((chunk, index) => {
+    const partitionIndex = Math.min(partitionCount - 1, Math.floor((index * partitionCount) / chunks.length));
+    partitions[partitionIndex].push(chunk);
+  });
+  return partitions;
+}
+
+function serializeCompactPartition(
+  chunks: VectorChunk[],
+  options: VectorIndexCompatibility
+): { metadataText: string; embeddingsBuffer: Buffer; embeddingFloatCount: number } {
   const finiteEmbeddings = chunks.map((chunk) => chunk.embedding.filter((value) => Number.isFinite(value)));
   const embeddingFloatCount = finiteEmbeddings.reduce((total, embedding) => total + embedding.length, 0);
   const embeddingsBuffer = Buffer.allocUnsafe(embeddingFloatCount * 4);
@@ -191,10 +222,15 @@ async function writeCompactNamespace(username: string, namespace: VectorNamespac
         id: chunk.id,
         path: chunk.path,
         title: chunk.title,
-        text: normalizeStoredText(chunk.title, chunk.text),
+        text: chunk.text,
         hash: chunk.hash,
         tags: chunk.tags?.length ? chunk.tags : legacyMetadata.tags,
         aliases: chunk.aliases?.length ? chunk.aliases : legacyMetadata.aliases,
+        heading: chunk.heading,
+        contentHash: chunk.contentHash,
+        mtimeMs: chunk.mtimeMs,
+        embeddingModel: chunk.embeddingModel ?? options.embeddingModel,
+        chunkingVersion: chunk.chunkingVersion ?? compatibleChunkingVersion(options),
         embeddingLength: embedding.length
       } satisfies StoredVectorChunk)
     );
@@ -205,12 +241,65 @@ async function writeCompactNamespace(username: string, namespace: VectorNamespac
     }
   }
 
+  return {
+    metadataText: metadataLines.length > 0 ? `${metadataLines.join("\n")}\n` : "",
+    embeddingsBuffer,
+    embeddingFloatCount
+  };
+}
+
+async function cleanupNamespacePartitions(username: string, namespace: VectorNamespace, partitionCount: number): Promise<void> {
+  const dir = vectorIndexDirForUser(username);
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+  const partitionPattern = new RegExp(`^${namespace}\\.part-(\\d+)\\.(jsonl|f32)$`);
+  const removals: Promise<void>[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const match = entry.name.match(partitionPattern);
+    if (match && (partitionCount === 1 || Number(match[1]) >= partitionCount)) {
+      removals.push(fs.unlink(path.join(dir, entry.name)).catch(() => undefined));
+    }
+  }
+
+  if (partitionCount > 1) {
+    removals.push(fs.unlink(namespacePath(username, namespace, "jsonl")).catch(() => undefined));
+    removals.push(fs.unlink(namespacePath(username, namespace, "f32")).catch(() => undefined));
+  }
+
+  await Promise.all(removals);
+}
+
+async function writeCompactNamespace(
+  username: string,
+  namespace: VectorNamespace,
+  chunks: VectorChunk[],
+  fileIndex?: FileIndexRecord[],
+  options: VectorIndexCompatibility & { storageVersion?: number } = {},
+  updatedAt = new Date().toISOString()
+): Promise<void> {
+  await fs.mkdir(vectorIndexDirForUser(username), { recursive: true });
+
+  const manifestPath = namespacePath(username, namespace, "manifest.json");
+  const filesPath = namespacePath(username, namespace, "files.json");
+  const tmpSuffix = `${process.pid}.${Date.now()}.tmp`;
+  const manifestTmpPath = `${manifestPath}.${tmpSuffix}`;
+  const filesTmpPath = `${filesPath}.${tmpSuffix}`;
+  const partitionCount = normalizePartitionCount(options.partitions);
+  const partitionPayloads = splitIntoPartitions(chunks, partitionCount).map((partitionChunks) => serializeCompactPartition(partitionChunks, options));
+  const embeddingFloatCount = partitionPayloads.reduce((total, payload) => total + payload.embeddingFloatCount, 0);
+
   const manifest: NamespaceManifest = {
-    storageVersion: 2,
+    storageVersion: options.storageVersion ?? activeStorageVersion,
     format: "jsonl-float32",
     updatedAt,
     chunkCount: chunks.length,
-    embeddingFloatCount
+    embeddingFloatCount,
+    partitionCount,
+    embeddingModel: options.embeddingModel,
+    chunkingVersion: compatibleChunkingVersion(options)
   };
   const fileSnapshot: FileIndexSnapshot = {
     storageVersion: 1,
@@ -218,24 +307,44 @@ async function writeCompactNamespace(username: string, namespace: VectorNamespac
     files: (fileIndex?.length ? fileIndex : deriveFileIndexFromChunks(chunks, updatedAt)).sort((a, b) => a.path.localeCompare(b.path))
   };
 
-  await fs.writeFile(metadataTmpPath, metadataLines.length > 0 ? `${metadataLines.join("\n")}\n` : "");
-  await fs.writeFile(embeddingsTmpPath, embeddingsBuffer);
+  const partitionFiles = partitionPayloads.map((payload, index) => {
+    const metadataPath = partitionCount === 1 ? namespacePath(username, namespace, "jsonl") : namespacePartitionPath(username, namespace, index, "jsonl");
+    const embeddingsPath = partitionCount === 1 ? namespacePath(username, namespace, "f32") : namespacePartitionPath(username, namespace, index, "f32");
+    return {
+      payload,
+      metadataPath,
+      embeddingsPath,
+      metadataTmpPath: `${metadataPath}.${tmpSuffix}`,
+      embeddingsTmpPath: `${embeddingsPath}.${tmpSuffix}`
+    };
+  });
+
+  for (const file of partitionFiles) {
+    await fs.writeFile(file.metadataTmpPath, file.payload.metadataText);
+    await fs.writeFile(file.embeddingsTmpPath, file.payload.embeddingsBuffer);
+  }
   await fs.writeFile(manifestTmpPath, JSON.stringify(manifest));
   await fs.writeFile(filesTmpPath, JSON.stringify(fileSnapshot));
-  await fs.rename(metadataTmpPath, metadataPath);
-  await fs.rename(embeddingsTmpPath, embeddingsPath);
+  for (const file of partitionFiles) {
+    await fs.rename(file.metadataTmpPath, file.metadataPath);
+    await fs.rename(file.embeddingsTmpPath, file.embeddingsPath);
+  }
   await fs.rename(manifestTmpPath, manifestPath);
   await fs.rename(filesTmpPath, filesPath);
+  await cleanupNamespacePartitions(username, namespace, partitionCount);
 }
 
-async function loadCompactNamespace(username: string, namespace: VectorNamespace): Promise<VectorChunk[] | null> {
-  if (!(await pathExists(namespacePath(username, namespace, "manifest.json"))) && !(await pathExists(namespacePath(username, namespace, "jsonl")))) {
-    return null;
-  }
-
+async function loadCompactNamespacePart(
+  username: string,
+  namespace: VectorNamespace,
+  manifest: NamespaceManifest,
+  partition?: number
+): Promise<VectorChunk[]> {
+  const metadataPath = partition === undefined ? namespacePath(username, namespace, "jsonl") : namespacePartitionPath(username, namespace, partition, "jsonl");
+  const embeddingsPath = partition === undefined ? namespacePath(username, namespace, "f32") : namespacePartitionPath(username, namespace, partition, "f32");
   const [metadataText, embeddingsBuffer] = await Promise.all([
-    fs.readFile(namespacePath(username, namespace, "jsonl"), "utf8").catch(() => ""),
-    fs.readFile(namespacePath(username, namespace, "f32")).catch(() => Buffer.alloc(0))
+    fs.readFile(metadataPath, "utf8").catch(() => ""),
+    fs.readFile(embeddingsPath).catch(() => Buffer.alloc(0))
   ]);
   const chunks: VectorChunk[] = [];
   let byteOffset = 0;
@@ -260,11 +369,37 @@ async function loadCompactNamespace(username: string, namespace: VectorNamespace
       hash: item.hash,
       tags: Array.isArray(item.tags) ? item.tags : [],
       aliases: Array.isArray(item.aliases) ? item.aliases : [],
+      heading: item.heading,
+      contentHash: item.contentHash,
+      mtimeMs: item.mtimeMs,
+      embeddingModel: item.embeddingModel ?? manifest.embeddingModel,
+      chunkingVersion: item.chunkingVersion ?? manifest.chunkingVersion,
       embedding
     });
   }
 
   return chunks;
+}
+
+async function loadCompactNamespace(username: string, namespace: VectorNamespace, options?: VectorIndexCompatibility): Promise<VectorChunk[] | null> {
+  if (!(await pathExists(namespacePath(username, namespace, "manifest.json"))) && !(await pathExists(namespacePath(username, namespace, "jsonl")))) {
+    return null;
+  }
+
+  const manifest = await readManifest(username, namespace);
+  if (!manifest || !isCompatibleManifest(manifest, options)) {
+    return null;
+  }
+
+  const partitionCount = normalizePartitionCount(manifest.partitionCount);
+  if (partitionCount === 1) {
+    return loadCompactNamespacePart(username, namespace, manifest);
+  }
+
+  const partitions = await Promise.all(
+    Array.from({ length: partitionCount }, (_, partition) => loadCompactNamespacePart(username, namespace, manifest, partition))
+  );
+  return partitions.flat();
 }
 
 // Migrate any pre-multi-user data into the *first admin user's*
@@ -294,7 +429,14 @@ async function ensureLegacyMigrated(): Promise<void> {
         if (namespace !== "test" && namespace !== "production") {
           continue;
         }
-        await writeCompactNamespace(adminTarget.username, namespace, entry.chunks ?? [], undefined, entry.updatedAt ?? new Date().toISOString());
+        await writeCompactNamespace(
+          adminTarget.username,
+          namespace,
+          entry.chunks ?? [],
+          undefined,
+          { storageVersion: 2 },
+          entry.updatedAt ?? new Date().toISOString()
+        );
       }
       await fs.unlink(legacyIndexPath).catch(() => undefined);
     }
@@ -337,22 +479,42 @@ async function ensureLegacyMigrated(): Promise<void> {
   return migrationPromise;
 }
 
-export async function replaceNamespace(username: string, namespace: VectorNamespace, chunks: VectorChunk[], fileIndex?: FileIndexRecord[]): Promise<void> {
+export async function replaceNamespace(
+  username: string,
+  namespace: VectorNamespace,
+  chunks: VectorChunk[],
+  fileIndex?: FileIndexRecord[],
+  options?: VectorIndexCompatibility
+): Promise<void> {
   await ensureLegacyMigrated();
-  await writeCompactNamespace(username, namespace, chunks, fileIndex);
+  await writeCompactNamespace(username, namespace, chunks, fileIndex, options);
 }
 
-export async function getNamespaceChunks(username: string, namespace: VectorNamespace): Promise<VectorChunk[]> {
+export async function getNamespaceChunks(username: string, namespace: VectorNamespace, options?: VectorIndexCompatibility): Promise<VectorChunk[]> {
   await ensureLegacyMigrated();
-  return (await loadCompactNamespace(username, namespace)) ?? [];
+  return (await loadCompactNamespace(username, namespace, options)) ?? [];
 }
 
-export async function getNamespaceStats(username: string, namespace: VectorNamespace): Promise<{ updatedAt?: string; fileCount: number; chunkCount: number; hasIndex: boolean }> {
+export async function getNamespaceStats(
+  username: string,
+  namespace: VectorNamespace,
+  options?: VectorIndexCompatibility
+): Promise<{ updatedAt?: string; fileCount: number; chunkCount: number; hasIndex: boolean; stale?: boolean }> {
   await ensureLegacyMigrated();
   const manifest = await readManifest(username, namespace);
-  const fileIndex = await getNamespaceFileIndex(username, namespace);
-  if (manifest) {
-    const chunks = fileIndex.length > 0 ? null : await loadCompactNamespace(username, namespace);
+  if (manifest && !isCompatibleManifest(manifest, options)) {
+    return {
+      updatedAt: manifest.updatedAt,
+      fileCount: 0,
+      chunkCount: 0,
+      hasIndex: false,
+      stale: true
+    };
+  }
+
+  const fileIndex = await getNamespaceFileIndex(username, namespace, options);
+  if (manifest && isCompatibleManifest(manifest, options)) {
+    const chunks = fileIndex.length > 0 ? null : await loadCompactNamespace(username, namespace, options);
     return {
       updatedAt: manifest.updatedAt,
       fileCount: fileIndex.length || new Set((chunks ?? []).map((chunk) => chunk.path)).size,
@@ -361,7 +523,7 @@ export async function getNamespaceStats(username: string, namespace: VectorNames
     };
   }
 
-  const chunks = await loadCompactNamespace(username, namespace);
+  const chunks = await loadCompactNamespace(username, namespace, options);
   return {
     fileCount: new Set((chunks ?? []).map((chunk) => chunk.path)).size,
     chunkCount: chunks?.length ?? 0,
@@ -369,8 +531,11 @@ export async function getNamespaceStats(username: string, namespace: VectorNames
   };
 }
 
-export async function getNamespaceFileIndex(username: string, namespace: VectorNamespace): Promise<FileIndexRecord[]> {
+export async function getNamespaceFileIndex(username: string, namespace: VectorNamespace, options?: VectorIndexCompatibility): Promise<FileIndexRecord[]> {
   await ensureLegacyMigrated();
+  if (!isCompatibleManifest(await readManifest(username, namespace), options)) {
+    return [];
+  }
   try {
     const snapshot = JSON.parse(await fs.readFile(namespacePath(username, namespace, "files.json"), "utf8")) as FileIndexSnapshot;
     return Array.isArray(snapshot.files) ? snapshot.files : [];
@@ -398,9 +563,10 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(aNorm) * Math.sqrt(bNorm));
 }
 
-export async function searchVectors(username: string, namespace: VectorNamespace, queryEmbedding: number[], topK: number) {
-  const chunks = await getNamespaceChunks(username, namespace);
+export async function searchVectors(username: string, namespace: VectorNamespace, queryEmbedding: number[], topK: number, options?: VectorIndexCompatibility) {
+  const chunks = await getNamespaceChunks(username, namespace, options);
   return chunks
+    .filter((chunk) => chunk.embedding.length > 0)
     .map((chunk) => ({ ...chunk, score: cosineSimilarity(queryEmbedding, chunk.embedding) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
