@@ -59,6 +59,9 @@
   /* Print article styling: comfortable reading column, real link
      URLs, page-break friendliness. */
   .print-surface article {
+    --owd-print-font-size: 10.5pt;
+    --owd-print-line-height: 1.5;
+
     display: block !important;
     width: 100%;
     max-width: 100%;
@@ -67,8 +70,8 @@
     padding: 0;
     color: #111111 !important;
     font-family: var(--font-doc, Georgia, serif);
-    font-size: 11pt !important;
-    line-height: 1.55 !important;
+    font-size: var(--owd-print-font-size) !important;
+    line-height: var(--owd-print-line-height) !important;
     background: #ffffff !important;
     background-image: none !important;
     box-shadow: none !important;
@@ -92,8 +95,8 @@
 
   .print-surface article :where(p, li, blockquote, td, th) {
     max-width: 100%;
-    font-size: 11pt !important;
-    line-height: 1.55 !important;
+    font-size: var(--owd-print-font-size) !important;
+    line-height: var(--owd-print-line-height) !important;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -109,27 +112,27 @@
   }
 
   .print-surface article h1 {
-    font-size: 1.74rem;
+    font-size: 1.74em;
   }
 
   .print-surface article h2 {
-    font-size: 1.5rem;
+    font-size: 1.5em;
   }
 
   .print-surface article h3 {
-    font-size: 1.22rem;
+    font-size: 1.22em;
   }
 
   .print-surface article h4 {
-    font-size: 1.1rem;
+    font-size: 1.1em;
   }
 
   .print-surface article h5 {
-    font-size: 1rem;
+    font-size: 1em;
   }
 
   .print-surface article h6 {
-    font-size: 0.94rem;
+    font-size: 0.94em;
   }
 
   .print-surface article :where(pre, table, figure, img, .katex-display) {
@@ -281,7 +284,7 @@
 
   .print-surface article table th {
     color: #111111 !important;
-    font-size: 0.78rem !important;
+    font-size: 0.78em !important;
     font-weight: 650;
     letter-spacing: 0.015em;
     text-transform: uppercase;
@@ -290,7 +293,7 @@
 
   .print-surface article table td {
     color: #111111 !important;
-    font-size: 0.92rem !important;
+    font-size: 0.92em !important;
   }
 
   .print-surface article table :where(th, td):last-child {
