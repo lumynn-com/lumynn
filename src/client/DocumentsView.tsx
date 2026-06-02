@@ -4338,7 +4338,7 @@ function ConfirmModal(props: {
       >
         <div className="panel-header">
           <div>
-            {props.eyebrow ? <p className="eyebrow">{props.eyebrow}</p> : null}
+            {props.eyebrow ? <p className="eyebrow" translate="no">{props.eyebrow}</p> : null}
             <h2 id={titleId}>{props.title}</h2>
             {props.description ? <p className="muted" id={descId}>{props.description}</p> : null}
           </div>

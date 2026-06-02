@@ -339,9 +339,28 @@
   display: grid;
   gap: 1rem;
   width: min(520px, 100%);
+  min-width: 0;
   max-height: min(720px, 90dvh);
   padding: 1.25rem;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.prompt-modal .panel-header,
+.prompt-modal .panel-header > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.prompt-modal :where(.eyebrow, h2, .muted, .error) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.prompt-modal .eyebrow {
+  text-transform: none;
+  white-space: normal;
 }
 
 .prompt-form {
