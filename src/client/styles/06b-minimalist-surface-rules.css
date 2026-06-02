@@ -191,6 +191,10 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
 .editor-pane .tab-strip > .tab-strip-add:focus-visible,
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
+.editor-pane > .editor-tabbar > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane > .editor-tabbar > .tab-strip-add:hover,
+.editor-pane > .editor-tabbar > .tab-strip-add:focus-visible,
+:root[data-theme="light"] .editor-pane > .editor-tabbar > .tab-strip-add:focus-visible,
 .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover,
 :root[data-theme="light"] .editor-pane .tab-strip > .editor-tab-shell .tab-close:hover {
   background: transparent;

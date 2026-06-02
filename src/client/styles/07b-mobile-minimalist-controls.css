@@ -22,14 +22,20 @@
     display: flex;
     align-items: stretch;
     flex-wrap: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
     gap: 0;
     margin: 0;
     padding: 0;
     overflow-x: auto;
     background: transparent;
     box-shadow: none;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-pane .tab-strip::-webkit-scrollbar {
+    display: none;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell {
@@ -88,7 +94,51 @@
     font-weight: 600;
   }
 
-  .editor-pane .tab-strip > .editor-tab-shell .editor-tab > span:first-child {
+  .editor-pane .tab-strip > .editor-tab-shell .tab-icon {
+    display: inline-block;
+    position: relative;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 12px;
+    height: 14px;
+    border: 1px solid color-mix(in srgb, currentColor 86%, transparent);
+    border-radius: 2px;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    opacity: 0.92;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-icon::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 3px;
+    top: 4px;
+    height: 1px;
+    background: currentColor;
+    box-shadow: 0 4px 0 currentColor;
+    opacity: 0.72;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-icon::after {
+    content: "";
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    width: 4px;
+    height: 4px;
+    border-left: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+    border-radius: 0 1px 0 1px;
+    background: var(--md-surface, var(--panel));
+    opacity: 0.95;
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell.draft .tab-icon {
+    color: var(--md-primary, var(--accent-2));
+    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 16%, transparent);
+  }
+
+  .editor-pane .tab-strip > .editor-tab-shell .tab-title {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -125,8 +175,9 @@
     color: var(--md-text, var(--text));
   }
 
-  .editor-pane .tab-strip > .tab-strip-add {
+  .editor-pane > .editor-tabbar > .tab-strip-add {
     align-self: center;
+    flex: 0 0 auto;
     width: 28px;
     height: 28px;
     margin: 0 0.15rem 0 0.25rem;
@@ -137,13 +188,13 @@
     color: var(--md-muted, var(--muted));
   }
 
-  .editor-pane .tab-strip > .tab-strip-add:hover,
-  .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+  .editor-pane > .editor-tabbar > .tab-strip-add:hover,
+  .editor-pane > .editor-tabbar > .tab-strip-add:focus-visible {
     background: transparent;
     color: var(--md-text, var(--text));
   }
 
-  .editor-pane .tab-strip > .tab-strip-add svg {
+  .editor-pane > .editor-tabbar > .tab-strip-add svg {
     width: 14px;
     height: 14px;
   }

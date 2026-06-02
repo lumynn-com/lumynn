@@ -438,7 +438,8 @@ label:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wra
   background: transparent;
 }
 
-.editor-tab span {
+.editor-tab .tab-title,
+.editor-tab .tab-path {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

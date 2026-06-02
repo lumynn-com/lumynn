@@ -217,7 +217,7 @@ nav .active {
   border-radius: 999px;
 }
 
-.editor-tab span:first-child {
+.editor-tab .tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

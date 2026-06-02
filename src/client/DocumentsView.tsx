@@ -524,6 +524,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
+  const tabDensity = tabs.length >= 24 ? "extreme" : tabs.length >= 18 ? "crowded" : tabs.length >= 12 ? "compact" : "normal";
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
   const tabsRef = useRef<OpenTab[]>([]);
   const activePathRef = useRef("");
   const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
@@ -546,6 +548,50 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     activePathRef.current = activePath;
   }, [activePath]);
+
+  const scrollActiveTabIntoView = useCallback(() => {
+    const strip = tabStripRef.current;
+    if (!strip) return;
+    const activeShell = strip.querySelector<HTMLElement>(".editor-tab-shell.active");
+    if (!activeShell || strip.scrollWidth <= strip.clientWidth) return;
+    const stripRect = strip.getBoundingClientRect();
+    const tabRect = activeShell.getBoundingClientRect();
+    const inset = 6;
+    if (tabRect.left < stripRect.left + inset) {
+      strip.scrollBy({ left: tabRect.left - stripRect.left - inset, behavior: "auto" });
+    } else if (tabRect.right > stripRect.right - inset) {
+      strip.scrollBy({ left: tabRect.right - stripRect.right + inset, behavior: "auto" });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activePath) return;
+    const frame = window.requestAnimationFrame(scrollActiveTabIntoView);
+    return () => window.cancelAnimationFrame(frame);
+  }, [activePath, tabs.length, tabDensity, scrollActiveTabIntoView]);
+
+  useEffect(() => {
+    if (!activePath || typeof window.ResizeObserver !== "function") return;
+    const strip = tabStripRef.current;
+    if (!strip) return;
+    let frame: number | null = null;
+    const queueScroll = () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        scrollActiveTabIntoView();
+      });
+    };
+    const observer = new window.ResizeObserver(queueScroll);
+    observer.observe(strip);
+    const tabbar = strip.parentElement;
+    if (tabbar) observer.observe(tabbar);
+    queueScroll();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
+  }, [activePath, scrollActiveTabIntoView]);
   // Tree row context menu (right-click on desktop, long-press on
   // mobile). Position is the viewport coordinate to anchor the
   // menu to; the menu component clamps itself inside the
@@ -558,6 +604,14 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, []);
   const closeNodeMenu = useCallback(() => {
     setNodeMenu(null);
+  }, []);
+  const [tabMenu, setTabMenu] = useState<{ x: number; y: number; tab: OpenTab } | null>(null);
+  const openTabMenu = useCallback((tab: OpenTab, x: number, y: number) => {
+    haptic(8);
+    setTabMenu({ tab, x, y });
+  }, []);
+  const closeTabMenu = useCallback(() => {
+    setTabMenu(null);
   }, []);
 
   // Drop-target tracking. `dragOverPath` is the folder currently
@@ -931,6 +985,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // undo action, with a timeout to auto-dismiss.
   type PendingUndo =
     | { kind: "close-tab"; tab: OpenTab; wasActive: boolean; label: string }
+    | { kind: "close-tabs"; tabs: OpenTab[]; activePath: string; closedCount: number; label: string }
     | { kind: "delete-document"; path: string; content: string; label: string };
   const [pendingUndo, setPendingUndo] = useState<PendingUndo | null>(null);
   const undoTimer = useRef<number | null>(null);
@@ -1570,12 +1625,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const closeTab = useCallback((path: string) => {
     const currentTabs = tabsRef.current;
     const currentActivePath = activePathRef.current;
-    const closed = currentTabs.find((tab) => tab.path === path);
+    const closedIndex = currentTabs.findIndex((tab) => tab.path === path);
+    const closed = closedIndex >= 0 ? currentTabs[closedIndex] : undefined;
     setTabs((current) => current.filter((tab) => tab.path !== path));
     const wasActive = currentActivePath === path;
     if (wasActive) {
       const remaining = currentTabs.filter((tab) => tab.path !== path);
-      setActivePath(remaining[remaining.length - 1]?.path ?? "");
+      setActivePath(remaining[closedIndex]?.path ?? remaining[closedIndex - 1]?.path ?? "");
     }
     if (closed) {
       const label = closed.isDraft
@@ -1583,6 +1639,36 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         : `${t("undo.closedPrefix")} ${closed.name}`;
       offerUndo({ kind: "close-tab", tab: closed, wasActive, label });
     }
+  }, [offerUndo, t]);
+
+  const closeOtherTabs = useCallback((path: string) => {
+    const currentTabs = tabsRef.current;
+    if (currentTabs.length <= 1) return;
+    const keep = currentTabs.find((tab) => tab.path === path);
+    if (!keep) return;
+    setTabs([keep]);
+    setActivePath(keep.path);
+    offerUndo({
+      kind: "close-tabs",
+      tabs: currentTabs,
+      activePath: activePathRef.current,
+      closedCount: currentTabs.length - 1,
+      label: t("undo.closedTabs", { count: currentTabs.length - 1 })
+    });
+  }, [offerUndo, t]);
+
+  const closeAllTabs = useCallback(() => {
+    const currentTabs = tabsRef.current;
+    if (currentTabs.length === 0) return;
+    setTabs([]);
+    setActivePath("");
+    offerUndo({
+      kind: "close-tabs",
+      tabs: currentTabs,
+      activePath: activePathRef.current,
+      closedCount: currentTabs.length,
+      label: t("undo.closedTabs", { count: currentTabs.length })
+    });
   }, [offerUndo, t]);
 
   // Print the rendered preview of the active document through a
@@ -2024,6 +2110,18 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setActivePath(action.tab.path);
       }
       setStatusText(`${t("status.reopenedPrefix")} ${action.tab.name}`);
+      return;
+    }
+    if (action.kind === "close-tabs") {
+      setTabs((current) => {
+        const currentByPath = new Map(current.map((tab) => [tab.path, tab]));
+        const restored = action.tabs.map((tab) => currentByPath.get(tab.path) ?? tab);
+        const restoredPaths = new Set(restored.map((tab) => tab.path));
+        const extra = current.filter((tab) => !restoredPaths.has(tab.path));
+        return [...restored, ...extra];
+      });
+      setActivePath(action.activePath);
+      setStatusText(t("status.reopenedTabs", { count: action.closedCount }));
       return;
     }
     setStatusKey("status.restoring");
@@ -2492,11 +2590,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             workspace-topbar can be dropped entirely. The actions
             cluster is hidden on mobile since the mobile-app-bar
             already exposes the same trigger. */}
-        <div className="editor-tabbar">
-          <div className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
+        <div className="editor-tabbar" data-tab-count={tabs.length} data-tab-density={tabDensity}>
+          <div ref={tabStripRef} className="tab-strip" role="tablist" aria-label={t("editor.tabsLabel")}>
             {tabs.map((tab) => (
               <SwipeableTab
                 key={tab.path}
+                tab={tab}
                 path={tab.path}
                 name={tab.name}
                 isDraft={!!tab.isDraft}
@@ -2505,18 +2604,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 closeAriaLabel={t("editor.closeTab", { name: tab.name })}
                 onActivate={activateTab}
                 onClose={closeTab}
+                onOpenMenu={openTabMenu}
               />
             ))}
-            <button
-              type="button"
-              className="tab-strip-add"
-              aria-label={t("quick.trigger")}
-              title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
-              onClick={createQuickNoteDraft}
-            >
-              <PlusIcon />
-            </button>
           </div>
+          <button
+            type="button"
+            className="tab-strip-add"
+            aria-label={t("quick.trigger")}
+            title={`${t("quick.trigger")}  (\u2318\u21e7N)`}
+            onClick={createQuickNoteDraft}
+          >
+            <PlusIcon />
+          </button>
           <div className="editor-tabbar-actions desktop-only" aria-label={t("editor.actionsLabel")}>
             <span
               className="editor-tabbar-status"
@@ -2766,6 +2866,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               setStatusKey("tree.menu.copyFailed");
             }
             closeNodeMenu();
+          }}
+        />
+      ) : null}
+      {tabMenu ? (
+        <TabContextMenu
+          x={tabMenu.x}
+          y={tabMenu.y}
+          tab={tabMenu.tab}
+          tabCount={tabs.length}
+          onClose={closeTabMenu}
+          onCloseTab={() => {
+            closeTab(tabMenu.tab.path);
+            closeTabMenu();
+          }}
+          onCloseOtherTabs={() => {
+            closeOtherTabs(tabMenu.tab.path);
+            closeTabMenu();
+          }}
+          onCloseAllTabs={() => {
+            closeAllTabs();
+            closeTabMenu();
           }}
         />
       ) : null}
@@ -3493,6 +3614,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
 }
 
 const SwipeableTab = memo(function SwipeableTab(props: {
+  tab: OpenTab;
   path: string;
   name: string;
   isDraft: boolean;
@@ -3501,16 +3623,30 @@ const SwipeableTab = memo(function SwipeableTab(props: {
   closeAriaLabel: string;
   onActivate: (path: string) => void;
   onClose: (path: string) => void;
+  onOpenMenu: (tab: OpenTab, x: number, y: number) => void;
 }) {
-  const { path, name, isDraft, active, isMobile, closeAriaLabel, onActivate, onClose } = props;
+  const { tab, path, name, isDraft, active, isMobile, closeAriaLabel, onActivate, onClose, onOpenMenu } = props;
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const horizontal = useRef(false);
+  const longPressTimer = useRef<number | null>(null);
+  const menuOpened = useRef(false);
   const [dx, setDx] = useState(0);
   const [closing, setClosing] = useState(false);
   const swipeThreshold = 96;
+  const longPressMs = 520;
+
+  function clearLongPressTimer() {
+    if (longPressTimer.current != null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
+
+  useEffect(() => () => clearLongPressTimer(), []);
 
   function reset(animate = false) {
+    clearLongPressTimer();
     if (animate) {
       setDx(0);
     } else {
@@ -3526,6 +3662,22 @@ const SwipeableTab = memo(function SwipeableTab(props: {
     startX.current = event.clientX;
     startY.current = event.clientY;
     horizontal.current = false;
+    menuOpened.current = false;
+    const x = event.clientX;
+    const y = event.clientY;
+    const el = event.currentTarget;
+    clearLongPressTimer();
+    longPressTimer.current = window.setTimeout(() => {
+      menuOpened.current = true;
+      startX.current = null;
+      startY.current = null;
+      horizontal.current = false;
+      setDx(0);
+      onOpenMenu(tab, x, y);
+      const suppress = (nativeEvent: Event) => nativeEvent.preventDefault();
+      el.addEventListener("contextmenu", suppress, { once: true, capture: true });
+      window.setTimeout(() => el.removeEventListener("contextmenu", suppress, true), 600);
+    }, longPressMs);
     try {
       event.currentTarget.setPointerCapture(event.pointerId);
     } catch {
@@ -3539,11 +3691,13 @@ const SwipeableTab = memo(function SwipeableTab(props: {
     const deltaY = event.clientY - startY.current;
     if (!horizontal.current) {
       if (Math.abs(deltaY) > 10 && Math.abs(deltaY) > Math.abs(deltaX)) {
+        clearLongPressTimer();
         startX.current = null;
         startY.current = null;
         return;
       }
       if (Math.abs(deltaX) > 8) {
+        clearLongPressTimer();
         horizontal.current = true;
       } else {
         return;
@@ -3562,6 +3716,14 @@ const SwipeableTab = memo(function SwipeableTab(props: {
 
   function onPointerUp() {
     if (!isMobile) return;
+    clearLongPressTimer();
+    if (menuOpened.current) {
+      startX.current = null;
+      startY.current = null;
+      horizontal.current = false;
+      setDx(0);
+      return;
+    }
     const distance = -dx;
     startX.current = null;
     startY.current = null;
@@ -3584,9 +3746,26 @@ const SwipeableTab = memo(function SwipeableTab(props: {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={() => reset()}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onOpenMenu(tab, event.clientX, event.clientY);
+      }}
     >
-      <button role="tab" aria-selected={active} className="editor-tab" onClick={() => onActivate(path)}>
-        <span translate={isDraft ? undefined : "no"}>{name}</span>
+      <button
+        role="tab"
+        aria-selected={active}
+        className="editor-tab"
+        onClick={(event) => {
+          if (menuOpened.current) {
+            event.preventDefault();
+            menuOpened.current = false;
+            return;
+          }
+          onActivate(path);
+        }}
+      >
+        <span className="tab-icon" aria-hidden="true" />
+        <span className="tab-title" translate={isDraft ? undefined : "no"}>{name}</span>
         {isDraft ? null : <span className="tab-path" translate="no">{path}</span>}
       </button>
       <button
@@ -3898,6 +4077,39 @@ function AnchoredMenu(props: {
     >
       {children}
     </div>
+  );
+}
+
+function TabContextMenu(props: {
+  x: number;
+  y: number;
+  tab: OpenTab;
+  tabCount: number;
+  onClose: () => void;
+  onCloseTab: () => void;
+  onCloseOtherTabs: () => void;
+  onCloseAllTabs: () => void;
+}) {
+  const t = useT();
+  return (
+    <AnchoredMenu
+      x={props.x}
+      y={props.y}
+      ariaLabel={t("editor.tabMenu.label", { name: props.tab.name })}
+      className="tab-context-menu"
+      onClose={props.onClose}
+    >
+      <button type="button" role="menuitem" onClick={props.onCloseTab}>
+        {t("editor.tabMenu.close")}
+      </button>
+      <button type="button" role="menuitem" disabled={props.tabCount <= 1} onClick={props.onCloseOtherTabs}>
+        {t("editor.tabMenu.closeOthers")}
+      </button>
+      <hr />
+      <button type="button" role="menuitem" className="danger" onClick={props.onCloseAllTabs}>
+        {t("editor.tabMenu.closeAll")}
+      </button>
+    </AnchoredMenu>
   );
 }
 

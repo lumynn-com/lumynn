@@ -301,7 +301,9 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .m
 }
 
 :root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:hover,
-:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible {
+:root[data-theme="light"] .editor-pane .tab-strip > .tab-strip-add:focus-visible,
+:root[data-theme="light"] .editor-pane > .editor-tabbar > .tab-strip-add:hover,
+:root[data-theme="light"] .editor-pane > .editor-tabbar > .tab-strip-add:focus-visible {
   background: rgba(15, 23, 42, 0.08);
   color: var(--md-text);
 }

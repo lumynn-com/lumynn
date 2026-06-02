@@ -76,11 +76,11 @@ img.logo {
   vertical-align: middle;
 }
 
-.editor-tab-shell.draft .editor-tab > span {
+.editor-tab-shell.draft .editor-tab > .tab-title {
   font-style: italic;
 }
 
-.editor-tab-shell.draft .editor-tab > span::after {
+.editor-tab-shell.draft .editor-tab > .tab-title::after {
   content: "*";
   margin-left: 0.2rem;
   color: var(--md-primary, var(--accent-2));

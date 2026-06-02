@@ -133,6 +133,7 @@
   .editor-pane .tab-strip > .editor-tab-shell,
   .editor-pane .tab-strip > .editor-tab-shell .tab-close,
   .editor-pane .tab-strip > .tab-strip-add,
+  .editor-pane > .editor-tabbar > .tab-strip-add,
   .editor-toolbar-thin .icon-button,
   .anchored-menu,
   .anchored-menu button,
