@@ -123,6 +123,11 @@ body {
   border-radius: 0;
 }
 
+.muya-editor-shell .mu-fenced-code.mu-active .mu-code::after,
+.muya-editor-shell .mu-indented-code.mu-active .mu-code::after {
+  content: none;
+}
+
 .muya-editor-shell :where(.mu-table table) {
   background: transparent;
   border-color: var(--owd-muya-divider);

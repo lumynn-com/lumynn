@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
@@ -528,6 +528,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const tabStripRef = useRef<HTMLDivElement | null>(null);
   const tabsRef = useRef<OpenTab[]>([]);
   const activePathRef = useRef("");
+  const openDocumentRequestSeqRef = useRef(0);
   const [previewSnapshot, setPreviewSnapshot] = useState<PreviewSnapshot | null>(null);
   const previewCacheRef = useRef<Map<string, PreviewSnapshot>>(new Map());
   const previewRequestSeq = useRef(0);
@@ -553,18 +554,32 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const strip = tabStripRef.current;
     if (!strip) return;
     const activeShell = strip.querySelector<HTMLElement>(".editor-tab-shell.active");
-    if (!activeShell || strip.scrollWidth <= strip.clientWidth) return;
+    if (!activeShell) return;
+    const maxScrollLeft = Math.max(0, strip.scrollWidth - strip.clientWidth);
+    if (maxScrollLeft <= 0) {
+      if (strip.scrollLeft !== 0) strip.scrollLeft = 0;
+      return;
+    }
     const stripRect = strip.getBoundingClientRect();
     const tabRect = activeShell.getBoundingClientRect();
+    const left = strip.scrollLeft + tabRect.left - stripRect.left;
+    const right = strip.scrollLeft + tabRect.right - stripRect.left;
+    const visibleLeft = strip.scrollLeft;
+    const visibleRight = visibleLeft + strip.clientWidth;
     const inset = 6;
-    if (tabRect.left < stripRect.left + inset) {
-      strip.scrollBy({ left: tabRect.left - stripRect.left - inset, behavior: "auto" });
-    } else if (tabRect.right > stripRect.right - inset) {
-      strip.scrollBy({ left: tabRect.right - stripRect.right + inset, behavior: "auto" });
+    let nextScrollLeft = visibleLeft;
+    if (left < visibleLeft + inset) {
+      nextScrollLeft = left - inset;
+    } else if (right > visibleRight - inset) {
+      nextScrollLeft = right - strip.clientWidth + inset;
+    }
+    nextScrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+    if (Math.abs(nextScrollLeft - strip.scrollLeft) > 0.5) {
+      strip.scrollTo({ left: nextScrollLeft, behavior: "auto" });
     }
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!activePath) return;
     const frame = window.requestAnimationFrame(scrollActiveTabIntoView);
     return () => window.cancelAnimationFrame(frame);
@@ -958,16 +973,53 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const activeEditKind: EditKind = active?.editKind ?? "wysiwyg";
   const editKindTarget: EditKind = centerMode === "edit" && activeEditKind === "source" ? "wysiwyg" : "source";
 
-  const openDocument = useCallback(
-    (path: string) => {
-      setActivePath(path);
+  const setActivePathValue = useCallback((path: string, options: { invalidatePendingOpen?: boolean } = {}) => {
+    if (options.invalidatePendingOpen !== false) {
+      openDocumentRequestSeqRef.current += 1;
+    }
+    setActivePath(path);
+  }, []);
+
+  const selectDocumentPath = useCallback(
+    (path: string, options: { invalidatePendingOpen?: boolean } = {}) => {
+      setActivePathValue(path, { invalidatePendingOpen: options.invalidatePendingOpen });
       setSelectedFolder(parentFolderOf(path));
       if (isMobile) {
         haptic(6);
         setMobileSection("editor");
       }
     },
-    [isMobile]
+    [isMobile, setActivePathValue]
+  );
+
+  const openDocument = useCallback(
+    (path: string) => {
+      const requestSeq = openDocumentRequestSeqRef.current + 1;
+      openDocumentRequestSeqRef.current = requestSeq;
+      setSelectedFolder(parentFolderOf(path));
+      if (isMobile) {
+        haptic(6);
+        setMobileSection("editor");
+      }
+      if (isDraftPath(path) || tabsRef.current.some((tab) => tab.path === path)) {
+        setActivePathValue(path, { invalidatePendingOpen: false });
+        return;
+      }
+      api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(path)}`)
+        .then((doc) => {
+          if (openDocumentRequestSeqRef.current !== requestSeq) return;
+          setTabs((current) => {
+            if (current.some((tab) => tab.path === doc.path)) return current;
+            return [...current, { ...doc, draft: doc.content, mode: "preview", editKind: "wysiwyg" }];
+          });
+          selectDocumentPath(doc.path, { invalidatePendingOpen: false });
+        })
+        .catch((error) => {
+          if (openDocumentRequestSeqRef.current !== requestSeq) return;
+          setStatusText(error instanceof Error ? error.message : String(error));
+        });
+    },
+    [isMobile, selectDocumentPath, setActivePathValue]
   );
 
   const switchSection = useCallback((next: MobileSection) => {
@@ -1465,7 +1517,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       // Drafts are created with their tab already in place; if a draft
       // path becomes active without a tab, that means the tab was
       // closed and we should clear the active path.
-      setActivePath("");
+      setActivePathValue("");
       return;
     }
     api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
@@ -1476,7 +1528,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview", editKind: "wysiwyg" }]);
       })
       .catch((error) => setStatusText(error.message));
-  }, [activePath, tabs]);
+  }, [activePath, tabs, setActivePathValue]);
 
   const requestPreviewHtml = useCallback(
     async (content: string, path: string, isDraft: boolean | undefined, signal?: AbortSignal): Promise<string> => {
@@ -1631,7 +1683,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const wasActive = currentActivePath === path;
     if (wasActive) {
       const remaining = currentTabs.filter((tab) => tab.path !== path);
-      setActivePath(remaining[closedIndex]?.path ?? remaining[closedIndex - 1]?.path ?? "");
+      setActivePathValue(remaining[closedIndex]?.path ?? remaining[closedIndex - 1]?.path ?? "");
     }
     if (closed) {
       const label = closed.isDraft
@@ -1639,7 +1691,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         : `${t("undo.closedPrefix")} ${closed.name}`;
       offerUndo({ kind: "close-tab", tab: closed, wasActive, label });
     }
-  }, [offerUndo, t]);
+  }, [offerUndo, setActivePathValue, t]);
 
   const closeOtherTabs = useCallback((path: string) => {
     const currentTabs = tabsRef.current;
@@ -1647,7 +1699,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const keep = currentTabs.find((tab) => tab.path === path);
     if (!keep) return;
     setTabs([keep]);
-    setActivePath(keep.path);
+    setActivePathValue(keep.path);
     offerUndo({
       kind: "close-tabs",
       tabs: currentTabs,
@@ -1655,13 +1707,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       closedCount: currentTabs.length - 1,
       label: t("undo.closedTabs", { count: currentTabs.length - 1 })
     });
-  }, [offerUndo, t]);
+  }, [offerUndo, setActivePathValue, t]);
 
   const closeAllTabs = useCallback(() => {
     const currentTabs = tabsRef.current;
     if (currentTabs.length === 0) return;
     setTabs([]);
-    setActivePath("");
+    setActivePathValue("");
     offerUndo({
       kind: "close-tabs",
       tabs: currentTabs,
@@ -1669,7 +1721,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       closedCount: currentTabs.length,
       label: t("undo.closedTabs", { count: currentTabs.length })
     });
-  }, [offerUndo, t]);
+  }, [offerUndo, setActivePathValue, t]);
 
   // Print the rendered preview of the active document through a
   // temporary top-level print surface. Android browsers often ignore
@@ -1817,7 +1869,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             tab.path === draftTab.path ? { ...created, draft: created.content, mode: "preview", editKind: tab.editKind } : tab
           )
         );
-        setActivePath(created.path);
+        setActivePathValue(created.path);
         await refreshDocuments();
         setStatusKey("status.saved");
         offerUndo({
@@ -1871,7 +1923,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       editKind: "wysiwyg"
     };
     setTabs((current) => [...current, draftTab]);
-    setActivePath(draftPath);
+    setActivePathValue(draftPath);
     if (isMobile) {
       setMobileSection("editor");
     }
@@ -1895,7 +1947,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       // the user is about to write into it. Existing files open
       // in preview (see the active-path effect).
       setTabs((current) => [...current.filter((tab) => tab.path !== created.path), { ...created, draft: created.content, mode: "edit", editKind: "wysiwyg" }]);
-      openDocument(created.path);
+      selectDocumentPath(created.path);
       setStatusKey("status.created");
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -1919,7 +1971,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setTabs((current) =>
         current.map((tab) => (tab.path === currentPath ? { ...renamed, draft: tab.draft, mode: tab.mode, editKind: tab.editKind } : tab))
       );
-      if (activePath === currentPath) setActivePath(renamed.path);
+      if (activePath === currentPath) setActivePathValue(renamed.path);
       if (selectedFolder !== "" && selectedFolder === parentFolderOf(currentPath)) {
         setSelectedFolder(parentFolderOf(renamed.path));
       }
@@ -1961,7 +2013,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         })
       );
       if (activePath.startsWith(oldPrefix)) {
-        setActivePath(`${newPrefix}${activePath.slice(oldPrefix.length)}`);
+        setActivePathValue(`${newPrefix}${activePath.slice(oldPrefix.length)}`);
       }
       if (selectedFolder === currentPath || selectedFolder.startsWith(oldPrefix)) {
         setSelectedFolder(`${nextPath}${selectedFolder.slice(currentPath.length)}`);
@@ -2000,7 +2052,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setTabs((current) => current.filter((tab) => tab.path !== filePath));
       if (activePath === filePath) {
         const remaining = tabs.filter((tab) => tab.path !== filePath);
-        setActivePath(remaining[remaining.length - 1]?.path ?? "");
+        setActivePathValue(remaining[remaining.length - 1]?.path ?? "");
       }
       await refreshDocuments();
       setStatusKey("status.deleted");
@@ -2031,7 +2083,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       const prefix = `${folderPath}/`;
       setTabs((current) => current.filter((tab) => !tab.path.startsWith(prefix)));
       if (activePath.startsWith(prefix)) {
-        setActivePath("");
+        setActivePathValue("");
       }
       if (selectedFolder === folderPath || selectedFolder.startsWith(prefix)) {
         setSelectedFolder(parentFolderOf(folderPath));
@@ -2107,7 +2159,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         return [...current, action.tab];
       });
       if (action.wasActive) {
-        setActivePath(action.tab.path);
+        setActivePathValue(action.tab.path);
       }
       setStatusText(`${t("status.reopenedPrefix")} ${action.tab.name}`);
       return;
@@ -2120,7 +2172,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         const extra = current.filter((tab) => !restoredPaths.has(tab.path));
         return [...restored, ...extra];
       });
-      setActivePath(action.activePath);
+      setActivePathValue(action.activePath);
       setStatusText(t("status.reopenedTabs", { count: action.closedCount }));
       return;
     }
@@ -2139,7 +2191,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         ...current.filter((tab) => tab.path !== restored.path),
         { ...restored, draft: restored.content, mode: "preview", editKind: "wysiwyg" }
       ]);
-      openDocument(restored.path);
+      selectDocumentPath(restored.path);
       setStatusText(`${t("status.restoredPrefix")} ${restored.name}`);
     } catch (error) {
       if (error instanceof Error) setStatusText(`${t("status.restoreFailedPrefix")}: ${error.message}`);
@@ -2254,8 +2306,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }
 
   const activateTab = useCallback((path: string) => {
-    setActivePath(path);
-  }, []);
+    selectDocumentPath(path);
+  }, [selectDocumentPath]);
 
   const toggleCopilotCollapsed = useCallback(() => {
     setCopilotCollapsed((open) => !open);

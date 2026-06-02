@@ -2,7 +2,7 @@
 :root {
   --font-sans: Aptos, -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Noto Sans CJK SC", "Hiragino Sans GB", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-display: Aptos, "SF Pro Display", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Segoe UI", sans-serif;
-  --font-doc: "Iowan Old Style", "Charter", "Source Serif 4", "STSong", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
+  --font-doc: "Iowan Old Style", "Charter", "Source Serif 4", "PingFang SC", "Hiragino Sans GB", "STSong", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
   --font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 }
 
@@ -366,8 +366,12 @@ button[aria-busy="true"] > .button-spinner {
   .tab-strip {
     flex-wrap: nowrap;
     overflow-x: auto;
-    scrollbar-width: thin;
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-strip::-webkit-scrollbar {
+    display: none;
   }
 
   .editor-tab-shell {
