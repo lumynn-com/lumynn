@@ -280,7 +280,7 @@ async function readNote(args: unknown, context: CopilotToolContext): Promise<Cop
     return {
       notePath: rawPath,
       status: "invalid_path",
-      message: "Provide the note path relative to the vault root without a leading slash."
+      message: "Provide the note path relative to the library root without a leading slash."
     };
   }
   const safePath = normalizeDocumentPath(rawPath);
@@ -603,7 +603,7 @@ export function createCopilotToolRegistry(): CopilotToolDefinition[] {
   return [
     {
       name: "localSearch",
-      description: "Search the user's Markdown vault. Excludes Copilot conversation history by default.",
+      description: "Search the user's Markdown library. Excludes Copilot conversation history by default.",
       parameters: objectSchema(
         {
           query: { type: "string", description: "The search query to find relevant notes." },
@@ -623,10 +623,10 @@ export function createCopilotToolRegistry(): CopilotToolDefinition[] {
     },
     {
       name: "readNote",
-      description: "Read a specific note by vault-relative path in chunks. Use when the exact note content is needed.",
+      description: "Read a specific note by library-relative path in chunks. Use when the exact note content is needed.",
       parameters: objectSchema(
         {
-          notePath: { type: "string", description: "Vault-relative note path, such as 'Projects/plan.md'." },
+          notePath: { type: "string", description: "Library-relative note path, such as 'Projects/plan.md'." },
           chunkIndex: { type: "number", minimum: 0, description: "0-based chunk index. Omit or use 0 for the first chunk." }
         },
         ["notePath"]
@@ -635,7 +635,7 @@ export function createCopilotToolRegistry(): CopilotToolDefinition[] {
     },
     {
       name: "getFileTree",
-      description: "Get the vault file tree so exact note and folder paths can be chosen.",
+      description: "Get the library file tree so exact note and folder paths can be chosen.",
       parameters: objectSchema({}),
       execute: getFileTree
     },
@@ -644,7 +644,7 @@ export function createCopilotToolRegistry(): CopilotToolDefinition[] {
       description: "Prepare a proposal to create or rewrite a Markdown file. The proposal is not applied until the user clicks Apply.",
       parameters: objectSchema(
         {
-          path: { type: "string", description: "Vault-relative file path." },
+          path: { type: "string", description: "Library-relative file path." },
           content: {
             type: "string",
             description: "Complete intended file content. Never omit unchanged sections for rewrites."
@@ -659,7 +659,7 @@ export function createCopilotToolRegistry(): CopilotToolDefinition[] {
       description: "Prepare a targeted single-match edit proposal for an existing Markdown file.",
       parameters: objectSchema(
         {
-          path: { type: "string", description: "Vault-relative file path." },
+          path: { type: "string", description: "Library-relative file path." },
           oldText: { type: "string", description: "Exact text to replace. Include enough surrounding lines to make it unique." },
           newText: { type: "string", description: "Replacement text. Can be an empty string to delete oldText." }
         },

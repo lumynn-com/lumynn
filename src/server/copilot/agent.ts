@@ -74,8 +74,8 @@ export function getCopilotProviderStatus(user: UserRecord): { ok: boolean; tools
 
 function systemPrompt(): string {
   return [
-    "You are a Copilot-style agent for a Markdown vault.",
-    "Use tools when the answer requires vault search, note reads, file tree context, current time, or file edits.",
+    "You are a Copilot-style agent for a Markdown library.",
+    "Use tools when the answer requires library search, note reads, file tree context, current time, or file edits.",
     "When an active_note context is present, treat phrases like 'current note', 'active note', 'this note', and '当前笔记' as that note.",
     "When note_context blocks are present, use those referenced notes before searching again. You may still call readNote for later chunks or localSearch for missing context.",
     "Never claim a file was changed after writeFile or editFile. Those tools only create proposals; the user must click Apply.",
@@ -83,7 +83,7 @@ function systemPrompt(): string {
     "If tool results are insufficient, say what is missing instead of inventing details.",
     "",
     "Tool guidance:",
-    "- localSearch: provide query and salientTerms extracted from the user's words. Use getTimeRangeMs first for time-based vault searches.",
+    "- localSearch: provide query and salientTerms extracted from the user's words. Use getTimeRangeMs first for time-based library searches.",
     "- readNote: use only when you know or can infer the note path. Start with chunk 0 and request later chunks only if needed.",
     "- getFileTree: use to discover exact paths for notes or folders, not to read contents.",
     "- writeFile: provide complete target content. This creates a pending proposal only.",
@@ -137,7 +137,7 @@ function contextPrompt(activeNote?: CopilotNoteContext, referencedNotes: Copilot
   if (!activeNote && notes.length === 0) return null;
 
   const sections = [
-    "The user attached vault note context for the latest chat request.",
+    "The user attached library note context for the latest chat request.",
     "Prefer this context when it answers the request, and cite the attached note paths when you rely on them.",
     activeNote ? formatNoteContext(activeNote, "active_note", MAX_ACTIVE_NOTE_CONTEXT_CHARS) : "",
     ...notes.map((note) => formatNoteContext(note, "note_context", MAX_REFERENCED_NOTE_CONTEXT_CHARS))

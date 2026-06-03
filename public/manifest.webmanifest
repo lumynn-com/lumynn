@@ -1,8 +1,8 @@
 {
   "id": "/?source=pwa",
-  "name": "Obsidian Web Docs",
-  "short_name": "OW Docs",
-  "description": "A private web workspace for editing, searching, and asking questions over a Markdown vault.",
+  "name": "Lumyn",
+  "short_name": "Lumyn",
+  "description": "A private web workspace for editing, searching, and asking questions over a Markdown library.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

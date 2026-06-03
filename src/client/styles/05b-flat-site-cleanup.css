@@ -279,7 +279,7 @@ textarea:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-tooltip *, .m
   color: var(--md-text);
 }
 
-/* File-button (vault tree's old flat row variant) sits on a
+/* File-button (library tree's old flat row variant) sits on a
    tinted surface so it doesn't blend into the white panel. */
 :root[data-theme="light"] .file-button {
   background: var(--md-surface-2);

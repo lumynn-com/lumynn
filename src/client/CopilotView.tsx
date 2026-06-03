@@ -348,7 +348,7 @@ function folderPathsFromDocuments(documents: DocumentSummary[]): string[] {
 
 function friendlyToolStatus(name: string, phase: "running" | "done", result?: unknown): string {
   if (phase === "running") {
-    if (name === "localSearch") return "Searching vault...";
+    if (name === "localSearch") return "Searching library...";
     if (name === "readNote") return "Reading note...";
     if (name === "getFileTree") return "Checking file tree...";
     if (name === "writeFile" || name === "editFile") return "Preparing edit proposal...";

@@ -128,7 +128,7 @@ function LoginPage(props: {
     <main className="login-shell">
       <section className="login-card">
         <div className="login-card-header">
-          <div className="login-mark" aria-hidden="true">OW</div>
+          <div className="login-mark" aria-hidden="true">L</div>
           <div>
             <p className="eyebrow" translate="no">{t("login.eyebrow")}</p>
             <h1>{props.needsSetup ? t("login.titleSetup") : t("login.titleWelcome")}</h1>

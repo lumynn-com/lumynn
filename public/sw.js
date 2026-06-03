@@ -1,4 +1,4 @@
-/* Obsidian Web Docs service worker.
+/* Lumyn service worker.
  *
  * Goals:
  *   - Satisfy Android Chrome's PWA install criteria.
@@ -8,7 +8,7 @@
  *
  * Non-goals:
  *   - Caching authenticated API responses (POST/PUT/DELETE + GET
- *     /api/*). Vault and auth state must always go to the network.
+ *     /api/*). Library and auth state must always go to the network.
  *   - Background sync, push, periodic sync. Those add attack surface
  *     and we don't need them.
  *
@@ -31,6 +31,7 @@ const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 const SHELL_ENTRY = "/";
 const PWA_ASSET_PATHS = new Set([
   "/manifest.webmanifest",
+  "/icon.svg",
   "/favicon.ico",
   "/favicon-16.png",
   "/favicon-32.png",

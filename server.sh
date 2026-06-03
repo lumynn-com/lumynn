@@ -149,16 +149,16 @@ start_server() {
     npm_script="server"
   fi
 
-  echo "Starting Obsidian Web Docs (${MODE})..."
+  echo "Starting Lumyn (${MODE})..."
   echo "Node: $("${NODE_BIN}" -v) (${NODE_BIN})"
   echo "npm: ${NPM_BIN}"
   echo "Logs: ${LOG_FILE}"
-  echo "Allowed vault roots: ${ALLOWED_VAULT_ROOTS:-not set}"
+  echo "Allowed library roots: ${ALLOWED_VAULT_ROOTS:-not set}"
   {
     echo "=== $(date) starting ${MODE} ==="
     echo "Node: $("${NODE_BIN}" -v) (${NODE_BIN})"
     echo "npm: ${NPM_BIN}"
-    echo "Allowed vault roots: ${ALLOWED_VAULT_ROOTS:-not set}"
+    echo "Allowed library roots: ${ALLOWED_VAULT_ROOTS:-not set}"
   } >>"${LOG_FILE}"
   nohup env PATH="${PATH}" ALLOWED_VAULT_ROOTS="${ALLOWED_VAULT_ROOTS}" SESSION_SECRET="${SESSION_SECRET}" APP_ENCRYPTION_KEY="${APP_ENCRYPTION_KEY}" "${NPM_BIN}" run "${npm_script}" >>"${LOG_FILE}" 2>&1 &
   echo "$!" >"${PID_FILE}"

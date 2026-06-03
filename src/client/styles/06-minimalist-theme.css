@@ -1,7 +1,7 @@
 /* ============================================================
-   18. Cheap virtualization for the vault tree.
+   18. Cheap virtualization for the library tree.
 
-   Large vaults can render hundreds (or thousands) of <button>
+   Large libraries can render hundreds (or thousands) of <button>
    .tree-row nodes inside a single scrollable column. Most of
    them sit far below the viewport at any given moment, so we
    tag every row with `content-visibility: auto`: the browser

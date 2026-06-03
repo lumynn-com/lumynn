@@ -1,5 +1,5 @@
-/* Native-feeling mobile experience: top segmented control between Vault /
-   Editor / Ask, pull-down-to-search affordance on the vault list, and
+/* Native-feeling mobile experience: top segmented control between Library /
+   Editor / Ask, pull-down-to-search affordance on the library list, and
    swipe-left to close editor tabs. None of these styles activate above
    the mobile breakpoint, so desktop is untouched. */
 .mobile-segmented {
