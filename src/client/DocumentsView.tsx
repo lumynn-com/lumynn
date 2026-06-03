@@ -11,6 +11,7 @@ import {
   ChevronUpIcon,
   CloseIcon,
   CodeIcon,
+  CopyIcon,
   DownloadIcon,
   EyeIcon,
   ExternalLinkIcon,
@@ -1485,6 +1486,11 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // "Saved" or "Image saved to attachments" auto-fade after 2.5 s.
   const statusIsPending = statusLabel.endsWith("\u2026");
 
+  // Derive local copy indicator (for float under toolbar button and result text in menus)
+  // directly from the existing status state/keys. No extra state.
+  const isRecentCopySuccess = status.kind === "key" && status.key === "editor.markdownCopied";
+  const isRecentCopyError = status.kind === "key" && (status.key === "editor.copyError" || status.key === "status.copyNothing");
+
   useEffect(() => {
     if (!statusLabel || statusIsPending) return;
     const timer = window.setTimeout(() => setStatus(READY_STATUS), 2500);
@@ -1758,6 +1764,26 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       await printRenderedPreviewHtml(html, `${t("app.brand.name")} - ${docName}`);
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : "Unable to print document");
+    }
+  }
+
+  // Copy the live Markdown source (active.draft) of the current note.
+  // Mirrors copilot answer copy exactly: writeText + status via setStatusKey.
+  // Reuses the existing status keys (editor.markdownCopied / editor.copyError / status.copyNothing)
+  // for both global message and to derive local 1s-ish float under the copy control.
+  async function copyActiveMarkdown(): Promise<void> {
+    if (!active) return;
+    const content = active.draft || "";
+    if (!content.trim()) {
+      setStatusKey("status.copyNothing");
+      return;
+    }
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(content);
+      setStatusKey("editor.markdownCopied");
+    } catch {
+      setStatusKey("editor.copyError");
     }
   }
 
@@ -2696,6 +2722,42 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             >
               {centerMode === "edit" ? <EyeIcon /> : <PencilIcon />}
             </button>
+            {active ? (
+              <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => { void copyActiveMarkdown(); }}
+                  aria-label={t("editor.copyMarkdown")}
+                  title={t("editor.copyMarkdown")}
+                >
+                  <CopyIcon />
+                </button>
+                {(isRecentCopySuccess || isRecentCopyError) ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      fontSize: '9px',
+                      lineHeight: '1',
+                      whiteSpace: 'nowrap',
+                      color: isRecentCopySuccess ? 'var(--owd-theme-success)' : 'var(--owd-theme-danger)',
+                      pointerEvents: 'none',
+                      marginTop: '1px',
+                      background: isRecentCopySuccess ? 'var(--owd-theme-success-bg)' : 'var(--owd-theme-danger-bg)',
+                      padding: '0 3px',
+                      borderRadius: '2px',
+                      border: '1px solid var(--md-outline-soft)'
+                    }}
+                    aria-live="polite"
+                  >
+                    {isRecentCopySuccess ? t("editor.copied") : t("editor.copyFailed")}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <button
               type="button"
               className="icon-button focus-toggle"
@@ -3185,6 +3247,27 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 <PrintIcon />
                 <span>{t("editor.print")}</span>
               </button>
+              {(isRecentCopySuccess || isRecentCopyError) ? (
+                <button type="button" role="menuitem" disabled aria-label={isRecentCopySuccess ? t("editor.copied") : t("editor.copyFailed")}>
+                  <CopyIcon />
+                  <span style={{ color: isRecentCopySuccess ? 'var(--owd-theme-success)' : 'var(--owd-theme-danger)' }}>
+                    {isRecentCopySuccess ? t("editor.copied") : t("editor.copyFailed")}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    void copyActiveMarkdown();
+                    // Keep menu open briefly so the result text (derived from status) is visible under the item, then close.
+                    window.setTimeout(() => closeCommandMenu(), 1000);
+                  }}
+                >
+                  <CopyIcon />
+                  <span>{t("editor.copyMarkdown")}</span>
+                </button>
+              )}
               {!active.isDraft ? (
                 <>
                   <button
@@ -3354,6 +3437,26 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                   <span className="action-sheet-icon" aria-hidden="true"><PrintIcon /></span>
                   <span>{t("editor.print")}</span>
                 </button>
+                {(isRecentCopySuccess || isRecentCopyError) ? (
+                  <button type="button" disabled>
+                    <span className="action-sheet-icon" aria-hidden="true"><CopyIcon /></span>
+                    <span style={{ color: isRecentCopySuccess ? 'var(--owd-theme-success)' : 'var(--owd-theme-danger)' }}>
+                      {isRecentCopySuccess ? t("editor.copied") : t("editor.copyFailed")}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyActiveMarkdown();
+                      // Keep sheet open briefly (1s) so result text (from status) shows in the row, then close.
+                      window.setTimeout(() => setCommandSheetOpen(false), 1000);
+                    }}
+                  >
+                    <span className="action-sheet-icon" aria-hidden="true"><CopyIcon /></span>
+                    <span>{t("editor.copyMarkdown")}</span>
+                  </button>
+                )}
                 {!active.isDraft ? (
                   <>
                     <button

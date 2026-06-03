@@ -127,6 +127,11 @@ const dictionaries = {
     "editor.toggleMode": "Toggle Edit / Preview",
     "editor.moreActions": "More Actions",
     "editor.print": "Print\u2026",
+    "editor.copyMarkdown": "Copy Markdown",
+    "editor.markdownCopied": "Markdown copied to clipboard.",
+    "editor.copyError": "Unable to copy Markdown",
+    "editor.copied": "Copied",
+    "editor.copyFailed": "Failed",
     "editor.focusEnter": "Focus Mode",
     "editor.focusExit": "Exit Focus Mode",
 
@@ -153,6 +158,7 @@ const dictionaries = {
     "status.uploadFailed": "Upload failed",
     "status.attachmentSaved": "Image saved to attachments",
     "status.printNothing": "Nothing to print yet. Add some content first.",
+    "status.copyNothing": "Nothing to copy yet. Add some content first.",
 
     // Undo toast
     "undo.closedPrefix": "Closed",
@@ -660,6 +666,11 @@ const dictionaries = {
     "editor.toggleMode": "\u5207\u6362\u7f16\u8f91 / \u9884\u89c8",
     "editor.moreActions": "\u66f4\u591a\u64cd\u4f5c",
     "editor.print": "\u6253\u5370\u2026",
+    "editor.copyMarkdown": "\u590d\u5236 Markdown",
+    "editor.markdownCopied": "Markdown \u5df2\u590d\u5236\u5230\u526a\u8d34\u677f\u3002",
+    "editor.copyError": "\u65e0\u6cd5\u590d\u5236 Markdown",
+    "editor.copied": "\u5df2\u590d\u5236",
+    "editor.copyFailed": "\u5931\u8d25",
     "editor.focusEnter": "\u4e13\u6ce8\u6a21\u5f0f",
     "editor.focusExit": "\u9000\u51fa\u4e13\u6ce8\u6a21\u5f0f",
 
@@ -685,6 +696,7 @@ const dictionaries = {
     "status.uploadFailed": "\u4e0a\u4f20\u5931\u8d25",
     "status.attachmentSaved": "\u56fe\u7247\u5df2\u4fdd\u5b58\u5230 attachments",
     "status.printNothing": "\u8fd8\u6ca1\u6709\u53ef\u6253\u5370\u7684\u5185\u5bb9\uff0c\u5148\u5199\u70b9\u4ec0\u4e48\u5427\u3002",
+    "status.copyNothing": "\u8fd8\u6ca1\u6709\u53ef\u590d\u5236\u7684\u5185\u5bb9\uff0c\u5148\u5199\u70b9\u4ec0\u4e48\u5427\u3002",
 
     "undo.closedPrefix": "\u5df2\u5173\u95ed",
     "undo.closedTabs": "\u5df2\u5173\u95ed {count} \u4e2a\u6807\u7b7e",
