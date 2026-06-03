@@ -379,3 +379,47 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   height: 1px;
   background: var(--owd-minimal-divider-strong, var(--md-outline));
 }
+
+/* Global thin minimalist scrollbars (single source of truth).
+   3px hairline for our minimize style. Firefox: scrollbar-* props.
+   WebKit: pseudo rules. * covers every scroller (tree, editor, muya,
+   cm, copilot ask/answer, preview, modals, sheets, search etc) so we
+   never have to list them again.
+
+   Protect the "no scrollbar" cases (tab strips for horizontal chips,
+   copilot context row) by re-asserting in this (final) layer: earlier
+   layer none rules would otherwise lose to a later-layer * rule. */
+.tab-strip,
+.copilot-context-row {
+  scrollbar-width: none;
+}
+.tab-strip::-webkit-scrollbar,
+.copilot-context-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* The actual global thin styling. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--md-muted, var(--muted)) 22%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--md-muted, var(--muted)) 22%, transparent);
+  border-radius: 2px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--md-muted, var(--muted)) 40%, transparent);
+}
+:root[data-theme="light"] *::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--md-muted, var(--muted)) 35%, transparent);
+}
+:root[data-theme="light"] *::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--md-muted, var(--muted)) 55%, transparent);
+}

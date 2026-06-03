@@ -70,6 +70,11 @@
   --owd-theme-elevation-2: 0 4px 10px rgba(32, 34, 25, 0.055);
 }
 
+/* Global thin scrollbars (Firefox + WebKit) live in
+   09-current-theme-overrides.css as a single * rule so we don't
+   duplicate selectors for every scroller. */
+
+
 /* Legacy application tokens mapped to the current theme. */
 :root {
   --bg: var(--owd-theme-bg);
