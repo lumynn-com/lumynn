@@ -2672,13 +2672,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <PlusIcon />
           </button>
           <div className="editor-tabbar-actions desktop-only" aria-label={t("editor.actionsLabel")}>
-            <span
-              className="editor-tabbar-status"
-              aria-live="polite"
-              title={statusLabel || undefined}
-            >
-              {status.kind === "key" ? t(status.key, status.params) : status.text}
-            </span>
+            {statusLabel ? <span className="sr-only" aria-live="polite">{statusLabel}</span> : null}
             {active && centerMode === "edit" ? (
               <button
                 type="button"

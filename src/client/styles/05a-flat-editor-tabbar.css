@@ -29,24 +29,6 @@
     padding-right: 0.15rem;
   }
 
-  /* Inline status text floats just before the action buttons.
-     Truncates instead of wrapping so the bar height is fixed,
-     and keeps tabular numerals so width doesn't jitter while
-     the autosave countdown ticks. */
-  .editor-tabbar-status {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 160px;
-    margin-right: 0.4rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--md-muted, var(--muted));
-    font-size: 0.74rem;
-    font-variant-numeric: tabular-nums;
-    opacity: 0.85;
-  }
-
   /* Compact 28px icon buttons match the tab height so the
      cluster reads as part of the strip, not an extra band. */
   .editor-tabbar-actions .icon-button {

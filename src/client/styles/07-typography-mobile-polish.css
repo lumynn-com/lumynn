@@ -49,7 +49,6 @@ select:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
   font-size: var(--owd-type-row) !important;
 }
 
-.editor-tabbar-status,
 .vault-meta,
 .status-subline,
 .path-picker-current,
