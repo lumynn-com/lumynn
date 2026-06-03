@@ -89,14 +89,12 @@
   align-content: center;
 }
 
-.muya-editor-loading,
 .folder-picker-loading,
 .tree-row-placeholder {
   position: relative;
   overflow: hidden;
 }
 
-.muya-editor-loading::after,
 .folder-picker-loading::after,
 .tree-row-placeholder::after {
   content: "";
@@ -115,7 +113,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .muya-editor-loading::after,
   .folder-picker-loading::after,
   .tree-row-placeholder::after {
     animation: none;

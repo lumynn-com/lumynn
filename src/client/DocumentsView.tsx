@@ -2729,7 +2729,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <Suspense
               fallback={
                 <div className="muya-editor-loading" role="status" aria-live="polite">
-                  <SpinnerIcon />
                   <span>{t("editor.loading")}</span>
                 </div>
               }
