@@ -524,7 +524,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
   const [activePath, setActivePath] = useState("");
   const [tabs, setTabs] = useState<OpenTab[]>([]);
-  const tabDensity = tabs.length >= 24 ? "extreme" : tabs.length >= 18 ? "crowded" : tabs.length >= 12 ? "compact" : "normal";
+  const tabDensity = isMobile
+    ? tabs.length >= 14 ? "extreme" : tabs.length >= 9 ? "crowded" : tabs.length >= 5 ? "compact" : "normal"
+    : tabs.length >= 24 ? "extreme" : tabs.length >= 18 ? "crowded" : tabs.length >= 12 ? "compact" : "normal";
   const tabStripRef = useRef<HTMLDivElement | null>(null);
   const tabsRef = useRef<OpenTab[]>([]);
   const activePathRef = useRef("");

@@ -42,7 +42,8 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    flex: 0 0 auto;
+    flex: 1 1 112px;
+    min-width: 72px;
     height: 36px;
     max-width: min(220px, 62vw);
     margin: 0;
@@ -139,10 +140,15 @@
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .tab-title {
+    display: block;
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    transition-property: opacity, max-width;
+    transition-duration: 120ms;
+    transition-timing-function: ease;
   }
 
   .editor-pane .tab-strip > .editor-tab-shell .tab-path {
@@ -173,6 +179,97 @@
   .editor-pane .tab-strip > .editor-tab-shell .tab-close:focus-visible {
     background: transparent;
     color: var(--md-text, var(--text));
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="compact"] .tab-strip > .editor-tab-shell {
+    flex-basis: 76px;
+    min-width: 46px;
+    max-width: 112px;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="compact"] .tab-strip > .editor-tab-shell .editor-tab {
+    gap: 0.26rem;
+    padding-left: 0.45rem;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell {
+    flex-basis: 24px;
+    min-width: 22px;
+    max-width: 28px;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell {
+    flex-basis: 20px;
+    min-width: 18px;
+    max-width: 22px;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell .editor-tab,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell .editor-tab {
+    justify-content: center;
+    gap: 0.18rem;
+    padding: 0 0.2rem;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell .tab-title,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell .tab-title {
+    width: 0;
+    max-width: 0;
+    opacity: 0;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell.active .tab-icon,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell.active .tab-icon {
+    width: 0;
+    height: 0;
+    margin: 0;
+    border-width: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell .tab-close,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell .tab-close {
+    width: 0;
+    margin-right: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell.active .tab-close,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell.active .tab-close {
+    width: 16px;
+    margin: 0 auto;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell.active,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell.active {
+    flex-basis: 36px;
+    min-width: 34px;
+    max-width: 42px;
+    color: var(--md-primary, var(--accent-2));
+    background: color-mix(in srgb, var(--md-primary, var(--accent-2)) 12%, transparent);
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell.active .editor-tab,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell.active .editor-tab {
+    position: absolute;
+    inset: 0;
+    flex: 1 1 auto;
+    width: 100%;
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .editor-pane > .editor-tabbar[data-tab-density="crowded"] .tab-strip > .editor-tab-shell.active .tab-close,
+  .editor-pane > .editor-tabbar[data-tab-density="extreme"] .tab-strip > .editor-tab-shell.active .tab-close {
+    position: relative;
+    z-index: var(--owd-z-raised, 2);
   }
 
   .editor-pane > .editor-tabbar > .tab-strip-add {
