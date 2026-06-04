@@ -60,7 +60,7 @@ async function ensureSampleVault(): Promise<void> {
         "",
         "# Welcome",
         "",
-        "This is a private Markdown library. Create, edit, preview, delete, and ask questions about notes from Lumyn.",
+        "This is a private Markdown library. Create, edit, preview, delete, and ask questions about notes from Lumynn.",
         "",
         "Try linking to [[Project Notes]]."
       ].join("\n"),

@@ -1,7 +1,7 @@
 {
   "id": "/?source=pwa",
-  "name": "Lumyn",
-  "short_name": "Lumyn",
+  "name": "Lumynn",
+  "short_name": "Lumynn",
   "description": "A private web workspace for editing, searching, and asking questions over a Markdown library.",
   "start_url": "/?source=pwa",
   "scope": "/",

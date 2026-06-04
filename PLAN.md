@@ -1,14 +1,14 @@
-# Lumyn Implementation Plan
+# Lumynn Implementation Plan
 
 ## Goal
 
-Build Lumyn as a web document management app for a plain-text Markdown library, with basic authentication, library configuration, Markdown editing/preview, and retrieval-augmented Q&A.
+Build Lumynn as a web document management app for a plain-text Markdown library, with basic authentication, library configuration, Markdown editing/preview, and retrieval-augmented Q&A.
 
 The application should keep Markdown files as the source of truth on disk, use Obsidian-compatible conventions where practical, and keep external AI providers configurable from the web UI.
 
 ## Current Implemented Scope
 
-- Node.js/Fastify backend and React/Vite frontend for Lumyn, a Markdown library web app.
+- Node.js/Fastify backend and React/Vite frontend for Lumynn, a Markdown library web app.
 - Basic authentication, first-run admin setup, logout, and organized Settings pages.
 - Configurable library path with filesystem-first Markdown operations and safe path validation.
 - Classic three-column workspace layout:
@@ -339,7 +339,7 @@ Use this checklist if rebuilding the project from the plan.
 
 - Flat, content-first React UI with a single hairline divider language, calmer flat surfaces, and one set of radii (16 px modals / 8 px icon buttons / 6 px tab-bar buttons). No gradients, no decorative shadows, no backdrop blur. System-font rendering and `prefers-reduced-motion` honored throughout.
 - Redesign branch polish is constrained to workspace surfaces, empty/loading states, light-mode contrast, and non-menu control feedback; it does not change fonts, tab-strip styling, action sheets/context menus, or Markdown preview content styling.
-- Classic three-column Lumyn workspace on desktop:
+- Classic three-column Lumynn workspace on desktop:
   - Left document tree (collapsible to a 44 px rail).
   - Center editor/preview with tabs, per-tab edit/preview mode, and a thin tab-bar that also carries the live status pill, edit\u2194preview toggle, focus-mode button, and a "More" overflow.
   - Right AI Ask panel (collapsible to a 44 px rail).

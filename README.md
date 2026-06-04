@@ -1,4 +1,4 @@
-# Lumyn
+# Lumynn
 
 A Node.js + React document management website for a Markdown library. Markdown files stay as plain text on disk, while the web app adds login, tree-based editing, preview, library configuration, configurable RAG indexing, provider tests, and Markdown-rendered Q&A.
 

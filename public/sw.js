@@ -1,4 +1,4 @@
-/* Lumyn service worker.
+/* Lumynn service worker.
  *
  * Goals:
  *   - Satisfy Android Chrome's PWA install criteria.

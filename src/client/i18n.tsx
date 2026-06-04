@@ -8,7 +8,7 @@ const STORAGE_KEY = "owd_locale";
 const dictionaries = {
   en: {
     // Top-level / nav
-    "app.brand.name": "Lumyn",
+    "app.brand.name": "Lumynn",
     "app.brand.tagline": "Private Markdown workspace",
     "app.openWorkspace": "Open workspace",
     "nav.aria": "Primary",
@@ -26,7 +26,7 @@ const dictionaries = {
     "skipToMain": "Skip to Main Content",
 
     // Login
-    "login.eyebrow": "Lumyn",
+    "login.eyebrow": "Lumynn",
     "login.titleSetup": "Create your admin password",
     "login.titleWelcome": "Welcome back",
     "login.description": "Manage a private Markdown library with preview, settings, and RAG Q&A from a modern web interface.",
@@ -397,8 +397,8 @@ const dictionaries = {
 
     // Settings -> Vault
     "settings.vault.eyebrow": "Documents",
-    "settings.vault.title": "Lumyn Library",
-    "settings.vault.description": "Choose the filesystem library used by Lumyn.",
+    "settings.vault.title": "Lumynn Library",
+    "settings.vault.description": "Choose the filesystem library used by Lumynn.",
     "settings.vault.path": "Library path",
     "settings.vault.allowPlain": "Allow plain Markdown folders",
     "settings.vault.save": "Save Library",
@@ -551,7 +551,7 @@ const dictionaries = {
     "error.actionFailed": "Action failed"
   },
   zh: {
-    "app.brand.name": "Lumyn",
+    "app.brand.name": "Lumynn",
     "app.brand.tagline": "\u79c1\u5bc6 Markdown \u5de5\u4f5c\u533a",
     "app.openWorkspace": "\u6253\u5f00\u5de5\u4f5c\u533a",
     "nav.aria": "\u4e3b\u5bfc\u822a",
@@ -568,7 +568,7 @@ const dictionaries = {
     "topbar.adminBadge": "\u7ba1\u7406\u5458",
     "skipToMain": "\u8df3\u81f3\u4e3b\u8981\u5185\u5bb9",
 
-    "login.eyebrow": "Lumyn",
+    "login.eyebrow": "Lumynn",
     "login.titleSetup": "\u521b\u5efa\u7ba1\u7406\u5458\u5bc6\u7801",
     "login.titleWelcome": "\u6b22\u8fce\u56de\u6765",
     "login.description": "\u4ee5\u73b0\u4ee3\u5316 Web \u754c\u9762\u7ba1\u7406\u79c1\u5bc6 Markdown \u6587\u6863\u5e93\uff0c\u63d0\u4f9b\u9884\u89c8\u3001\u8bbe\u7f6e\u4ee5\u53ca\u68c0\u7d22\u589e\u5f3a\u95ee\u7b54\u3002",
@@ -928,8 +928,8 @@ const dictionaries = {
     "settings.users.deleteCaveat": "\u5220\u9664\u7528\u6237\u4f1a\u6e05\u7406\u8be5\u7528\u6237\u7684 RAG \u7d22\u5f15\u548c\u5143\u6570\u636e\u7f13\u5b58\uff0c\u4f46\u4e0d\u4f1a\u52a8\u78c1\u76d8\u4e0a\u7684 Markdown \u6587\u6863\u5e93\u3002",
 
     "settings.vault.eyebrow": "\u6587\u6863",
-    "settings.vault.title": "Lumyn \u6587\u6863\u5e93",
-    "settings.vault.description": "\u9009\u62e9 Lumyn \u4f7f\u7528\u7684\u672c\u5730\u6587\u6863\u5e93\u8def\u5f84\u3002",
+    "settings.vault.title": "Lumynn \u6587\u6863\u5e93",
+    "settings.vault.description": "\u9009\u62e9 Lumynn \u4f7f\u7528\u7684\u672c\u5730\u6587\u6863\u5e93\u8def\u5f84\u3002",
     "settings.vault.path": "\u6587\u6863\u5e93\u8def\u5f84",
     "settings.vault.allowPlain": "\u5141\u8bb8\u4f7f\u7528\u666e\u901a Markdown \u6587\u4ef6\u5939",
     "settings.vault.save": "\u4fdd\u5b58\u6587\u6863\u5e93",

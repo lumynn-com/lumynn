@@ -149,7 +149,7 @@ start_server() {
     npm_script="server"
   fi
 
-  echo "Starting Lumyn (${MODE})..."
+  echo "Starting Lumynn (${MODE})..."
   echo "Node: $("${NODE_BIN}" -v) (${NODE_BIN})"
   echo "npm: ${NPM_BIN}"
   echo "Logs: ${LOG_FILE}"

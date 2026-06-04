@@ -138,7 +138,7 @@ async function testOpenAiCompatibleEmbedding(settings: { baseUrl: string; model:
       "content-type": "application/json",
       authorization: `Bearer ${settings.apiKey ?? ""}`
     },
-    body: JSON.stringify({ model: settings.model, input: "Lumyn provider test" }),
+    body: JSON.stringify({ model: settings.model, input: "Lumynn provider test" }),
     signal: AbortSignal.timeout(settings.timeoutMs)
   });
   const payload = await response.json();
