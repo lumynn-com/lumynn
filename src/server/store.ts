@@ -24,7 +24,7 @@ export interface DocumentMetadataRecord {
   cachedAt: string;
 }
 
-// Per-user settings live entirely on the UserRecord. Vault path,
+// Per-user settings live entirely on the UserRecord. Library path,
 // RAG provider config, and document metadata caches are all
 // scoped to a single user; nothing is shared across users.
 export interface UserVaultSettings {

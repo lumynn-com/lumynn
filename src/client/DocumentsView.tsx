@@ -186,7 +186,7 @@ function withDownloadParam(url: string): string {
 
 // File-segment sanitizer: keep letters/digits/space/hyphen/underscore/CJK,
 // collapse whitespace, trim, and cap length so the resulting file name is
-// safe across macOS/Linux/Windows and inside the vault path validator.
+      // safe across macOS/Linux/Windows and inside the library path validator.
 function sanitizeFileSegment(value: string): string {
   return value
     .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]+/g, " ")

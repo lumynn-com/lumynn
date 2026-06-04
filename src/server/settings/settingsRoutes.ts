@@ -138,7 +138,7 @@ async function testOpenAiCompatibleEmbedding(settings: { baseUrl: string; model:
       "content-type": "application/json",
       authorization: `Bearer ${settings.apiKey ?? ""}`
     },
-    body: JSON.stringify({ model: settings.model, input: "Obsidian Web Docs provider test" }),
+    body: JSON.stringify({ model: settings.model, input: "Lumynn provider test" }),
     signal: AbortSignal.timeout(settings.timeoutMs)
   });
   const payload = await response.json();
@@ -255,7 +255,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     return buildUserSettings(user);
   });
 
-  // Validate a candidate vault path (no write). Per-user; the
+  // Validate a candidate library path (no write). Per-user; the
   // calling user is the one whose ALLOWED_VAULT_ROOTS matter.
   app.post("/api/settings/vault/validate", async (request, reply) => {
     const user = authedUser(request, reply);
@@ -264,7 +264,7 @@ export async function registerSettingsRoutes(app: FastifyInstance): Promise<void
     return validateVaultPath(path.resolve(body.path));
   });
 
-  // Update the calling user's vault settings.
+  // Update the calling user's library settings.
   app.put("/api/settings/vault", async (request, reply) => {
     const user = authedUser(request, reply);
     if (!user) return;

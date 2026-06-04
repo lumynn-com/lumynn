@@ -116,7 +116,7 @@ button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wr
 
    Outside Muya's own editor UI, icon controls and menu rows should
    not use elevation. State is expressed with color, opacity, or a
-   quiet row tint so the web chrome matches the vault tree style.
+   quiet row tint so the web chrome matches the library tree style.
    ============================================================ */
 .icon-button:not(:where(.muya-editor-shell *, .mu-float-wrapper *, .mu-front-button-wrapper *, .mu-tooltip *, .mu-transformer *, .mu-shadow *)),
 .vault-toolbar-action,

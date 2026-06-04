@@ -175,7 +175,7 @@ button[aria-busy="true"] > .button-spinner {
   font-variant-numeric: tabular-nums;
 }
 
-/* "Back to top" floating button for the vault list on mobile. */
+/* "Back to top" floating button for the library list on mobile. */
 .back-to-top {
   position: absolute;
   z-index: var(--owd-z-sticky-pane, 4);

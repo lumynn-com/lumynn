@@ -107,9 +107,9 @@ export async function validateVaultPath(vaultPath: string): Promise<VaultValidat
     hasObsidianConfig,
     message: ok
       ? hasObsidianConfig
-        ? "Valid Obsidian vault."
-        : "Valid Markdown folder. Obsidian metadata was not found."
-      : "Vault path must exist, be readable/writable, and stay inside ALLOWED_VAULT_ROOTS."
+        ? "Valid Markdown library."
+        : "Valid Markdown folder."
+      : "Library path must exist, be readable/writable, and stay inside ALLOWED_VAULT_ROOTS."
   };
 }
 
@@ -146,13 +146,13 @@ export function invalidateVaultValidationCache(username?: string): void {
   }
 }
 
-// Per-user: validate the user's configured vault path and return
+// Per-user: validate the user's configured library path and return
 // its absolute form. Persists the latest validation result on the
 // user record so the Settings UI can show the current status. A
 // missing/blank/invalid path throws; routes catch and 400 it.
 async function ensureVault(user: UserRecord): Promise<string> {
   if (!user.vault.path?.trim()) {
-    throw new Error("Vault path is not configured. Open Settings → Vault to set it.");
+    throw new Error("Library path is not configured. Open Settings → Library to set it.");
   }
   const resolvedPath = path.resolve(user.vault.path);
   const cacheKey = vaultValidationCacheKey(user, resolvedPath);
@@ -187,7 +187,7 @@ function resolveInVault(vaultRoot: string, documentPath: string): string {
   const safePath = normalizeDocumentPath(documentPath);
   const fullPath = path.resolve(vaultRoot, safePath);
   if (!isInside(vaultRoot, fullPath)) {
-    throw new Error("Document path escapes the vault");
+    throw new Error("Document path escapes the library");
   }
   return fullPath;
 }
@@ -221,8 +221,8 @@ export async function listDocumentTree(user: UserRecord, options: ListDocumentTr
   const order: SortOrder = options.order ?? "asc";
   const safeFolder = folder === "" ? "" : normalizeFolderPath(folder);
 
-  // Cache key is keyed off the absolute vault root so two users
-  // with different vault paths can never see each other's cached
+    // Cache key is keyed off the absolute library root so two users
+    // with different library paths can never see each other's cached
   // tree, even by accident.
   const cacheKey = `${vaultRoot}|${safeFolder}|d=${depth}|s=${sort}|o=${order}`;
   const now = Date.now();
@@ -233,7 +233,7 @@ export async function listDocumentTree(user: UserRecord, options: ListDocumentTr
 
   const folderAbs = safeFolder ? path.resolve(vaultRoot, safeFolder) : vaultRoot;
   if (!isInside(vaultRoot, folderAbs)) {
-    throw new Error("Folder path escapes the vault");
+    throw new Error("Folder path escapes the library");
   }
 
   const node = await buildTreeNode(vaultRoot, folderAbs, safeFolder, depth, sort, order);
@@ -868,7 +868,7 @@ export async function writeAttachment(user: UserRecord, params: {
   const folderRel = "attachments";
   const folderAbs = path.resolve(vaultRoot, folderRel);
   if (!isInside(vaultRoot, folderAbs)) {
-    throw new Error("Attachment path escapes the vault");
+    throw new Error("Attachment path escapes the library");
   }
   await fs.mkdir(folderAbs, { recursive: true });
 
@@ -987,7 +987,7 @@ export async function createFolder(user: UserRecord, folderPath: string): Promis
   const safeFolder = normalizeFolderPath(folderPath);
   const folderAbs = path.resolve(vaultRoot, safeFolder);
   if (!isInside(vaultRoot, folderAbs)) {
-    throw new Error("Folder path escapes the vault");
+    throw new Error("Folder path escapes the library");
   }
   // Reject if a *file* already exists at that path.
   const stat = await fs.stat(folderAbs).catch(() => null);
@@ -1031,7 +1031,7 @@ export async function inspectFolder(user: UserRecord, folderPath: string): Promi
   const safeFolder = normalizeFolderPath(folderPath);
   const folderAbs = path.resolve(vaultRoot, safeFolder);
   if (!isInside(vaultRoot, folderAbs)) {
-    throw new Error("Folder path escapes the vault");
+    throw new Error("Folder path escapes the library");
   }
   const stat = await fs.stat(folderAbs).catch(() => null);
   if (!stat || !stat.isDirectory()) {
@@ -1048,11 +1048,11 @@ export async function deleteFolder(user: UserRecord, folderPath: string, options
   const vaultRoot = await ensureVault(user);
   const safeFolder = normalizeFolderPath(folderPath);
   if (!safeFolder) {
-    throw new Error("Refusing to delete the vault root");
+    throw new Error("Refusing to delete the library root");
   }
   const folderAbs = path.resolve(vaultRoot, safeFolder);
   if (!isInside(vaultRoot, folderAbs)) {
-    throw new Error("Folder path escapes the vault");
+    throw new Error("Folder path escapes the library");
   }
   const stat = await fs.stat(folderAbs).catch(() => null);
   if (!stat || !stat.isDirectory()) {
@@ -1101,7 +1101,7 @@ export async function renameFolder(user: UserRecord, folderPath: string, nextPat
   const safeFolder = normalizeFolderPath(folderPath);
   const safeNext = normalizeFolderPath(nextPath);
   if (!safeFolder) {
-    throw new Error("Refusing to move the vault root");
+    throw new Error("Refusing to move the library root");
   }
   if (safeFolder === safeNext) {
     return { path: safeFolder, movedFiles: 0 };
@@ -1114,7 +1114,7 @@ export async function renameFolder(user: UserRecord, folderPath: string, nextPat
   const fromAbs = path.resolve(vaultRoot, safeFolder);
   const toAbs = path.resolve(vaultRoot, safeNext);
   if (!isInside(vaultRoot, fromAbs) || !isInside(vaultRoot, toAbs)) {
-    throw new Error("Folder path escapes the vault");
+    throw new Error("Folder path escapes the library");
   }
 
   const fromStat = await fs.stat(fromAbs).catch(() => null);
@@ -1247,7 +1247,7 @@ async function resolveVaultAssetLocation(user: UserRecord, assetPath: string, ba
 
   const fullPath = path.resolve(vaultRoot, match);
   if (!isInside(vaultRoot, fullPath)) {
-    throw new Error("Asset path escapes the vault");
+    throw new Error("Asset path escapes the library");
   }
   return {
     path: match,

@@ -7,30 +7,30 @@
 The partials are split by historical layer and behavior area. Their cascade order is now explicit in `../styles.css`:
 
 - `00-legacy-base.css`: original root defaults, global element reset, base controls, login shell/card, typography helpers, and error state rules.
-- `00b-legacy-workspace.css`: legacy app shell, sidebar, workspace grid, vault tree, editor tabs, preview, and rendered answer rules.
+- `00b-legacy-workspace.css`: legacy app shell, sidebar, workspace grid, library tree, editor tabs, preview, and rendered answer rules.
 - `00c-legacy-settings-indexing.css`: legacy settings, indexing, import/export, form, message, hero, and citation grid rules.
 - `00d-legacy-responsive-light.css`: legacy responsive layout rules and early light-mode compatibility overrides.
 - `01-redesign-workspace.css`: first redesign layer baseline, global app shell, sidebar, generic panels, legacy workspace grid, and responsive base rules.
 - `01b-task-ia.css`: task-first settings, indexing, and early document/editor/preview panel refinements.
-- `01c-workbench-shell.css`: Obsidian-style topbar, signed-in user/admin chrome, workspace shell, vault/editor toolbar, mode switch, and pane sizing rules.
+- `01c-workbench-shell.css`: workbench topbar, signed-in user/admin chrome, workspace shell, library/editor toolbar, mode switch, and pane sizing rules.
 - `01d-preview-reading.css`: redesign-layer preview surface and rendered Markdown rules for code, blockquotes, tasks, tables, KaTeX, and images.
 - `01e-qa-modal-search.css`: historical ask-panel shell, modal shell, prompt dialog, search form/results, and related responsive rules.
-- `02-visual-material.css`: original visual polish baseline for desktop editor, vault, preview, and Copilot surfaces.
+- `02-visual-material.css`: original visual polish baseline for desktop editor, library, preview, and Copilot surfaces.
 - `02b-material-comfort.css`: historical material comfort pass for flatter surfaces, relaxed spacing, core app controls, and modal/search foundations.
 - `02c-font-utility-controls.css`: historical font clarity, spinner, language switcher, editor FAB, back-to-top, and mobile input/toolbar utility rules.
 - `02d-mobile-workbench.css`: historical mobile workbench refinements, segmented view controls, undo toast, tactile press feedback, and modal entrance motion.
 - `03-mobile-chrome.css`: mobile section headers, icon buttons, pane chrome, overflow menu, bottom action sheet, and desktop hide guard.
 - `03b-mobile-draft-tabs.css`: quick-note draft tab, tab-strip add button, image logo reset, selected folder cue, and draft pill rules.
-- `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, vault drawer, Copilot sheet, and mobile overlay backdrop.
+- `03c-editor-first-mobile.css`: editor-first mobile app bar, workspace viewport lock, editor main pane, library drawer, Copilot sheet, and mobile overlay backdrop.
 - `04-print-surface.css`: temporary top-level print surface and print media rules.
-- `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and vault toolbar rules.
+- `04b-file-management.css`: folder picker, path picker, tree context menu, drop target, and library toolbar rules.
 - `04c-focus-mode.css`: zen/focus mode layout and exit button rules.
 - `04d-syntax-highlighting.css`: highlight.js token colors for dark and light themes.
-- `05-flat-ui.css`: desktop vault toolbar, editor toolbar, anchored menu, primary command rows, and keyboard hint rules.
+- `05-flat-ui.css`: desktop library toolbar, editor toolbar, anchored menu, primary command rows, and keyboard hint rules.
 - `05a-flat-editor-tabbar.css`: desktop combined editor tabbar and flat underline tab strip rules.
 - `05a-flat-desktop-sheets.css`: desktop command sheet, flat panel surface cleanup, and reduced-motion guard for flat UI components.
 - `05b-flat-site-cleanup.css`: site-wide flat UI cleanup, anti-glass reset, primary actions, light-mode interaction states, and anchor scroll margins. It stays in the same `flat-ui` layer as `05` so the split does not change cascade priority.
-- `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, vault tree rendering optimization, and early flat state cleanup.
+- `06-minimalist-theme.css`: minimalist compatibility rules, desktop pane collapse, library tree rendering optimization, and early flat state cleanup.
 - `07-typography-mobile-polish.css`: shared type-size normalization and mobile input zoom prevention.
 - `08-current-theme-tokens.css`: canonical current palette, legacy token aliases, shape tokens, state tokens, and document tokens.
 - `09-current-theme-overrides.css`: final app chrome, radius, command menu, mobile containment, focus exit, and Muya loading rules.

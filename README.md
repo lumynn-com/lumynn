@@ -1,21 +1,21 @@
-# Obsidian Web Docs
+# Lumynn
 
-A Node.js + React document management website for an Obsidian-style Markdown vault. Markdown files stay as plain text on disk, while the web app adds login, tree-based editing, preview, vault configuration, configurable RAG indexing, provider tests, and Markdown-rendered Q&A.
+A Node.js + React document management website for a Markdown library. Markdown files stay as plain text on disk, while the web app adds login, tree-based editing, preview, library configuration, configurable RAG indexing, provider tests, and Markdown-rendered Q&A.
 
 ## Current Build
 
 This first implementation includes:
 
 - Login with first-run admin password setup.
-- Filesystem-first Markdown vault list, create, edit, preview, delete, and sorting.
+- Filesystem-first Markdown library list, create, edit, preview, delete, and sorting.
 - Collapsed directory tree document navigation and multi-file editor tabs.
 - Atomic writes and save-conflict detection using content hashes.
-- Vault configuration with path validation and `ALLOWED_VAULT_ROOTS`.
+- Library configuration with path validation and `ALLOWED_VAULT_ROOTS`.
 - HTTPS certificate/private-key configuration, applied after server restart.
 - RAG configuration for OpenAI-compatible embedding and Q&A providers, including custom endpoint paths, `/responses` mode, and explicit reasoning control.
 - Buttons to test embedding, test Q&A, test-index a 20-file sample, rebuild the full index, and run incremental indexing.
 - Compact RAG index snapshots using JSONL metadata plus Float32 binary embeddings under `data/vector-index/`.
-- Hybrid retrieval with vector search, CJK-aware keyword scoring, metadata boosts, and indexed/vault keyword fallback.
+- Hybrid retrieval with vector search, CJK-aware keyword scoring, metadata boosts, and indexed/library keyword fallback.
 - RAG config export/import through clipboard or JSON files, with secrets redacted from normal settings responses.
 - Markdown-rendered AI answers with sanitized HTML output.
 - Modern React UI with document, settings, and Q&A views.
@@ -113,8 +113,8 @@ Important environment variables:
 - `PORT`: backend API port. Default: `4177`.
 - `HOST`: backend bind address. Default: `0.0.0.0`.
 - `DATA_DIR`: app data directory. Default: `data`.
-- `DEFAULT_VAULT_PATH`: initial vault path. Default: `sample-vault`.
-- `ALLOWED_VAULT_ROOTS`: comma-separated directories that vault paths must stay inside. Required in production.
+- `DEFAULT_VAULT_PATH`: initial library path. Default: `sample-vault`.
+- `ALLOWED_VAULT_ROOTS`: comma-separated directories that library paths must stay inside. Required in production.
 - `SESSION_SECRET`: cookie/session secret. Use a strong value in production.
 - `APP_ENCRYPTION_KEY`: required in production and must be at least 32 characters. This is reserved for provider secret encryption hardening.
 - `OBSIDIAN_CLI_BIN`: optional Obsidian CLI binary name or path. Default: `obsidian`.
@@ -160,7 +160,7 @@ npm test         # focused node:test suite
 The current focused tests cover:
 
 - Markdown parser metadata extraction.
-- Vault path normalization and traversal rejection.
+- Library path normalization and traversal rejection.
 - Markdown preview sanitization.
 - RAG heading-aware chunking and embedding-text formatting.
 
@@ -174,5 +174,5 @@ npm test
 
 - Put the Node.js server behind a TLS-terminating reverse proxy such as Caddy, nginx, or Traefik.
 - Set `NODE_ENV=production`, `SESSION_SECRET`, `APP_ENCRYPTION_KEY`, and `ALLOWED_VAULT_ROOTS`.
-- Restrict filesystem permissions so the process can only read/write intended vaults.
+- Restrict filesystem permissions so the process can only read/write intended libraries.
 - Keep provider API keys server-side and rotate them if exposed.

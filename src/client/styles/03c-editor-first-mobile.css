@@ -1,8 +1,8 @@
 /* ============================================================
-   Editor-first mobile model (Obsidian Mobile inspired):
+   Editor-first mobile model:
    - Single sticky app bar at the very top: \u2630 + file name + \u22ef
    - Editor is the always-visible main view
-   - Vault becomes a left drawer (slides in from the left edge)
+   - Library becomes a left drawer (slides in from the left edge)
    - Ask becomes a bottom sheet
    - All preferences (theme, language, logout, indexing, settings)
      live behind the \u22ef command sheet
@@ -14,7 +14,7 @@
 
 @media (max-width: 860px) {
   /* Drop the per-pane mobile-section-header now that we have a single
-     global mobile app bar at the very top. The vault drawer keeps its
+     global mobile app bar at the very top. The library drawer keeps its
      own internal header because it's a separate context. */
   .editor-pane > .mobile-section-header {
     display: none;
