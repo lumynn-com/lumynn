@@ -342,6 +342,10 @@ function isMobilePrintEnvironment(): boolean {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (navigator.maxTouchPoints > 1 && window.matchMedia("(max-width: 860px)").matches);
 }
 
+function isAndroidPrintEnvironment(): boolean {
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+}
+
 async function printRenderedPreviewHtml(html: string, title: string): Promise<void> {
   const surface = document.createElement("div");
   surface.className = "print-surface active-print-surface";
@@ -351,9 +355,11 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
 
   const previousTitle = document.title;
   const previousPrintMode = document.body.dataset.printMode;
+  const previousPrintPreviewLive = document.body.dataset.printPreviewLive;
   let cleaned = false;
   let printRequestedAt = 0;
   const mobilePrint = isMobilePrintEnvironment();
+  const androidPrint = isAndroidPrintEnvironment();
   const minimumHoldMs = mobilePrint ? 12000 : 250;
   let cleanupTimer = 0;
   const cleanup = () => {
@@ -365,6 +371,11 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
       delete document.body.dataset.printMode;
     } else {
       document.body.dataset.printMode = previousPrintMode;
+    }
+    if (previousPrintPreviewLive === undefined) {
+      delete document.body.dataset.printPreviewLive;
+    } else {
+      document.body.dataset.printPreviewLive = previousPrintPreviewLive;
     }
     document.title = previousTitle;
     window.removeEventListener("afterprint", scheduleCleanup);
@@ -378,6 +389,9 @@ async function printRenderedPreviewHtml(html: string, title: string): Promise<vo
   };
 
   document.body.dataset.printMode = "active";
+  if (androidPrint) {
+    document.body.dataset.printPreviewLive = "true";
+  }
   document.title = title;
   document.body.appendChild(surface);
   window.addEventListener("afterprint", scheduleCleanup);

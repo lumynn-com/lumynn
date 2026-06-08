@@ -12,6 +12,75 @@
   pointer-events: none;
 }
 
+@media screen {
+  body[data-print-mode="active"][data-print-preview-live="true"] {
+    height: auto;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background: #ffffff;
+    background-image: none;
+    color: #111111;
+    color-scheme: light;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > *:not(.active-print-surface) {
+    display: none;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface {
+    position: static;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    pointer-events: auto;
+    display: block;
+    box-sizing: border-box;
+    background: #ffffff;
+    background-image: none;
+    color: #111111;
+    box-shadow: none;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface article {
+    display: block;
+    width: min(100%, 760px);
+    margin: 0 auto;
+    padding: 24px clamp(18px, 5vw, 36px);
+    box-sizing: border-box;
+    color: #111111;
+    font-family: var(--font-doc, Georgia, serif);
+    font-size: 16px;
+    line-height: 1.62;
+    background: #ffffff;
+    background-image: none;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface article :first-child {
+    margin-top: 0;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface article :last-child {
+    margin-bottom: 0;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface article :where(img, video, canvas, svg) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  body[data-print-mode="active"][data-print-preview-live="true"] > .active-print-surface.print-surface article :where(pre, table) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
+
 @media print {
   /* Reset body so the print sheet starts on a clean white page. */
   html:root,
