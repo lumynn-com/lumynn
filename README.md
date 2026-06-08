@@ -121,6 +121,8 @@ Important environment variables:
 
 HTTPS can also be configured from Settings by importing or pasting a PEM certificate and private key. Restart the server after saving HTTPS settings.
 
+If HTTPS is enabled but the stored certificate is expired or not yet valid, Lumynn starts in HTTP recovery mode on the same host and port after restart. Open the app with `http://...` instead of `https://...`, update the certificate in Settings, then restart again to return to HTTPS.
+
 Example:
 
 ```sh

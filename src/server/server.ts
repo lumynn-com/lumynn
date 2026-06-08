@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import type { Stats } from "node:fs";
+import { X509Certificate } from "node:crypto";
 import path from "node:path";
 import { promisify } from "node:util";
 import { brotliCompress, constants as zlibConstants, gzip } from "node:zlib";
@@ -19,8 +20,9 @@ import { assertProductionSecrets } from "./crypto";
 import { registerDocumentRoutes } from "./documents/documentRoutes";
 import { checkObsidianCli } from "./obsidian/obsidianCli";
 import { registerRagRoutes } from "./rag/ragRoutes";
+import { setRuntimeTransport } from "./runtime";
 import { registerSettingsRoutes } from "./settings/settingsRoutes";
-import { store } from "./store";
+import { store, type GlobalSettings } from "./store";
 import { registerUserRoutes } from "./users/userRoutes";
 
 const brotliCompressAsync = promisify(brotliCompress);
@@ -171,24 +173,77 @@ function appendAcceptEncodingVary(reply: FastifyReply): void {
   reply.header("Vary", appendVary(reply.getHeader("Vary"), "Accept-Encoding"));
 }
 
+function firstCertificatePem(certificate: string): string | null {
+  return certificate.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/)?.[0] ?? null;
+}
+
+function certificateDateReason(certificate: string, now = Date.now()): string | null {
+  const firstPem = firstCertificatePem(certificate);
+  if (!firstPem) {
+    return "certificate PEM does not contain a certificate";
+  }
+
+  try {
+    const parsed = new X509Certificate(firstPem);
+    const validFromMs = Date.parse(parsed.validFrom);
+    const validToMs = Date.parse(parsed.validTo);
+    if (!Number.isFinite(validFromMs) || !Number.isFinite(validToMs)) {
+      return "certificate validity dates could not be parsed";
+    }
+    if (now < validFromMs) {
+      return `certificate is not valid before ${new Date(validFromMs).toISOString()}`;
+    }
+    if (now > validToMs) {
+      return `certificate expired at ${new Date(validToMs).toISOString()}`;
+    }
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "certificate could not be parsed";
+  }
+}
+
+function resolveHttpsOptions(https: GlobalSettings["https"]): { options?: { cert: string; key: string }; disabledReason?: string } {
+  if (!https?.enabled) {
+    return {};
+  }
+  const certificate = https.certificate?.trim() ?? "";
+  const privateKey = https.privateKey?.trim() ?? "";
+  if (!certificate || !privateKey) {
+    return { disabledReason: "HTTPS is enabled but certificate or private key is missing" };
+  }
+
+  const dateReason = certificateDateReason(certificate);
+  if (dateReason) {
+    return { disabledReason: dateReason };
+  }
+
+  return {
+    options: {
+      cert: certificate,
+      key: privateKey
+    }
+  };
+}
+
 export async function buildServer() {
   assertProductionSecrets();
   await ensureSampleVault();
   const data = await store.load();
-  const https = data.globalSettings.https;
-  const httpsOptions =
-    https?.enabled && https.certificate?.trim() && https.privateKey?.trim()
-      ? {
-          cert: https.certificate,
-          key: https.privateKey
-        }
-      : undefined;
+  const https = resolveHttpsOptions(data.globalSettings.https);
+  setRuntimeTransport(https.options ? "https" : "http", https.disabledReason);
 
   const app = Fastify({
     logger: true,
     bodyLimit: 1024 * 1024 * 30,
-    ...(httpsOptions ? { https: httpsOptions } : {})
+    ...(https.options ? { https: https.options } : {})
   });
+
+  if (data.globalSettings.https.enabled && !https.options) {
+    app.log.warn(
+      { reason: https.disabledReason },
+      "HTTPS is configured but unavailable; starting HTTP recovery mode so certificate settings can be updated"
+    );
+  }
 
   // Accept raw binary uploads (e.g. paste-image-into-editor) as a
   // Buffer rather than the default UTF-8 string parsing.

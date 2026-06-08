@@ -3,6 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { DEFAULT_RAG_INDEXING, DEFAULT_RAG_RETRIEVAL, type UserRole } from "../../shared/types";
 import { config } from "../config";
 import { newToken, sha256 } from "../crypto";
+import { runtimeState } from "../runtime";
 import { adminUsers, findUserByUsername, store, type UserRecord } from "../store";
 
 const cookieName = "owd_session";
@@ -18,6 +19,10 @@ const sessionTtlMs = 1000 * 60 * 60 * 24 * 90;
 // toward expiry. Half is conservative: we don't rewrite the
 // store on every request, only when meaningfully aged.
 const sessionRefreshAfterMs = sessionTtlMs / 2;
+
+function useSecureSessionCookie(): boolean {
+  return config.nodeEnv === "production" && runtimeState.transport === "https";
+}
 
 // Bootstrap path for the very first install: when no users
 // exist yet, the next successful login form POST creates the
@@ -181,7 +186,7 @@ export async function logout(request: FastifyRequest, reply: FastifyReply): Prom
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: config.nodeEnv === "production"
+    secure: useSecureSessionCookie()
   });
 }
 
@@ -190,7 +195,7 @@ export function setSessionCookie(reply: FastifyReply, token: string): void {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: config.nodeEnv === "production",
+    secure: useSecureSessionCookie(),
     maxAge: Math.floor(sessionTtlMs / 1000)
   });
 }
