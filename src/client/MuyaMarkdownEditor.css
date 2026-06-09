@@ -244,6 +244,11 @@ body .mu-float-wrapper .mu-quick-insert .icon-container > i.icon > i[class^='ico
 }
 
 @media (max-width: 860px) {
+  body[data-owd-mobile-overlay="true"] :where(.mu-float-wrapper, .mu-front-button-wrapper, .mu-tooltip, .owd-muya-tooltip, .mu-transformer, .mu-shadow) {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   .muya-editor-shell .mu-editor {
     padding: 1.1rem 1rem 5.25rem;
   }

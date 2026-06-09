@@ -761,6 +761,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
 
+  useEffect(() => {
+    if (isMobile && mobileSection !== "editor") {
+      document.body.dataset.owdMobileOverlay = "true";
+    } else {
+      delete document.body.dataset.owdMobileOverlay;
+    }
+    return () => {
+      delete document.body.dataset.owdMobileOverlay;
+    };
+  }, [isMobile, mobileSection]);
+
   // Close transient menus when the viewport crosses the mobile
   // breakpoint. The sort sheet is shared with desktop so it stays
   // open across the flip; the command menu changes presentation.
