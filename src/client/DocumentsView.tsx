@@ -703,6 +703,44 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   // because a tiny screen makes a centered modal unusable.
   const [settingsModalMode, setSettingsModalMode] = useState<SettingsModalMode | null>(null);
 
+  useEffect(() => {
+    const editorCovered =
+      (props.currentView ?? "workspace") !== "workspace" ||
+      (isMobile && mobileSection !== "editor") ||
+      commandSheetOpen ||
+      sortSheetOpen ||
+      searchOpen ||
+      Boolean(settingsModalMode) ||
+      Boolean(dialog) ||
+      Boolean(previewAsset) ||
+      Boolean(previewLinkError) ||
+      Boolean(nodeMenu) ||
+      Boolean(tabMenu);
+    if (editorCovered) {
+      document.body.dataset.owdEditorOverlay = "true";
+    } else {
+      delete document.body.dataset.owdEditorOverlay;
+    }
+    delete document.body.dataset.owdMobileOverlay;
+    return () => {
+      delete document.body.dataset.owdEditorOverlay;
+      delete document.body.dataset.owdMobileOverlay;
+    };
+  }, [
+    commandSheetOpen,
+    dialog,
+    isMobile,
+    mobileSection,
+    nodeMenu,
+    previewAsset,
+    previewLinkError,
+    props.currentView,
+    searchOpen,
+    settingsModalMode,
+    sortSheetOpen,
+    tabMenu
+  ]);
+
   function closeCommandMenu() {
     setCommandSheetOpen(false);
     setCommandMenuAnchor(null);
@@ -760,17 +798,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile]);
-
-  useEffect(() => {
-    if (isMobile && mobileSection !== "editor") {
-      document.body.dataset.owdMobileOverlay = "true";
-    } else {
-      delete document.body.dataset.owdMobileOverlay;
-    }
-    return () => {
-      delete document.body.dataset.owdMobileOverlay;
-    };
-  }, [isMobile, mobileSection]);
 
   // Close transient menus when the viewport crosses the mobile
   // breakpoint. The sort sheet is shared with desktop so it stays
