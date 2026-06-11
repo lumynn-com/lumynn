@@ -44,6 +44,24 @@ import { FolderPicker } from "./FolderPicker";
 import type { MuyaMarkdownEditorHandle } from "./MuyaMarkdownEditor";
 import { SettingsView } from "./SettingsView";
 import type { UserRole } from "../shared/types";
+import {
+  addOfflineStateListener,
+  createDocument as offlineCreateDocument,
+  createFolder as offlineCreateFolder,
+  deleteDocument as offlineDeleteDocument,
+  deleteFolder as offlineDeleteFolder,
+  getDocumentCount as offlineGetDocumentCount,
+  getDocumentTree as offlineGetDocumentTree,
+  getOfflineState,
+  readDocument as offlineReadDocument,
+  renameDocument as offlineRenameDocument,
+  renameFolder as offlineRenameFolder,
+  renderPreview as offlineRenderPreview,
+  saveDocumentContent as offlineSaveDocumentContent,
+  searchDocuments as offlineSearchDocuments,
+  syncOfflineQueue,
+  type OfflineWorkspaceState
+} from "./offlineDocuments";
 
 function importMuyaMarkdownEditor() {
   return import("./MuyaMarkdownEditor").then((module) => ({ default: module.MuyaMarkdownEditor }));
@@ -86,6 +104,7 @@ interface DocumentsViewProps {
   // client state (e.g. cached Copilot answer) can be isolated
   // and not bleed between users on the same browser.
   username?: string;
+  offlineAuth?: boolean;
   // Account role; needed so the settings modal can hide admin-
   // only sections for regular users.
   role?: UserRole;
@@ -484,6 +503,7 @@ const READY_STATUS: StatusValue = { kind: "key", key: "status.ready" };
 export function DocumentsView(props: DocumentsViewProps = {}) {
   const t = useT();
   const { locale, setLocale } = useLocale();
+  const offlineUsername = props.username ?? "";
   const savedSort = useMemo(readSavedSort, []);
   const isMobile = useIsMobile();
   const [mobileSection, setMobileSection] = useState<MobileSection>("vault");
@@ -552,6 +572,12 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   const [sort, setSort] = useState<SortField>(savedSort.sort);
   const [order, setOrder] = useState<SortOrder>(savedSort.order);
   const [status, setStatus] = useState<StatusValue>(READY_STATUS);
+  const [offlineState, setOfflineState] = useState<OfflineWorkspaceState>({
+    isOnline: typeof navigator === "undefined" ? true : navigator.onLine,
+    syncing: false,
+    pendingCount: 0,
+    conflictCount: 0
+  });
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1060,7 +1086,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setActivePathValue(path, { invalidatePendingOpen: false });
         return;
       }
-      api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(path)}`)
+      offlineReadDocument(offlineUsername, path)
         .then((doc) => {
           if (openDocumentRequestSeqRef.current !== requestSeq) return;
           setTabs((current) => {
@@ -1074,7 +1100,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           setStatusText(error instanceof Error ? error.message : String(error));
         });
     },
-    [isMobile, selectDocumentPath, setActivePathValue]
+    [isMobile, offlineUsername, selectDocumentPath, setActivePathValue]
   );
 
   const switchSection = useCallback((next: MobileSection) => {
@@ -1355,7 +1381,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         const treeSort: "name" | "updatedAt" = effectiveSort === "updatedAt" ? "updatedAt" : "name";
         params.set("sort", treeSort);
         params.set("order", effectiveOrder);
-        const data = await api<DocumentTreeEntry>(`/api/documents/tree?${params.toString()}`);
+        const data = await offlineGetDocumentTree(offlineUsername, folderPath, {
+          sort: effectiveSort,
+          order: effectiveOrder
+        });
         if (folderFetchTracker.current.generation !== generation) return null;
         const children = data.children ?? [];
         tracker.loaded.add(folderPath);
@@ -1381,7 +1410,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     })();
     tracker.inFlight.set(folderPath, promise);
     return promise;
-  }, [folderChildren, order, sort]);
+  }, [folderChildren, offlineUsername, order, sort]);
 
   // Recursive background prefetch with a small concurrency cap. This
   // only runs after Muya has reported ready, so startup keeps the
@@ -1429,8 +1458,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   }, [loadFolderChildren]);
 
   async function refreshDocumentCount() {
-    const result = await api<{ count: number }>("/api/documents/count");
-    setDocumentCount(result.count);
+    const count = await offlineGetDocumentCount(offlineUsername);
+    setDocumentCount(count);
   }
 
   async function refreshDocuments(nextSort = sort, nextOrder = order) {
@@ -1527,16 +1556,81 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setStatus({ kind: "text", text });
   }
 
+  async function refreshOfflineState(lastError?: string) {
+    if (!offlineUsername) return;
+    const next = await getOfflineState(offlineUsername, lastError).catch(() => null);
+    if (next) setOfflineState(next);
+  }
+
+  async function refreshOpenTabsAfterSync() {
+    const paths = tabsRef.current
+      .filter((tab) => !tab.isDraft)
+      .map((tab) => tab.path);
+    if (paths.length === 0) return;
+    const refreshed = await Promise.allSettled(paths.map((path) => offlineReadDocument(offlineUsername, path)));
+    const byPath = new Map<string, DocumentContent>();
+    for (const result of refreshed) {
+      if (result.status === "fulfilled") {
+        byPath.set(result.value.path, result.value);
+      }
+    }
+    if (byPath.size === 0) return;
+    setTabs((current) =>
+      current.map((tab) => {
+        const doc = byPath.get(tab.path);
+        if (!doc) return tab;
+        return { ...doc, draft: tab.draft, mode: tab.mode, editKind: tab.editKind, isDraft: tab.isDraft };
+      })
+    );
+  }
+
+  async function runOfflineSync(options: { refreshTree?: boolean } = {}) {
+    if (!offlineUsername) return;
+    const before = await getOfflineState(offlineUsername).catch(() => offlineState);
+    if (before.pendingCount === 0) {
+      await refreshOfflineState();
+      return;
+    }
+    const result = await syncOfflineQueue(offlineUsername);
+    setOfflineState(result);
+    if (result.conflictCount > 0) {
+      setStatusKey("offline.conflictStatus", { count: result.conflictCount });
+      return;
+    }
+    if (result.pendingCount > 0) {
+      setStatusKey(result.isOnline ? "offline.pendingStatus" : "offline.offlineStatus", { count: result.pendingCount });
+      return;
+    }
+    if (before.pendingCount > 0) {
+      setStatusKey("offline.syncedStatus");
+      await refreshOpenTabsAfterSync();
+      if (options.refreshTree !== false) {
+        await refreshDocuments().catch((error) => setStatusText(error instanceof Error ? error.message : String(error)));
+      }
+    }
+  }
+
   // Render-friendly status string used for the toast/mobile chip.
   const statusLabel =
     status.kind === "key"
       ? status === READY_STATUS ? "" : t(status.key, status.params)
       : status.text;
+  const offlineLabel = offlineState.conflictCount > 0
+    ? t("offline.conflicts", { count: offlineState.conflictCount })
+    : offlineState.syncing
+      ? t("offline.syncing")
+      : offlineState.pendingCount > 0
+        ? t("offline.pending", { count: offlineState.pendingCount })
+        : (!offlineState.isOnline || props.offlineAuth)
+          ? t("offline.offline")
+          : "";
+  const visibleStatusLabel = statusLabel || offlineLabel;
   // A status ends with the ellipsis when it represents an in-flight
   // operation (Saving\u2026, Uploading\u2026 etc.). Those should stay
   // visible until the operation completes; transient statuses like
   // "Saved" or "Image saved to attachments" auto-fade after 2.5 s.
   const statusIsPending = statusLabel.endsWith("\u2026");
+  const visibleStatusIsPending = statusIsPending || offlineState.syncing;
 
   // Derive local copy indicator (for float under toolbar button and result text in menus)
   // directly from the existing status state/keys. No extra state.
@@ -1548,6 +1642,33 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     const timer = window.setTimeout(() => setStatus(READY_STATUS), 2500);
     return () => window.clearTimeout(timer);
   }, [statusLabel, statusIsPending]);
+
+  useEffect(() => {
+    if (!offlineUsername) return;
+    void refreshOfflineState();
+    const removeOfflineListener = addOfflineStateListener((event) => {
+      if (event.username === offlineUsername) setOfflineState(event.state);
+    });
+    const onOnline = () => {
+      void runOfflineSync({ refreshTree: true });
+    };
+    const onOffline = () => {
+      void refreshOfflineState();
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    if (navigator.onLine) {
+      void runOfflineSync({ refreshTree: true });
+    }
+    return () => {
+      removeOfflineListener();
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+    // refreshDocuments is intentionally read through the current closure;
+    // the listener is scoped to the active user only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offlineUsername]);
 
   useEffect(() => {
     // Root tree is part of the first usable shell, so it may run in
@@ -1580,7 +1701,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       setActivePathValue("");
       return;
     }
-    api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(activePath)}`)
+    offlineReadDocument(offlineUsername, activePath)
       .then((doc) => {
         // Existing files open in preview mode by default. Newly
         // created notes and drafts install their tabs before this
@@ -1588,22 +1709,13 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setTabs((current) => [...current, { ...doc, draft: doc.content, mode: "preview", editKind: "wysiwyg" }]);
       })
       .catch((error) => setStatusText(error.message));
-  }, [activePath, tabs, setActivePathValue]);
+  }, [activePath, offlineUsername, tabs, setActivePathValue]);
 
   const requestPreviewHtml = useCallback(
     async (content: string, path: string, isDraft: boolean | undefined, signal?: AbortSignal): Promise<string> => {
-      const result = await api<{ html: string }>("/api/documents/preview", {
-        method: "POST",
-        signal,
-        body: JSON.stringify({
-          // Don't send a synthetic draft path to the server.
-          path: isDraft ? undefined : path,
-          content
-        })
-      });
-      return result.html;
+      return offlineRenderPreview(offlineUsername, content, path, isDraft, signal);
     },
-    []
+    [offlineUsername]
   );
 
   function previewCacheKey(path: string, isDraft?: boolean): string {
@@ -1895,10 +2007,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       } else {
         const savedPath = active.path;
         const sentDraft = active.draft;
-        const saved = await api<DocumentContent>("/api/documents/content", {
-          method: "PUT",
-          body: JSON.stringify({ path: savedPath, content: sentDraft, expectedHash: active.hash })
-        });
+        const saved = await offlineSaveDocumentContent(offlineUsername, savedPath, sentDraft, active.hash);
         // Never overwrite the editor buffer after a save response:
         // changing `draft` can force Muya to rehydrate its document,
         // which loses scroll/caret position during autosave. The
@@ -1910,6 +2019,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           })
         );
         if (options.refreshList) await refreshDocuments();
+        await refreshOfflineState();
         if (!options.silent) setStatusKey("status.saved");
       }
     } catch (error) {
@@ -1936,10 +2046,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       const candidate = attempt === 0 ? sanitizedBase : `${sanitizedBase} (${attempt + 1})`;
       const candidatePath = `${folder}/${candidate}.md`;
       try {
-        const created = await api<DocumentContent>("/api/documents", {
-          method: "POST",
-          body: JSON.stringify({ path: candidatePath, content: draftTab.draft })
-        });
+        const created = await offlineCreateDocument(offlineUsername, candidatePath, draftTab.draft);
         // The draft just became a real file via a manual save, so
         // land the committed tab in preview mode (matches the
         // post-save preview switch for existing files). The next
@@ -1951,6 +2058,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         );
         setActivePathValue(created.path);
         await refreshDocuments();
+        await refreshOfflineState();
         setStatusKey("status.saved");
         offerUndo({
           kind: "delete-document",
@@ -2018,11 +2126,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
 
   async function createDocument(name: string) {
     try {
-      const created = await api<DocumentContent>("/api/documents", {
-        method: "POST",
-        body: JSON.stringify({ path: name })
-      });
+      const created = await offlineCreateDocument(offlineUsername, name);
       await refreshDocuments();
+      await refreshOfflineState();
       // A freshly created note opens in edit mode: it's empty,
       // the user is about to write into it. Existing files open
       // in preview (see the active-path effect).
@@ -2044,10 +2150,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (!nextPath || nextPath === currentPath) return;
     setStatusKey("status.renaming");
     try {
-      const renamed = await api<DocumentContent>("/api/documents/rename", {
-        method: "PATCH",
-        body: JSON.stringify({ path: currentPath, nextPath })
-      });
+      const renamed = await offlineRenameDocument(offlineUsername, currentPath, nextPath);
       setTabs((current) =>
         current.map((tab) => (tab.path === currentPath ? { ...renamed, draft: tab.draft, mode: tab.mode, editKind: tab.editKind } : tab))
       );
@@ -2063,6 +2166,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         return next.sort(compareDocumentsBy(sort, order));
       });
       await refreshFolders([parentFolderOf(currentPath), parentFolderOf(renamed.path)]);
+      await refreshOfflineState();
       setStatusKey("status.renamed");
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -2079,10 +2183,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (!nextPath || nextPath === currentPath) return;
     setStatusKey("status.renaming");
     try {
-      await api<{ path: string; movedFiles: number }>("/api/documents/folders/rename", {
-        method: "PATCH",
-        body: JSON.stringify({ path: currentPath, nextPath })
-      });
+      await offlineRenameFolder(offlineUsername, currentPath, nextPath);
       const oldPrefix = `${currentPath}/`;
       const newPrefix = `${nextPath}/`;
       setTabs((current) =>
@@ -2099,6 +2200,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setSelectedFolder(`${nextPath}${selectedFolder.slice(currentPath.length)}`);
       }
       await refreshDocuments();
+      await refreshOfflineState();
       setStatusKey("status.renamed");
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -2119,22 +2221,20 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
       let snapshotContent = openTab?.draft ?? null;
       if (snapshotContent === null) {
         try {
-          const fetched = await api<DocumentContent>(`/api/documents/content?path=${encodeURIComponent(filePath)}`);
+          const fetched = await offlineReadDocument(offlineUsername, filePath);
           snapshotContent = fetched.content;
         } catch {
           snapshotContent = "";
         }
       }
-      await api("/api/documents/content", {
-        method: "DELETE",
-        body: JSON.stringify({ path: filePath })
-      });
+      await offlineDeleteDocument(offlineUsername, filePath);
       setTabs((current) => current.filter((tab) => tab.path !== filePath));
       if (activePath === filePath) {
         const remaining = tabs.filter((tab) => tab.path !== filePath);
         setActivePathValue(remaining[remaining.length - 1]?.path ?? "");
       }
       await refreshDocuments();
+      await refreshOfflineState();
       setStatusKey("status.deleted");
       offerUndo({
         kind: "delete-document",
@@ -2155,10 +2255,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   async function deleteFolderPath(folderPath: string, recursive = false) {
     setStatusKey("status.deleting");
     try {
-      await api(`/api/documents/folders?recursive=${recursive ? "1" : "0"}`, {
-        method: "DELETE",
-        body: JSON.stringify({ path: folderPath })
-      });
+      await offlineDeleteFolder(offlineUsername, folderPath, recursive);
       // Drop any open tabs that lived inside the deleted folder.
       const prefix = `${folderPath}/`;
       setTabs((current) => current.filter((tab) => !tab.path.startsWith(prefix)));
@@ -2169,6 +2266,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         setSelectedFolder(parentFolderOf(folderPath));
       }
       await refreshDocuments();
+      await refreshOfflineState();
       setStatusKey("status.deleted");
     } catch (error) {
       // Server returns 409 with details.fileCount when a
@@ -2210,12 +2308,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   async function createFolderPath(folderPath: string) {
     setStatusKey("status.creating");
     try {
-      await api<{ path: string }>("/api/documents/folders", {
-        method: "POST",
-        body: JSON.stringify({ path: folderPath })
-      });
+      await offlineCreateFolder(offlineUsername, folderPath);
       setSelectedFolder(folderPath);
       await refreshDocuments();
+      await refreshOfflineState();
       setStatusKey("status.created");
     } catch (error) {
       if (error instanceof Error) setStatusText(error.message);
@@ -2258,15 +2354,9 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     }
     setStatusKey("status.restoring");
     try {
-      await api<DocumentContent>("/api/documents", {
-        method: "POST",
-        body: JSON.stringify({ path: action.path })
-      });
-      const restored = await api<DocumentContent>("/api/documents/content", {
-        method: "PUT",
-        body: JSON.stringify({ path: action.path, content: action.content })
-      });
+      const restored = await offlineCreateDocument(offlineUsername, action.path, action.content);
       await refreshDocuments();
+      await refreshOfflineState();
       setTabs((current) => [
         ...current.filter((tab) => tab.path !== restored.path),
         { ...restored, draft: restored.content, mode: "preview", editKind: "wysiwyg" }
@@ -2294,7 +2384,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     setSearchError("");
     setSearchHasRun(true);
     try {
-      const results = await api<DocumentSearchResult[]>(`/api/documents/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const results = await offlineSearchDocuments(offlineUsername, searchQuery.trim());
       setSearchResults(results);
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Search failed");
@@ -2465,8 +2555,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <strong>
               {active?.isDraft ? t("quick.draftTitle") : (active?.name ?? t("editor.title"))}
             </strong>
-            {statusLabel ? (
-              <span className={`status-subline ${statusIsPending ? "pending" : ""}`} aria-live="polite">{statusLabel}</span>
+            {visibleStatusLabel ? (
+              <span className={`status-subline ${visibleStatusIsPending ? "pending" : ""}`} aria-live="polite">{visibleStatusLabel}</span>
             ) : active && !active.isDraft ? (
               <span className="muted" translate="no">{active.path}</span>
             ) : active?.isDraft ? (
@@ -2522,6 +2612,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             >
               {vaultTreeRefreshing ? <SpinnerIcon /> : <RefreshIcon />}
             </button>
+            {offlineState.pendingCount > 0 || offlineState.conflictCount > 0 || props.offlineAuth ? (
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={t("offline.syncNow")}
+                title={t("offline.syncNow")}
+                aria-busy={offlineState.syncing}
+                disabled={!offlineState.isOnline || offlineState.syncing || offlineState.pendingCount === 0}
+                onClick={() => void runOfflineSync({ refreshTree: true })}
+              >
+                {offlineState.syncing ? <SpinnerIcon /> : <RefreshIcon />}
+              </button>
+            ) : null}
             <button
               type="button"
               className="icon-button"
@@ -2590,6 +2693,19 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           >
             {vaultTreeRefreshing ? <SpinnerIcon /> : <RefreshIcon />}
           </button>
+          {offlineState.pendingCount > 0 || offlineState.conflictCount > 0 || props.offlineAuth ? (
+            <button
+              type="button"
+              className="icon-button vault-toolbar-action"
+              aria-label={t("offline.syncNow")}
+              title={t("offline.syncNow")}
+              aria-busy={offlineState.syncing}
+              disabled={!offlineState.isOnline || offlineState.syncing || offlineState.pendingCount === 0}
+              onClick={() => void runOfflineSync({ refreshTree: true })}
+            >
+              {offlineState.syncing ? <SpinnerIcon /> : <RefreshIcon />}
+            </button>
+          ) : null}
           <button
             type="button"
             className="icon-button vault-toolbar-action"
@@ -2656,6 +2772,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         </div>
         <p className="vault-meta muted desktop-only" aria-live="polite">
           {t(documentCount === 1 ? "vault.fileCount" : "vault.fileCountPlural", { count: documentCount })}
+          {offlineLabel ? <span className="offline-meta" translate="no">{" · "}{offlineLabel}</span> : null}
         </p>
         <div
           ref={vaultScrollRef}
@@ -2750,7 +2867,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
             <PlusIcon />
           </button>
           <div className="editor-tabbar-actions desktop-only" aria-label={t("editor.actionsLabel")}>
-            {statusLabel ? <span className="sr-only" aria-live="polite">{statusLabel}</span> : null}
+            {visibleStatusLabel ? <span className="sr-only" aria-live="polite">{visibleStatusLabel}</span> : null}
             {active && centerMode === "edit" ? (
               <button
                 type="button"

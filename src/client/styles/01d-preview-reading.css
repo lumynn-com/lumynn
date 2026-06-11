@@ -238,3 +238,19 @@
   border-radius: var(--md-radius-md, 14px);
   box-shadow: var(--md-elevation-1, 0 1px 3px rgba(0, 0, 0, 0.2));
 }
+
+.offline-markdown-fallback {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--md-outline-soft, var(--border));
+  border-radius: 8px;
+  background: var(--md-surface-2, color-mix(in srgb, var(--bg-soft) 70%, transparent));
+  color: var(--md-text, var(--text));
+  font: inherit;
+}
+
+.offline-meta {
+  color: var(--md-primary, var(--accent-2));
+}

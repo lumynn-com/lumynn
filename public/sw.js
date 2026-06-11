@@ -5,10 +5,13 @@
  *   - Make the app shell available when the network is unreachable so
  *     opening the app on the lock screen doesn't show Chrome's
  *     "no internet" page.
+ *   - Let already-viewed media attachments render from cache while
+ *     the document editor runs in offline mode.
  *
  * Non-goals:
- *   - Caching authenticated API responses (POST/PUT/DELETE + GET
- *     /api/*). Library and auth state must always go to the network.
+ *   - Caching authenticated JSON API responses (POST/PUT/DELETE + GET
+ *     /api/* except media blobs). Library and auth state are handled
+ *     by the app's IndexedDB offline layer.
  *   - Background sync, push, periodic sync. Those add attack surface
  *     and we don't need them.
  *
@@ -17,7 +20,9 @@
  *               offline fallback for navigations.
  *   - activate: drop any older caches.
  *   - fetch:    same-origin GET only.
- *               * /api/*           -> network only, no caching.
+ *               * /api/documents/media -> user-scoped network first,
+ *                                           cached fallback.
+ *               * other /api/*     -> network only, no caching.
  *               * navigations (HTML)-> network first, fall back to
  *                                     the cached shell entry.
  *               * static assets    -> stale-while-revalidate so the
@@ -25,9 +30,10 @@
  *                                     visits and silently updates.
  */
 
-const CACHE_VERSION = "owd-v4";
+const CACHE_VERSION = "owd-v5";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
+const MEDIA_CACHE_PREFIX = `${CACHE_VERSION}-media-`;
 const SHELL_ENTRY = "/";
 const PWA_ASSET_PATHS = new Set([
   "/manifest.webmanifest",
@@ -41,6 +47,32 @@ const PWA_ASSET_PATHS = new Set([
   "/icon-maskable-192.png",
   "/icon-maskable-512.png"
 ]);
+
+let activeUserKey = "";
+
+function userCacheKey(username) {
+  let hash = 0;
+  for (let i = 0; i < username.length; i += 1) {
+    hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(36) || "user";
+}
+
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "LUMYNN_ACTIVE_USER" && typeof data.username === "string" && data.username) {
+    activeUserKey = userCacheKey(data.username);
+    return;
+  }
+  if (data.type === "LUMYNN_CLEAR_ACTIVE_USER") {
+    activeUserKey = "";
+    event.waitUntil(
+      caches.keys().then((names) =>
+        Promise.all(names.map((name) => (name.startsWith(MEDIA_CACHE_PREFIX) ? caches.delete(name) : null)))
+      )
+    );
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -79,7 +111,9 @@ self.addEventListener("activate", (event) => {
     (async () => {
       const keep = new Set([SHELL_CACHE, ASSETS_CACHE]);
       const names = await caches.keys();
-      await Promise.all(names.map((name) => (keep.has(name) ? null : caches.delete(name))));
+      await Promise.all(
+        names.map((name) => (keep.has(name) || name.startsWith(MEDIA_CACHE_PREFIX) ? null : caches.delete(name)))
+      );
       await self.clients.claim();
     })()
   );
@@ -92,7 +126,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never cache API calls. Always go straight to the network.
+  if (url.pathname === "/api/documents/media") {
+    event.respondWith(mediaStrategy(request));
+    return;
+  }
+
+  // Never cache other API calls. Always go straight to the network.
   if (url.pathname.startsWith("/api/")) return;
 
   // Navigation requests: network first, fall back to the cached shell.
@@ -156,4 +195,22 @@ async function staleWhileRevalidate(request) {
     })
     .catch(() => null);
   return cached || (await network) || Response.error();
+}
+
+async function mediaStrategy(request) {
+  if (!activeUserKey) {
+    return fetch(request);
+  }
+  const cache = await caches.open(`${MEDIA_CACHE_PREFIX}${activeUserKey}`);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      cache.put(request, response.clone()).catch(() => undefined);
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    return Response.error();
+  }
 }

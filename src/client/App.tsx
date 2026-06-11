@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api, isNetworkError } from "./api";
 import { DocumentsView, preloadMuyaEditorBundle } from "./DocumentsView";
 import { SettingsView } from "./SettingsView";
 import { BusyLabel } from "./icons";
 import { useLocale } from "./i18n";
 import type { UserRole } from "../shared/types";
+import { clearOfflineAuth, notifyServiceWorkerUser, readOfflineAuth, saveOfflineAuth } from "./offlineSession";
+import { clearOfflineUserData } from "./offlineDocuments";
 
 type View = "workspace" | "indexing" | "settings";
 type Theme = "dark" | "light";
@@ -22,6 +24,7 @@ interface AuthState {
   username: string | null;
   role: UserRole | null;
   needsSetup: boolean;
+  offline?: boolean;
 }
 
 export function App() {
@@ -41,15 +44,30 @@ export function App() {
       .then((state) => {
         if (state.authenticated) {
           preloadMuyaEditorBundle();
+          saveOfflineAuth(state);
         }
         setAuth({
           authenticated: Boolean(state.authenticated),
           username: state.username ?? null,
           role: state.role ?? null,
-          needsSetup: Boolean(state.needsSetup)
+          needsSetup: Boolean(state.needsSetup),
+          offline: false
         });
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        if (!isNetworkError(error)) return;
+        const offline = readOfflineAuth();
+        if (!offline) return;
+        preloadMuyaEditorBundle();
+        notifyServiceWorkerUser(offline.username);
+        setAuth({
+          authenticated: true,
+          username: offline.username,
+          role: offline.role,
+          needsSetup: false,
+          offline: true
+        });
+      });
   }, []);
 
   async function handleLogin(username: string, password: string) {
@@ -65,12 +83,14 @@ export function App() {
       const state = await api<AuthState>("/api/auth/me");
       if (state.authenticated) {
         preloadMuyaEditorBundle();
+        saveOfflineAuth(state);
       }
       setAuth({
         authenticated: Boolean(state.authenticated),
         username: state.username ?? null,
         role: state.role ?? null,
-        needsSetup: false
+        needsSetup: false,
+        offline: false
       });
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Login failed");
@@ -96,7 +116,8 @@ export function App() {
       role={auth.role ?? "user"}
       theme={theme}
       onToggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
-      onLogout={() => setAuth({ authenticated: false, username: null, role: null, needsSetup: false })}
+      offline={auth.offline}
+      onLogout={() => setAuth({ authenticated: false, username: null, role: null, needsSetup: false, offline: false })}
     />
   );
 }
@@ -169,7 +190,7 @@ function LoginPage(props: {
   );
 }
 
-function Workspace(props: { username: string; role: UserRole; theme: Theme; onToggleTheme: () => void; onLogout: () => void }) {
+function Workspace(props: { username: string; role: UserRole; theme: Theme; offline?: boolean; onToggleTheme: () => void; onLogout: () => void }) {
   const { t, locale, setLocale } = useLocale();
   const [view, setView] = useState<View>("workspace");
   const [settingsMounted, setSettingsMounted] = useState(false);
@@ -299,6 +320,8 @@ function Workspace(props: { username: string; role: UserRole; theme: Theme; onTo
     try {
       await api("/api/auth/logout", { method: "POST" });
     } finally {
+      clearOfflineAuth();
+      await clearOfflineUserData(props.username).catch(() => undefined);
       props.onLogout();
     }
   }
@@ -321,6 +344,7 @@ function Workspace(props: { username: string; role: UserRole; theme: Theme; onTo
             loggingOut={loggingOut}
             username={props.username}
             role={props.role}
+            offlineAuth={props.offline}
             onSwitchView={setView}
             onToggleTheme={props.onToggleTheme}
             onLogout={logout}
