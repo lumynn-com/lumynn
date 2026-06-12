@@ -7,6 +7,19 @@ const DOCS_STORE = "documents";
 const FOLDERS_STORE = "folders";
 const OPS_STORE = "operations";
 const OFFLINE_EVENT = "lumynn:offline-state";
+const MEDIA_CACHE_PREFIX = "owd-v6-media-";
+const MEDIA_PATH = "/api/documents/media";
+const LOCAL_MEDIA_EXTENSIONS = new Set([
+  ".apng",
+  ".avif",
+  ".gif",
+  ".jpeg",
+  ".jpg",
+  ".pdf",
+  ".png",
+  ".svg",
+  ".webp"
+]);
 
 type OperationStatus = "pending" | "conflict";
 
@@ -169,6 +182,90 @@ function basename(path: string): string {
   return slash >= 0 ? clean.slice(slash + 1) : clean;
 }
 
+function extensionOfMediaTarget(value: string): string {
+  const clean = value.split("#")[0].split("?")[0].trim();
+  const slash = Math.max(clean.lastIndexOf("/"), clean.lastIndexOf("\\"));
+  const name = slash >= 0 ? clean.slice(slash + 1) : clean;
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+function isLocalMediaTarget(value: string): boolean {
+  const target = value.trim();
+  if (!target || target.startsWith("#") || target.startsWith("//")) return false;
+  if (target.startsWith("data:") || target.startsWith("/api/")) return false;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return false;
+  return LOCAL_MEDIA_EXTENSIONS.has(extensionOfMediaTarget(target));
+}
+
+function documentMediaUrl(assetPath: string, basePath?: string): string {
+  const params = new URLSearchParams({ path: assetPath });
+  if (basePath) params.set("base", basePath);
+  return `${MEDIA_PATH}?${params.toString()}`;
+}
+
+function transformOutsideMarkdownCode(input: string, transform: (value: string) => string): string {
+  const protectedSegments: string[] = [];
+  const protect = (segment: string) => {
+    const token = `@@LUMYNN_OFFLINE_CODE_${protectedSegments.length}@@`;
+    protectedSegments.push(segment);
+    return token;
+  };
+  const protectedInput = input
+    .replace(/(^|\r?\n)(`{3,}|~{3,})[^\r\n]*(?:\r?\n[\s\S]*?)(?:\r?\n\2)(?=$|\r?\n)/g, (match) => protect(match))
+    .replace(/(`+)([^`\r\n]*?)\1/g, (match) => protect(match));
+  return transform(protectedInput).replace(/@@LUMYNN_OFFLINE_CODE_(\d+)@@/g, (_match, index: string) => protectedSegments[Number(index)] ?? "");
+}
+
+export function listLocalMediaUrlsForDocument(content: string, documentPath: string): string[] {
+  const urls = new Set<string>();
+  transformOutsideMarkdownCode(content, (segment) =>
+    segment
+      .replace(/(?<!\\)!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]+)?\]\]/g, (match, rawPath: string) => {
+        const assetPath = rawPath.trim();
+        if (isLocalMediaTarget(assetPath)) {
+          urls.add(documentMediaUrl(assetPath, documentPath));
+        }
+        return match;
+      })
+      .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (match, _rawAlt: string, rawPath: string) => {
+        const assetPath = rawPath.trim();
+        if (assetPath.startsWith(MEDIA_PATH)) {
+          urls.add(assetPath);
+        } else if (isLocalMediaTarget(assetPath)) {
+          urls.add(documentMediaUrl(assetPath, documentPath));
+        }
+        return match;
+      })
+  );
+  return Array.from(urls);
+}
+
+function userCacheKey(username: string): string {
+  let hash = 0;
+  for (let i = 0; i < username.length; i += 1) {
+    hash = (hash * 31 + username.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(36) || "user";
+}
+
+async function cacheMediaUrl(username: string, mediaUrl: string): Promise<void> {
+  if (typeof window === "undefined" || typeof fetch !== "function") return;
+  const absoluteUrl = new URL(mediaUrl, window.location.origin).toString();
+  const request = new Request(absoluteUrl, { credentials: "include" });
+  const response = await fetch(request);
+  if (!response.ok || typeof caches === "undefined") return;
+  const cache = await caches.open(`${MEDIA_CACHE_PREFIX}${userCacheKey(username)}`);
+  await cache.put(request, response.clone());
+}
+
+export function warmDocumentMedia(username: string, documentPath: string, content: string): void {
+  if (!username || !content) return;
+  const urls = listLocalMediaUrlsForDocument(content, documentPath);
+  if (urls.length === 0) return;
+  void Promise.allSettled(urls.map((url) => cacheMediaUrl(username, url)));
+}
+
 function parentFolderOfPath(path: string): string {
   const clean = path.replace(/\/+$/g, "");
   const slash = clean.lastIndexOf("/");
@@ -316,6 +413,9 @@ async function putDocument(username: string, document: DocumentContent, options:
     previewHtml: existing?.previewHtml,
     previewDraft: existing?.previewDraft
   });
+  if (!options.deleted) {
+    warmDocumentMedia(username, document.path, document.content);
+  }
 }
 
 async function putFolderChildren(username: string, folderPath: string, children: DocumentTreeEntry[]): Promise<void> {

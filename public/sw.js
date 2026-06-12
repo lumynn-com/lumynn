@@ -5,8 +5,8 @@
  *   - Make the app shell available when the network is unreachable so
  *     opening the app on the lock screen doesn't show Chrome's
  *     "no internet" page.
- *   - Let already-viewed media attachments render from cache while
- *     the document editor runs in offline mode.
+ *   - Let media attachments referenced by cached notes render from
+ *     cache while the document editor runs in offline mode.
  *
  * Non-goals:
  *   - Caching authenticated JSON API responses (POST/PUT/DELETE + GET
@@ -30,7 +30,7 @@
  *                                     visits and silently updates.
  */
 
-const CACHE_VERSION = "owd-v5";
+const CACHE_VERSION = "owd-v6";
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 const MEDIA_CACHE_PREFIX = `${CACHE_VERSION}-media-`;
@@ -197,19 +197,33 @@ async function staleWhileRevalidate(request) {
   return cached || (await network) || Response.error();
 }
 
-async function mediaStrategy(request) {
-  if (!activeUserKey) {
-    return fetch(request);
+async function cachedMediaResponse(request) {
+  if (activeUserKey) {
+    const activeCache = await caches.open(`${MEDIA_CACHE_PREFIX}${activeUserKey}`);
+    const cached = await activeCache.match(request);
+    if (cached) return cached;
   }
-  const cache = await caches.open(`${MEDIA_CACHE_PREFIX}${activeUserKey}`);
+
+  const names = await caches.keys();
+  for (const name of names) {
+    if (!name.startsWith(MEDIA_CACHE_PREFIX)) continue;
+    const cache = await caches.open(name);
+    const cached = await cache.match(request);
+    if (cached) return cached;
+  }
+  return null;
+}
+
+async function mediaStrategy(request) {
+  const cache = activeUserKey ? await caches.open(`${MEDIA_CACHE_PREFIX}${activeUserKey}`) : null;
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
+    if (response && response.ok && cache) {
       cache.put(request, response.clone()).catch(() => undefined);
     }
     return response;
   } catch {
-    const cached = await cache.match(request);
+    const cached = await cachedMediaResponse(request);
     if (cached) return cached;
     return Response.error();
   }
