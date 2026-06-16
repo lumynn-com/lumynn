@@ -73,6 +73,21 @@ function normalizeVaultAssetPath(input: string): string {
 
 export async function validateVaultPath(vaultPath: string): Promise<VaultValidation> {
   const resolved = path.resolve(vaultPath);
+  const existing = vaultPathValidationInFlight.get(resolved);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = withTimeout(validateVaultPathUnchecked(resolved), VAULT_VALIDATION_TIMEOUT_MS, () =>
+    timedOutVaultValidation(resolved)
+  ).finally(() => {
+    vaultPathValidationInFlight.delete(resolved);
+  });
+  vaultPathValidationInFlight.set(resolved, promise);
+  return promise;
+}
+
+async function validateVaultPathUnchecked(resolved: string): Promise<VaultValidation> {
   const allowedRoots = config.allowedVaultRoots.length > 0 ? config.allowedVaultRoots : [config.rootDir];
   const insideAllowedRoot = allowedRoots.some((root) => isInside(root, resolved));
   let exists = false;
@@ -113,8 +128,43 @@ export async function validateVaultPath(vaultPath: string): Promise<VaultValidat
   };
 }
 
+function timeoutMsFromEnv(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 250 ? parsed : fallback;
+}
+
+const VAULT_VALIDATION_TIMEOUT_MS = timeoutMsFromEnv(process.env.VAULT_VALIDATION_TIMEOUT_MS, 2_500);
+const vaultPathValidationInFlight = new Map<string, Promise<VaultValidation>>();
+
+function timedOutVaultValidation(resolvedPath: string): VaultValidation {
+  const allowedRoots = config.allowedVaultRoots.length > 0 ? config.allowedVaultRoots : [config.rootDir];
+  const insideAllowedRoot = allowedRoots.some((root) => isInside(root, resolvedPath));
+  return {
+    ok: false,
+    exists: false,
+    readable: false,
+    writable: false,
+    insideAllowedRoot,
+    hasObsidianConfig: false,
+    message: insideAllowedRoot
+      ? `Library path is not responding: ${resolvedPath}. Make sure the drive or mount is available, then refresh or update Library path in Settings.`
+      : "Library path must stay inside ALLOWED_VAULT_ROOTS."
+  };
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeout: () => T): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(onTimeout()), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
 const VAULT_VALIDATION_TTL_MS = 30_000;
-const VAULT_VALIDATION_FAILURE_TTL_MS = 3_000;
+const VAULT_VALIDATION_FAILURE_TTL_MS = 15_000;
 const vaultValidationCache = new Map<string, { validation: VaultValidation; resolvedPath: string; expiresAt: number }>();
 
 function vaultValidationCacheKey(user: UserRecord, resolvedPath: string): string {
