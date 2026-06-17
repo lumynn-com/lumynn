@@ -15,9 +15,8 @@ createRoot(document.getElementById("root")!).render(
 // Register the service worker in production secure contexts only. We
 // skip it in dev (Vite serves modules with `Cache-Control: no-store`
 // so a SW would just get in the way) and on insecure origins (Chrome
-// would refuse the registration anyway). In the authenticated
-// workspace, wait for Muya to mount before doing this extra network
-// request so the editor keeps first priority on cold start.
+// would refuse the registration anyway). Register as soon as the page
+// load settles so the first successful visit seeds an offline shell.
 if (
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
@@ -28,19 +27,5 @@ if (
     navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => undefined);
   };
 
-  window.addEventListener("load", () => {
-    if (window.performance.getEntriesByName("owd:muya-editor-ready").length > 0) {
-      registerServiceWorker();
-      return;
-    }
-    const fallback = window.setTimeout(registerServiceWorker, 8000);
-    window.addEventListener(
-      "owd:muya-editor-ready",
-      () => {
-        window.clearTimeout(fallback);
-        registerServiceWorker();
-      },
-      { once: true }
-    );
-  });
+  window.addEventListener("load", registerServiceWorker, { once: true });
 }

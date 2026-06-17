@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { DocumentContent, DocumentSearchResult, DocumentSummary, DocumentTreeEntry, SortField, SortOrder } from "../shared/types";
@@ -75,12 +75,18 @@ let muyaMarkdownEditorPromise: ReturnType<typeof importMuyaMarkdownEditor> | nul
 let markdownSourceEditorPromise: ReturnType<typeof importMarkdownSourceEditor> | null = null;
 
 function loadMuyaMarkdownEditor() {
-  muyaMarkdownEditorPromise ??= importMuyaMarkdownEditor();
+  muyaMarkdownEditorPromise ??= importMuyaMarkdownEditor().catch((error) => {
+    muyaMarkdownEditorPromise = null;
+    throw error;
+  });
   return muyaMarkdownEditorPromise;
 }
 
 function loadMarkdownSourceEditor() {
-  markdownSourceEditorPromise ??= importMarkdownSourceEditor();
+  markdownSourceEditorPromise ??= importMarkdownSourceEditor().catch((error) => {
+    markdownSourceEditorPromise = null;
+    throw error;
+  });
   return markdownSourceEditorPromise;
 }
 
@@ -88,7 +94,32 @@ const MuyaMarkdownEditor = lazy(loadMuyaMarkdownEditor);
 const MarkdownSourceEditor = lazy(loadMarkdownSourceEditor);
 
 export function preloadMuyaEditorBundle(): void {
-  void loadMuyaMarkdownEditor();
+  void loadMuyaMarkdownEditor().catch(() => undefined);
+}
+
+class EditorChunkBoundary extends Component<
+  { resetKey: string; fallback: ReactNode; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn("Failed to load editor bundle", error);
+  }
+
+  componentDidUpdate(previousProps: { resetKey: string }) {
+    if (this.state.failed && previousProps.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 type MobileSection = "vault" | "editor" | "ask";
@@ -2951,35 +2982,44 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
         </div>
         {active && centerMode === "edit" ? (
           <div className={`editor-field${activeEditKind === "source" ? " editor-field-source" : ""}`} aria-label={t("editor.contentLabel")}>
-            <Suspense
+            <EditorChunkBoundary
+              resetKey={`${active.path}:${activeEditKind}`}
               fallback={
                 <div className="muya-editor-loading" role="status" aria-live="polite">
-                  <span>{t("editor.loading")}</span>
+                  <span>{t("editor.loadFailed")}</span>
                 </div>
               }
             >
-              {activeEditKind === "source" ? (
-                <MarkdownSourceEditor
-                  key={`${active.path}:source`}
-                  value={active.draft}
-                  ariaLabel={t("editor.sourceContentLabel")}
-                  autoFocus
-                  onChange={setActiveDraft}
-                />
-              ) : (
-                <MuyaMarkdownEditor
-                  key={active.path}
-                  ref={muyaEditorRef}
-                  value={active.draft}
-                  documentPath={active.isDraft ? undefined : active.path}
-                  language={locale === "zh" ? "zh-CN" : "en"}
-                  autoFocus={active.isDraft}
-                  onReady={handleMuyaEditorReady}
-                  onChange={setActiveDraft}
-                  onPasteImage={uploadPastedImage}
-                />
-              )}
-            </Suspense>
+              <Suspense
+                fallback={
+                  <div className="muya-editor-loading" role="status" aria-live="polite">
+                    <span>{t("editor.loading")}</span>
+                  </div>
+                }
+              >
+                {activeEditKind === "source" ? (
+                  <MarkdownSourceEditor
+                    key={`${active.path}:source`}
+                    value={active.draft}
+                    ariaLabel={t("editor.sourceContentLabel")}
+                    autoFocus
+                    onChange={setActiveDraft}
+                  />
+                ) : (
+                  <MuyaMarkdownEditor
+                    key={active.path}
+                    ref={muyaEditorRef}
+                    value={active.draft}
+                    documentPath={active.isDraft ? undefined : active.path}
+                    language={locale === "zh" ? "zh-CN" : "en"}
+                    autoFocus={active.isDraft}
+                    onReady={handleMuyaEditorReady}
+                    onChange={setActiveDraft}
+                    onPasteImage={uploadPastedImage}
+                  />
+                )}
+              </Suspense>
+            </EditorChunkBoundary>
           </div>
         ) : null}
         {active && centerMode === "preview" ? (

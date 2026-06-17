@@ -16,8 +16,8 @@
  *     and we don't need them.
  *
  * Strategy:
- *   - install:  pre-cache the SPA shell entry (/) so we have an
- *               offline fallback for navigations.
+ *   - install:  pre-cache the SPA shell entry (/) plus the JS/CSS
+ *               assets needed to boot the client and the editor.
  *   - activate: drop any older caches.
  *   - fetch:    same-origin GET only.
  *               * /api/documents/media -> user-scoped network first,
@@ -47,6 +47,8 @@ const PWA_ASSET_PATHS = new Set([
   "/icon-maskable-192.png",
   "/icon-maskable-512.png"
 ]);
+const ESSENTIAL_ASSET_PATH_PREFIX = "/assets/";
+const ESSENTIAL_ASSET_PATTERN = /(?:^|["'`(])((?:\/)?assets\/[^"'`)\s]+?\.(?:css|js|png|svg|webp|woff2?|ttf))(?:["'`)]|$)/g;
 
 let activeUserKey = "";
 
@@ -78,17 +80,14 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE);
-      // Try to seed the shell. If the network is offline at install
-      // time we just skip silently; navigations will populate it later.
-      try {
-        const response = await fetch(SHELL_ENTRY, { cache: "reload" });
-        if (response && response.ok) {
-          await cache.put(SHELL_ENTRY, response.clone());
-        }
-      } catch {
-        // ignore: shell will be cached on the first successful navigation.
-      }
       const assets = await caches.open(ASSETS_CACHE);
+      const response = await fetch(SHELL_ENTRY, { cache: "reload" });
+      if (!response || !response.ok) {
+        throw new Error("Unable to cache the app shell.");
+      }
+      const shellHtml = await response.clone().text();
+      await cacheShellAssets(assets, shellHtml);
+      await cache.put(SHELL_ENTRY, response.clone());
       await Promise.all(
         [...PWA_ASSET_PATHS].map(async (path) => {
           try {
@@ -156,8 +155,7 @@ async function navigationStrategy(request) {
   try {
     const response = await fetch(request);
     if (response && response.ok) {
-      const cache = await caches.open(SHELL_CACHE);
-      cache.put(SHELL_ENTRY, response.clone()).catch(() => undefined);
+      cacheNavigationShell(response.clone()).catch(() => undefined);
     }
     return response;
   } catch {
@@ -166,6 +164,96 @@ async function navigationStrategy(request) {
     if (cached) return cached;
     return Response.error();
   }
+}
+
+async function cacheNavigationShell(response) {
+  const shellHtml = await response.clone().text();
+  const assets = await caches.open(ASSETS_CACHE);
+  await cacheShellAssets(assets, shellHtml);
+  const cache = await caches.open(SHELL_CACHE);
+  await cache.put(SHELL_ENTRY, response.clone());
+}
+
+function sameOriginUrl(rawValue) {
+  try {
+    const url = new URL(rawValue, self.location.origin);
+    if (url.origin !== self.location.origin) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function shellAssetUrls(shellHtml) {
+  const urls = new Set();
+  const attrPattern = /<(?:script|link)\b[^>]*(?:src|href)=["']([^"']+)["'][^>]*>/gi;
+  for (const match of shellHtml.matchAll(attrPattern)) {
+    const url = sameOriginUrl(match[1]);
+    if (url && url.pathname.startsWith(ESSENTIAL_ASSET_PATH_PREFIX)) {
+      urls.add(url.toString());
+    }
+  }
+  return urls;
+}
+
+function buildDependencyUrls(sourceText) {
+  const urls = new Set();
+  for (const match of sourceText.matchAll(ESSENTIAL_ASSET_PATTERN)) {
+    const url = sameOriginUrl(match[1].startsWith("/") ? match[1] : `/${match[1]}`);
+    if (url && url.pathname.startsWith(ESSENTIAL_ASSET_PATH_PREFIX)) {
+      urls.add(url.toString());
+    }
+  }
+  return urls;
+}
+
+async function cacheEssentialAsset(cache, url) {
+  const response = await fetch(url, { cache: "reload" });
+  if (!response || !response.ok) {
+    throw new Error(`Unable to cache ${url}`);
+  }
+  await cache.put(url, response.clone());
+  if (new URL(url).pathname.endsWith(".js")) {
+    return response.clone().text();
+  }
+  return "";
+}
+
+async function cacheShellAssets(cache, shellHtml) {
+  const urls = shellAssetUrls(shellHtml);
+  if (![...urls].some((url) => new URL(url).pathname.endsWith(".js"))) {
+    throw new Error("The app shell has no entry script to cache.");
+  }
+
+  const dependencyUrls = new Set();
+  await Promise.all(
+    [...urls].map(async (url) => {
+      const sourceText = await cacheEssentialAsset(cache, url);
+      for (const dependencyUrl of buildDependencyUrls(sourceText)) {
+        dependencyUrls.add(dependencyUrl);
+      }
+    })
+  );
+  await Promise.all([...dependencyUrls].filter((url) => !urls.has(url)).map((url) => cacheEssentialAsset(cache, url)));
+}
+
+async function cachedAssetResponse(cache, request) {
+  const direct = await cache.match(request, { ignoreVary: true });
+  if (direct) return direct;
+
+  const urlMatch = await cache.match(request.url, { ignoreVary: true });
+  if (urlMatch) return urlMatch;
+
+  const requestUrl = new URL(request.url);
+  const keys = await cache.keys();
+  for (const key of keys) {
+    const cachedUrl = new URL(key.url);
+    if (cachedUrl.origin === requestUrl.origin && cachedUrl.pathname === requestUrl.pathname) {
+      const cached = await cache.match(key, { ignoreVary: true });
+      if (cached) return cached;
+    }
+  }
+  return null;
 }
 
 async function networkFirstAsset(request) {
@@ -177,7 +265,7 @@ async function networkFirstAsset(request) {
     }
     return response;
   } catch {
-    const cached = await cache.match(request);
+    const cached = await cachedAssetResponse(cache, request);
     if (cached) return cached;
     return Response.error();
   }
@@ -185,7 +273,7 @@ async function networkFirstAsset(request) {
 
 async function staleWhileRevalidate(request) {
   const cache = await caches.open(ASSETS_CACHE);
-  const cached = await cache.match(request);
+  const cached = await cachedAssetResponse(cache, request);
   const network = fetch(request)
     .then((response) => {
       if (response && response.ok) {
