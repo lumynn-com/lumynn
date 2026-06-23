@@ -45,6 +45,7 @@ import type { MuyaMarkdownEditorHandle } from "./MuyaMarkdownEditor";
 import { SettingsView } from "./SettingsView";
 import type { UserRole } from "../shared/types";
 import {
+  addOfflineCacheListener,
   addOfflineStateListener,
   createDocument as offlineCreateDocument,
   createFolder as offlineCreateFolder,
@@ -52,6 +53,7 @@ import {
   deleteFolder as offlineDeleteFolder,
   getDocumentCount as offlineGetDocumentCount,
   getDocumentTree as offlineGetDocumentTree,
+  getOfflineCacheStatus,
   getOfflineState,
   readDocument as offlineReadDocument,
   renameDocument as offlineRenameDocument,
@@ -59,7 +61,11 @@ import {
   renderPreview as offlineRenderPreview,
   saveDocumentContent as offlineSaveDocumentContent,
   searchDocuments as offlineSearchDocuments,
+  setFullLibraryOffline,
+  setOfflinePin,
   syncOfflineQueue,
+  warmOfflineCache,
+  type OfflineCacheStatus,
   type OfflineWorkspaceState
 } from "./offlineDocuments";
 
@@ -126,6 +132,16 @@ type MobileSection = "vault" | "editor" | "ask";
 type AppView = "workspace" | "indexing" | "settings";
 type SettingsModalMode = "indexing" | "settings";
 type EditKind = "wysiwyg" | "source";
+
+function emptyOfflineCacheStatus(): OfflineCacheStatus {
+  return {
+    fullLibrary: false,
+    pinned: [],
+    progress: { running: false, done: 0 },
+    cachedDocumentCount: 0,
+    cachedFolderCount: 0
+  };
+}
 
 interface DocumentsViewProps {
   currentView?: AppView;
@@ -609,6 +625,7 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     pendingCount: 0,
     conflictCount: 0
   });
+  const [offlineCacheStatus, setOfflineCacheStatus] = useState<OfflineCacheStatus>(() => emptyOfflineCacheStatus());
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [selectedFolder, setSelectedFolder] = useState<string>("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -1593,6 +1610,37 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     if (next) setOfflineState(next);
   }
 
+  async function refreshOfflineCacheStatus() {
+    if (!offlineUsername) return;
+    const next = await getOfflineCacheStatus(offlineUsername).catch(() => null);
+    if (next) setOfflineCacheStatus(next);
+  }
+
+  async function toggleOfflinePin(target: { type: "file" | "folder"; path: string }) {
+    if (!offlineUsername) return;
+    const kind = target.type === "file" ? "document" : "folder";
+    const currentlyPinned = offlineCacheStatus.pinned.some((pin) => pin.kind === kind && pin.path === target.path);
+    const next = await setOfflinePin(offlineUsername, kind, target.path, !currentlyPinned, { sort, order });
+    setOfflineCacheStatus(next);
+    setStatusKey(!currentlyPinned ? "offline.pinStarted" : "offline.pinRemoved");
+  }
+
+  async function toggleFullLibraryOffline() {
+    if (!offlineUsername) return;
+    const next = await setFullLibraryOffline(offlineUsername, !offlineCacheStatus.fullLibrary, { sort, order });
+    setOfflineCacheStatus(next);
+    setStatusKey(!offlineCacheStatus.fullLibrary ? "offline.fullStarted" : "offline.fullRemoved");
+  }
+
+  async function updateOfflineCacheNow() {
+    if (!offlineUsername) return;
+    const next = await warmOfflineCache(offlineUsername, { sort, order });
+    setOfflineCacheStatus(next);
+    if (!next.progress.lastError) {
+      setStatusKey("offline.cacheUpdated", { count: next.cachedDocumentCount });
+    }
+  }
+
   async function refreshOpenTabsAfterSync() {
     const paths = tabsRef.current
       .filter((tab) => !tab.isDraft)
@@ -1646,22 +1694,38 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     status.kind === "key"
       ? status === READY_STATUS ? "" : t(status.key, status.params)
       : status.text;
+  const offlineCacheProgress = offlineCacheStatus.progress;
+  const offlineCacheLabel = offlineCacheProgress.running
+    ? (typeof offlineCacheProgress.total === "number"
+      ? t("offline.cacheProgress", { done: offlineCacheProgress.done, total: offlineCacheProgress.total })
+      : t("offline.cacheBusy"))
+    : "";
   const offlineLabel = offlineState.conflictCount > 0
     ? t("offline.conflicts", { count: offlineState.conflictCount })
     : offlineState.syncing
       ? t("offline.syncing")
       : offlineState.pendingCount > 0
         ? t("offline.pending", { count: offlineState.pendingCount })
-        : (!offlineState.isOnline || props.offlineAuth)
-          ? t("offline.offline")
-          : "";
+        : offlineCacheLabel || ((!offlineState.isOnline || props.offlineAuth)
+            ? t("offline.offline")
+            : "");
   const visibleStatusLabel = statusLabel || offlineLabel;
   // A status ends with the ellipsis when it represents an in-flight
   // operation (Saving\u2026, Uploading\u2026 etc.). Those should stay
   // visible until the operation completes; transient statuses like
   // "Saved" or "Image saved to attachments" auto-fade after 2.5 s.
   const statusIsPending = statusLabel.endsWith("\u2026");
-  const visibleStatusIsPending = statusIsPending || offlineState.syncing;
+  const visibleStatusIsPending = statusIsPending || offlineState.syncing || offlineCacheProgress.running;
+  const activeOfflinePinned = active && !active.isDraft
+    ? offlineCacheStatus.pinned.some((pin) => pin.kind === "document" && pin.path === active.path)
+    : false;
+  const selectedFolderPinned = selectedFolder
+    ? offlineCacheStatus.pinned.some((pin) => pin.kind === "folder" && pin.path === selectedFolder)
+    : false;
+
+  function isOfflinePinnedTarget(kind: "document" | "folder", path: string): boolean {
+    return offlineCacheStatus.pinned.some((pin) => pin.kind === kind && pin.path === path);
+  }
 
   // Derive local copy indicator (for float under toolbar button and result text in menus)
   // directly from the existing status state/keys. No extra state.
@@ -1677,22 +1741,30 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     if (!offlineUsername) return;
     void refreshOfflineState();
+    void refreshOfflineCacheStatus();
     const removeOfflineListener = addOfflineStateListener((event) => {
       if (event.username === offlineUsername) setOfflineState(event.state);
     });
+    const removeOfflineCacheListener = addOfflineCacheListener((event) => {
+      if (event.username === offlineUsername) setOfflineCacheStatus(event.status);
+    });
     const onOnline = () => {
       void runOfflineSync({ refreshTree: true });
+      void warmOfflineCache(offlineUsername, { sort, order });
     };
     const onOffline = () => {
       void refreshOfflineState();
+      void refreshOfflineCacheStatus();
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
     if (navigator.onLine) {
       void runOfflineSync({ refreshTree: true });
+      void warmOfflineCache(offlineUsername, { sort, order });
     }
     return () => {
       removeOfflineListener();
+      removeOfflineCacheListener();
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
@@ -3138,6 +3210,8 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           x={nodeMenu.x}
           y={nodeMenu.y}
           node={nodeMenu.node}
+          offlinePinned={isOfflinePinnedTarget(nodeMenu.node.type === "file" ? "document" : "folder", nodeMenu.node.path)}
+          fullLibraryOffline={offlineCacheStatus.fullLibrary}
           onClose={closeNodeMenu}
           onOpen={() => {
             if (nodeMenu.node.type === "file") {
@@ -3157,6 +3231,10 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
           onMove={() => {
             if (isMobile) closeOverlays();
             openMove(nodeMenu.node);
+            closeNodeMenu();
+          }}
+          onToggleOffline={() => {
+            void toggleOfflinePin(nodeMenu.node);
             closeNodeMenu();
           }}
           onDelete={() => {
@@ -3504,6 +3582,24 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                   <button
                     type="button"
                     role="menuitem"
+                    disabled={offlineCacheStatus.fullLibrary && !activeOfflinePinned}
+                    onClick={() => {
+                      closeCommandMenu();
+                      if (active) void toggleOfflinePin({ type: "file", path: active.path });
+                    }}
+                  >
+                    <DownloadIcon />
+                    <span>
+                      {offlineCacheStatus.fullLibrary && !activeOfflinePinned
+                        ? t("offline.includedByFullLibrary")
+                        : activeOfflinePinned
+                          ? t("offline.unpinActive")
+                          : t("offline.pinActive")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
                     className="danger"
                     onClick={() => {
                       closeCommandMenu();
@@ -3518,6 +3614,50 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
               <hr />
             </>
           ) : null}
+          {selectedFolder ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={offlineCacheStatus.fullLibrary && !selectedFolderPinned}
+              onClick={() => {
+                closeCommandMenu();
+                void toggleOfflinePin({ type: "folder", path: selectedFolder });
+              }}
+            >
+              <DownloadIcon />
+              <span>
+                {offlineCacheStatus.fullLibrary && !selectedFolderPinned
+                  ? t("offline.includedByFullLibrary")
+                  : selectedFolderPinned
+                    ? t("offline.unpinFolder")
+                    : t("offline.pinFolder")}
+              </span>
+            </button>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              closeCommandMenu();
+              void toggleFullLibraryOffline();
+            }}
+          >
+            <DownloadIcon />
+            <span>{offlineCacheStatus.fullLibrary ? t("offline.disableFullLibrary") : t("offline.enableFullLibrary")}</span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={offlineCacheStatus.progress.running || (!offlineCacheStatus.fullLibrary && offlineCacheStatus.pinned.length === 0)}
+            onClick={() => {
+              closeCommandMenu();
+              void updateOfflineCacheNow();
+            }}
+          >
+            {offlineCacheStatus.progress.running ? <SpinnerIcon /> : <RefreshIcon />}
+            <span>{t("offline.cacheNow")}</span>
+          </button>
+          <hr />
           <button
             type="button"
             role="menuitem"
@@ -3690,6 +3830,23 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                     </button>
                     <button
                       type="button"
+                      disabled={offlineCacheStatus.fullLibrary && !activeOfflinePinned}
+                      onClick={() => {
+                        setCommandSheetOpen(false);
+                        if (active) void toggleOfflinePin({ type: "file", path: active.path });
+                      }}
+                    >
+                      <span className="action-sheet-icon" aria-hidden="true"><DownloadIcon /></span>
+                      <span>
+                        {offlineCacheStatus.fullLibrary && !activeOfflinePinned
+                          ? t("offline.includedByFullLibrary")
+                          : activeOfflinePinned
+                            ? t("offline.unpinActive")
+                            : t("offline.pinActive")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
                       className="danger"
                       onClick={() => {
                         setCommandSheetOpen(false);
@@ -3713,6 +3870,48 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
                 on mobile they still switch the full view since a
                 centered modal would be unusable on a small screen. */}
             <div className="action-sheet-group">
+              {selectedFolder ? (
+                <button
+                  type="button"
+                  disabled={offlineCacheStatus.fullLibrary && !selectedFolderPinned}
+                  onClick={() => {
+                    setCommandSheetOpen(false);
+                    void toggleOfflinePin({ type: "folder", path: selectedFolder });
+                  }}
+                >
+                  <span className="action-sheet-icon" aria-hidden="true"><DownloadIcon /></span>
+                  <span>
+                    {offlineCacheStatus.fullLibrary && !selectedFolderPinned
+                      ? t("offline.includedByFullLibrary")
+                      : selectedFolderPinned
+                        ? t("offline.unpinFolder")
+                        : t("offline.pinFolder")}
+                  </span>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setCommandSheetOpen(false);
+                  void toggleFullLibraryOffline();
+                }}
+              >
+                <span className="action-sheet-icon" aria-hidden="true"><DownloadIcon /></span>
+                <span>{offlineCacheStatus.fullLibrary ? t("offline.disableFullLibrary") : t("offline.enableFullLibrary")}</span>
+              </button>
+              <button
+                type="button"
+                disabled={offlineCacheStatus.progress.running || (!offlineCacheStatus.fullLibrary && offlineCacheStatus.pinned.length === 0)}
+                onClick={() => {
+                  setCommandSheetOpen(false);
+                  void updateOfflineCacheNow();
+                }}
+              >
+                <span className="action-sheet-icon" aria-hidden="true">
+                  {offlineCacheStatus.progress.running ? <SpinnerIcon /> : <RefreshIcon />}
+                </span>
+                <span>{t("offline.cacheNow")}</span>
+              </button>
               {isMobile ? (
                 <button
                   type="button"
@@ -4480,10 +4679,13 @@ function TreeNodeMenu(props: {
   x: number;
   y: number;
   node: { type: "file" | "folder"; path: string; name: string };
+  offlinePinned: boolean;
+  fullLibraryOffline: boolean;
   onClose: () => void;
   onOpen: () => void;
   onRename: () => void;
   onMove: () => void;
+  onToggleOffline: () => void;
   onDelete: () => void;
   onNewNoteHere: () => void;
   onNewFolderHere: () => void;
@@ -4570,6 +4772,18 @@ function TreeNodeMenu(props: {
       </button>
       <button type="button" role="menuitem" onClick={props.onCopyPath}>
         {t("tree.menu.copyPath")}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={props.fullLibraryOffline && !props.offlinePinned}
+        onClick={props.onToggleOffline}
+      >
+        {props.fullLibraryOffline && !props.offlinePinned
+          ? t("tree.menu.offlineIncluded")
+          : props.offlinePinned
+            ? t("tree.menu.offlineRemove")
+            : t("tree.menu.offlineMake")}
       </button>
       <hr />
       <button type="button" role="menuitem" className="danger" onClick={props.onDelete}>
