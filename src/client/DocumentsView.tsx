@@ -54,6 +54,7 @@ import {
   getDocumentCount as offlineGetDocumentCount,
   getDocumentTree as offlineGetDocumentTree,
   getOfflineCacheStatus,
+  getOfflineCacheResumePlan,
   getOfflineState,
   readDocument as offlineReadDocument,
   renameDocument as offlineRenameDocument,
@@ -1741,7 +1742,17 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
   useEffect(() => {
     if (!offlineUsername) return;
     void refreshOfflineState();
-    void refreshOfflineCacheStatus();
+    void getOfflineCacheStatus(offlineUsername).then((status) => {
+      setOfflineCacheStatus(status);
+      if (!navigator.onLine) return;
+      const resumePlan = getOfflineCacheResumePlan(status);
+      if (!resumePlan) return;
+      void warmOfflineCache(offlineUsername, {
+        sort,
+        order,
+        targets: resumePlan.scope === "targets" ? resumePlan.targets : undefined
+      });
+    }).catch(() => undefined);
     const removeOfflineListener = addOfflineStateListener((event) => {
       if (event.username === offlineUsername) setOfflineState(event.state);
     });
@@ -1760,7 +1771,6 @@ export function DocumentsView(props: DocumentsViewProps = {}) {
     window.addEventListener("offline", onOffline);
     if (navigator.onLine) {
       void runOfflineSync({ refreshTree: true });
-      void warmOfflineCache(offlineUsername, { sort, order });
     }
     return () => {
       removeOfflineListener();

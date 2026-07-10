@@ -55,6 +55,10 @@ export interface OfflineCacheStatus {
   cachedFolderCount: number;
 }
 
+export type OfflineCacheResumePlan =
+  | { scope: "fullLibrary" }
+  | { scope: "targets"; targets: Array<{ kind: OfflinePinKind; path: string }> };
+
 type OfflineOperation =
   | {
       id: string;
@@ -985,6 +989,16 @@ export async function getOfflineCacheStatus(username: string): Promise<OfflineCa
     cachedDocumentCount: docs.filter((record) => !record.deleted).length,
     cachedFolderCount: folders.length
   };
+}
+
+export function getOfflineCacheResumePlan(status: OfflineCacheStatus): OfflineCacheResumePlan | null {
+  if (status.fullLibrary) {
+    return status.fullLibraryCachedAt ? null : { scope: "fullLibrary" };
+  }
+  const targets = status.pinned
+    .filter((pin) => !pin.cachedAt || pin.lastError)
+    .map(({ kind, path }) => ({ kind, path }));
+  return targets.length > 0 ? { scope: "targets", targets } : null;
 }
 
 function offlineTreeEntry(entry: DocumentTreeEntry): DocumentTreeEntry {
